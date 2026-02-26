@@ -1,0 +1,5 @@
+{
+  "tickers": ["AAPL", "NVDA", "MSFT", "AMD", "GOOGL", "AMZN", "TSLA", "META"],
+  "comparison_pairs": [["NVDA", "AMD"], ["AAPL", "MSFT"], ["GOOGL", "META"]],
+  "earnings_watch": ["AAPL", "NVDA", "MSFT"]
+}

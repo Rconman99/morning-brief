@@ -1,0 +1,31 @@
+date,ticker,direction,entry_price,exit_price,pnl,hold_time_hours,rationale
+2026-01-02,AAPL,long,185.20,189.50,430.00,6.5,Strong momentum after holiday gap up
+2026-01-02,NVDA,long,490.00,502.00,1200.00,4.0,AI sector rotation play
+2026-01-03,MSFT,long,375.00,379.50,450.00,8.0,Cloud earnings beat expectation
+2026-01-05,AMD,long,142.00,146.80,480.00,24.0,Breakout above resistance level
+2026-01-06,AAPL,long,190.00,186.50,-350.00,3.0,Tuesday reversal caught wrong side
+2026-01-06,NVDA,short,505.00,510.00,-500.00,2.5,Failed breakdown attempt on Tuesday
+2026-01-07,META,long,520.00,532.00,1200.00,48.0,Ad revenue catalyst from earnings preview
+2026-01-08,TSLA,long,255.00,262.00,700.00,12.0,Delivery numbers beat
+2026-01-09,AAPL,long,187.50,191.00,350.00,5.5,Bounce off support level
+2026-01-12,AMD,long,148.00,153.00,500.00,72.0,Data center demand thesis
+2026-01-13,MSFT,short,380.00,384.00,-400.00,4.0,Tuesday fade setup failed
+2026-01-13,TSLA,long,260.00,255.50,-450.00,6.0,Tuesday chop lost discipline
+2026-01-14,TSLA,short,256.00,260.50,-450.00,4.5,Afternoon revenge trade after morning loss
+2026-01-15,TSLA,long,259.00,254.00,-500.00,3.0,Morning revenge trade doubling down
+2026-01-15,TSLA,short,255.00,259.50,-450.00,2.0,Afternoon revenge trade panic flip
+2026-01-16,NVDA,long,510.00,518.00,800.00,28.0,
+2026-01-19,META,long,535.00,542.00,700.00,8.0,Instagram Reels monetization news
+2026-01-20,AAPL,short,192.00,195.00,-300.00,5.0,Tuesday reversal pattern
+2026-01-20,AMD,long,155.00,151.00,-400.00,3.5,Tuesday breakout fakeout
+2026-01-21,NVDA,long,515.00,523.00,800.00,36.0,Chip sector momentum continuation
+2026-01-22,MSFT,long,382.00,388.00,600.00,,Azure growth catalyst
+2026-01-23,META,long,540.00,548.00,800.00,120.0,Swing trade on ad spend recovery
+2026-01-26,AAPL,long,193.00,198.00,500.00,48.0,Services revenue growth thesis
+2026-01-27,NVDA,short,525.00,530.00,-500.00,1.5,Tuesday end-of-month selling expected
+2026-01-27,AMD,short,153.00,157.00,-400.00,2.0,Tuesday sympathy fade failed
+2026-01-28,TSLA,long,258.00,265.00,700.00,24.0,FSD update announcement
+2026-01-29,META,long,550.00,556.00,600.00,6.0,
+2026-01-29,MSFT,long,390.00,395.50,550.00,10.5,Copilot enterprise adoption ramp
+2026-01-30,NVDA,long,528.00,540.00,1200.00,48.0,Data center GPU supply improving
+2026-01-31,AMD,long,158.00,162.50,450.00,0.5,Scalp on EPYC server announcement

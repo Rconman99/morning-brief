@@ -1,0 +1,9 @@
+{
+  "holdings": [
+    {"ticker": "NVDA", "shares": 50, "cost_basis": 485.00, "date_acquired": "2025-06-15"},
+    {"ticker": "AAPL", "shares": 100, "cost_basis": 178.50, "date_acquired": "2025-03-20"},
+    {"ticker": "VOO", "shares": 25, "cost_basis": 420.00, "date_acquired": "2024-11-01"}
+  ],
+  "cash": 15000,
+  "options_positions": []
+}

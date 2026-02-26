@@ -1,0 +1,8 @@
+{
+  "correlation_alert_threshold": 0.80,
+  "atr_multiplier_default": 2.0,
+  "min_correlation_days": 60,
+  "max_api_calls_per_run": 20,
+  "cache_expiry_hours": 24,
+  "output_format": "markdown"
+}

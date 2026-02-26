@@ -1,0 +1,93 @@
+"""Tests for morning_brief module."""
+
+import sys
+from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+import json
+import pytest
+from unittest.mock import patch
+
+from modules.morning_brief import generate_brief, determine_verdict, main
+
+
+def test_generate_brief_with_mock_data(mock_envelopes, tmp_path):
+    """Test brief generation using mock_envelopes fixture from conftest."""
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+
+    brief = generate_brief(processed_dir=mock_envelopes, outputs_dir=outputs)
+    assert "Morning Brief" in brief
+    assert "Module Status" in brief
+    assert "Trade Journal" in brief
+    assert "Earnings Tone" in brief
+    assert "Valuation" in brief
+    assert "Portfolio" in brief
+    assert "Options" in brief
+    assert "financial advice" in brief.lower()
+
+
+def test_generate_brief_missing_modules(tmp_path):
+    """Brief should still generate when some modules are missing."""
+    empty_processed = tmp_path / "processed"
+    empty_processed.mkdir()
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+
+    brief = generate_brief(processed_dir=empty_processed, outputs_dir=outputs)
+    assert "Morning Brief" in brief
+    assert "Data unavailable" in brief
+
+
+def test_determine_verdict_hold():
+    verdict, _ = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+    )
+    assert verdict == "HOLD"
+
+
+def test_determine_verdict_sell():
+    """Trailing stop within 5% of price should trigger SELL."""
+    verdict, _ = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 100, "trailing_stop": 96}]},
+    )
+    assert verdict == "SELL"
+
+
+def test_determine_verdict_avoid_tone():
+    """Tone score <= -2 should trigger AVOID."""
+    verdict, _ = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": [{"ticker": "AAPL", "tone_score": -3.0}]},
+        {"holdings": []},
+    )
+    assert verdict == "AVOID"
+
+
+def test_determine_verdict_review():
+    """No data at all should trigger REVIEW."""
+    verdict, _ = determine_verdict("AAPL", {"comparisons": []}, {"results": []}, {"holdings": []})
+    assert verdict == "REVIEW"
+
+
+def test_main_creates_output(mock_envelopes, tmp_path):
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+
+    with patch("modules.morning_brief.PROCESSED_DIR", mock_envelopes), \
+         patch("modules.morning_brief.OUTPUTS_DIR", outputs):
+        main()
+
+    md_files = list(outputs.glob("morning_brief_*.md"))
+    assert len(md_files) == 1
+    content = md_files[0].read_text()
+    assert "Morning Brief" in content
+    assert "financial advice" in content.lower()

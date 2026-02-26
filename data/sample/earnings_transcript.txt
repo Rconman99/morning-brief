@@ -1,0 +1,28 @@
+APPLE INC. (AAPL) Q1 FISCAL YEAR 2026 EARNINGS CALL TRANSCRIPT
+Date: January 30, 2026
+
+OPERATOR: Good afternoon and welcome to Apple's First Quarter Fiscal Year 2026 Earnings Conference Call. I would now like to turn the call over to Tim, Chief Executive Officer. Please go ahead.
+
+CEO (TIM): Thank you. Good afternoon, everyone, and thanks for joining us. We are thrilled to report a record quarter for Apple. Revenue came in at one hundred twenty-four point three billion dollars, representing nine percent year-over-year growth. This was driven by exceptional performance across our Services segment, which reached an all-time high of twenty-six point eight billion. We are confident in our services trajectory and we believe the flywheel between hardware and services continues to strengthen.
+
+iPhone revenue grew six percent, fueled by strong demand for the iPhone 17 Pro lineup. We are committed to delivering the best smartphone experience in the world, and customer satisfaction scores remain at ninety-eight percent. Our installed base has now surpassed two point three billion active devices globally. We have decided to accelerate our investment in Apple Intelligence features, which we will roll out across all product lines over the coming quarters. Our plan is to integrate on-device AI into every major application by the end of this fiscal year.
+
+I'd now like to turn it over to our Chief Financial Officer for the financial details.
+
+CFO: Thank you, Tim. As Tim mentioned, total revenue was one hundred twenty-four point three billion dollars. Gross margin came in at forty-six point two percent, up seventy basis points from the year-ago quarter. We are certain that our services mix shift will continue to be a tailwind for margins over time.
+
+However, we expect some pressure on hardware margins in the near term due to increased component costs for our custom silicon. We anticipate headwinds from semiconductor supply constraints, particularly for advanced packaging at three-nanometer nodes. Additionally, we believe regulatory costs in the EU related to the Digital Markets Act may impact operating expenses by approximately two hundred to three hundred million dollars this fiscal year.
+
+Looking at our geographic performance, Greater China revenue was flat year-over-year. We see potentially slower growth in Greater China as the macroeconomic recovery remains uneven. We might face additional challenges from local competitors gaining share in the mid-range smartphone segment.
+
+Operating cash flow was thirty-seven billion dollars, and we returned over twenty-five billion to shareholders through dividends and buybacks during the quarter.
+
+For Q2 guidance, we expect revenue between one hundred eighteen and one hundred twenty-two billion, reflecting typical seasonal patterns. We are making significant investments in AI infrastructure, but it might take several quarters to see the full revenue impact from these initiatives.
+
+ANALYST QUESTION: Tim, can you give us more color on your AI spending plans and when you expect to see returns?
+
+CEO (TIM): Great question. Look, we are making significant investments in AI and machine learning capabilities. We believe artificial intelligence represents a generational opportunity. However, I want to be transparent — it could take time for these investments to translate directly into revenue. The uncertainty around AI monetization timelines is something the entire industry faces. We may need to iterate on our business models as the technology matures. That said, we are confident that Apple is uniquely positioned given our installed base and our focus on privacy-first AI experiences.
+
+There are certainly risk factors we are monitoring. The global semiconductor supply chain remains a challenge, and there is ongoing uncertainty about the regulatory environment in multiple jurisdictions. We also face headwinds from currency fluctuations, particularly the weakening of the yuan and euro against the dollar. Despite these pressures, we believe Apple's ecosystem strength and brand loyalty provide a durable competitive advantage.
+
+OPERATOR: This concludes Apple's Q1 Fiscal Year 2026 Earnings Conference Call. Thank you for joining us.
