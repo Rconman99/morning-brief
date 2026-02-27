@@ -2,6 +2,9 @@
 
 Requires manual transcript input. No free API for transcripts.
 Place transcripts at data/raw/earnings/{TICKER}_transcript.txt
+
+When ANTHROPIC_API_KEY is set, uses Claude for semantic analysis.
+Otherwise falls back to regex phrase counting.
 """
 
 import sys
@@ -11,9 +14,15 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import json
 import logging
+import os
 import re
 
+import anthropic
+from dotenv import load_dotenv
+
 from lib.data_envelope import create_envelope, save_envelope
+
+load_dotenv(PROJECT_ROOT / ".env")
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +37,35 @@ DEFINITIVE_PHRASES = [
 ]
 
 RISK_KEYWORDS = ["risk", "headwind", "challenge", "uncertainty", "decline", "pressure"]
+
+EARNINGS_PROMPT = """Analyze this earnings call transcript for {ticker}. Return a JSON object:
+{{
+  "tone_score": <float -5 to +5, negative=bearish/hedging, positive=bullish/confident>,
+  "confidence_score": <float 0 to 1, ratio of confident vs hedging language>,
+  "hedge_count": <int, number of hedging/uncertain statements>,
+  "definitive_count": <int, number of confident/definitive statements>,
+  "risk_factors": [<string>, ...up to 5 key risks mentioned],
+  "summary": "<2-3 sentence summary of management tone and key takeaways>"
+}}
+
+Scoring guide:
+- -5: Extremely bearish, crisis language, major downgrades
+- -2 to -1: Cautious hedging, soft guidance, multiple caveats
+- 0: Balanced/neutral
+- +1 to +2: Cautiously optimistic, raised guidance, confident tone
+- +5: Extremely bullish, blowout results, aggressive forward guidance
+
+Focus on: forward guidance strength, management confidence level, risk acknowledgment vs. dismissal, specific vs. vague commitments.
+Return ONLY the JSON object, no other text."""
+
+REQUIRED_FIELDS = {
+    "tone_score": (int, float),
+    "confidence_score": (int, float),
+    "hedge_count": (int,),
+    "definitive_count": (int,),
+    "risk_factors": (list,),
+    "summary": (str,),
+}
 
 
 def setup_logging():
@@ -44,8 +82,22 @@ def setup_logging():
         )
 
 
-def analyze_transcript(text: str, ticker: str) -> dict:
-    """Analyze a single earnings transcript for tone and risk factors."""
+def _validate_ai_response(data: dict) -> bool:
+    """Validate that AI response has all required fields with correct types."""
+    for field, types in REQUIRED_FIELDS.items():
+        if field not in data:
+            return False
+        if not isinstance(data[field], types):
+            return False
+    if not (-5 <= data["tone_score"] <= 5):
+        return False
+    if not (0 <= data["confidence_score"] <= 1):
+        return False
+    return True
+
+
+def analyze_transcript_regex(text: str, ticker: str) -> dict:
+    """Analyze a single earnings transcript using regex phrase counting."""
     text_lower = text.lower()
 
     hedge_count = sum(text_lower.count(phrase) for phrase in HEDGE_PHRASES)
@@ -89,6 +141,63 @@ def analyze_transcript(text: str, ticker: str) -> dict:
         "risk_factors": risk_factors[:10],
         "summary": summary,
     }
+
+
+def analyze_transcript_ai(text: str, ticker: str) -> dict:
+    """Analyze a single earnings transcript using Claude for semantic understanding."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    client = anthropic.Anthropic(api_key=api_key)
+
+    prompt = EARNINGS_PROMPT.format(ticker=ticker)
+
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        messages=[
+            {"role": "user", "content": f"{prompt}\n\nTranscript:\n{text}"}
+        ],
+    )
+
+    response_text = message.content[0].text.strip()
+
+    # Strip markdown code fences if present
+    if response_text.startswith("```"):
+        lines = response_text.split("\n")
+        lines = [l for l in lines if not l.startswith("```")]
+        response_text = "\n".join(lines)
+
+    parsed = json.loads(response_text)
+
+    if not _validate_ai_response(parsed):
+        raise ValueError("AI response failed schema validation")
+
+    # Clamp values to valid ranges
+    parsed["tone_score"] = round(max(-5, min(5, float(parsed["tone_score"]))), 1)
+    parsed["confidence_score"] = round(max(0, min(1, float(parsed["confidence_score"]))), 4)
+    parsed["hedge_count"] = int(parsed["hedge_count"])
+    parsed["definitive_count"] = int(parsed["definitive_count"])
+    parsed["risk_factors"] = [str(r) for r in parsed["risk_factors"][:10]]
+    parsed["summary"] = str(parsed["summary"])
+    parsed["ticker"] = ticker
+
+    return parsed
+
+
+def analyze_transcript(text: str, ticker: str) -> dict:
+    """Analyze a single earnings transcript for tone and risk factors.
+
+    Uses Claude AI when ANTHROPIC_API_KEY is available, otherwise falls back
+    to regex phrase counting.
+    """
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        try:
+            result = analyze_transcript_ai(text, ticker)
+            logger.info("AI analysis succeeded for %s", ticker)
+            return result
+        except Exception as e:
+            logger.warning("AI analysis failed for %s, falling back to regex: %s", ticker, e)
+
+    return analyze_transcript_regex(text, ticker)
 
 
 def main():
