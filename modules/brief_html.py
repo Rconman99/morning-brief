@@ -361,6 +361,33 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 </div>
 """)
 
+    # ── Trading Windows Section ──
+    from modules.morning_brief import get_trading_windows
+    windows = get_trading_windows()
+    if windows:
+        parts.append('<div class="section"><div class="section-title">Trading Windows</div>')
+        for w in windows:
+            if w["is_open"]:
+                bg = "var(--green-bg)"
+                border = "var(--green)"
+                icon = "&#9679;"
+                label = f"OPEN — closes {_esc(w['close'])}"
+            else:
+                bg = "var(--red-bg)"
+                border = "var(--red)"
+                icon = "&#9679;"
+                label = f"CLOSED — opens {_esc(w['open'])}"
+            parts.append(f"""
+<div style="background:{bg};border:1px solid {border};border-radius:8px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+    <span style="color:{border};font-size:1.2rem">{icon}</span>
+    <div>
+        <span style="font-weight:700;font-size:1rem">{_esc(w['ticker'])}</span>
+        <span style="color:{border};font-weight:600;margin-left:8px">{label}</span>
+        <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:2px">{_esc(w['note'])}</div>
+    </div>
+</div>""")
+        parts.append('</div>')
+
     # ── Verdicts Section ──
     parts.append('<div class="section"><div class="section-title">Watchlist Verdicts</div>')
     parts.append('<div class="verdict-grid">')
@@ -527,7 +554,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     # ── Earnings Section ──
     parts.append('<div class="section"><div class="section-title">Earnings Tone Analysis</div>')
     if earnings["status"] in ("success", "partial"):
-        results = [r for r in earnings["data"].get("results", []) if not r.get("ticker", "").startswith("SAMPLE_")]
+        results = earnings["data"].get("results", [])
         if results:
             parts.append('<div class="card-grid">')
             for r in results:
@@ -537,9 +564,13 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 tone_pct = max(0, min(100, (tone + 5) * 10))
                 tone_color = "var(--green)" if tone > 0 else "var(--red)" if tone < -1 else "var(--yellow)"
 
+                ticker_display = r['ticker']
+                if ticker_display.startswith("SAMPLE_"):
+                    ticker_display = ticker_display.replace("SAMPLE_", "") + " (Sample)"
+
                 parts.append(f"""
 <div class="card">
-    <div class="card-header">{_esc(r['ticker'])}</div>
+    <div class="card-header">{_esc(ticker_display)}</div>
     <div class="card-row"><span class="card-label">Tone Score</span>
         <span class="card-value" style="color:{tone_color}">{tone:+.1f}</span></div>
     <div class="tone-bar"><div class="tone-fill" style="width:{tone_pct}%;background:{tone_color}"></div></div>
