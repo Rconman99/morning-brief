@@ -4,3 +4,4 @@ pandas
 yfinance
 requests
 pytest
+anthropic

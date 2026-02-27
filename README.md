@@ -13,6 +13,15 @@ Runs 6 analysis modules and compiles results into a single markdown report:
 - **Options** — Finds PMCC setups, max pain levels, and high open-interest strikes
 - **Morning Brief** — Aggregates all modules into a daily report with BUY/SELL/HOLD/AVOID verdicts
 
+## Quick Start — Set Up Your Portfolio
+
+1. Take a screenshot of your brokerage portfolio (Robinhood, Schwab, Fidelity, etc.)
+2. Run: `.venv/bin/python scripts/setup_portfolio.py path/to/screenshot.png`
+3. Review extracted holdings, confirm
+4. Run: `.venv/bin/python scripts/run_all.py`
+
+Requires `ANTHROPIC_API_KEY` in your `.env` file for the Vision extraction step.
+
 ## Setup
 
 ```bash
