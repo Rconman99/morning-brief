@@ -10,12 +10,14 @@ import logging
 from datetime import datetime
 
 from lib.data_envelope import load_envelope
+from lib.api import yahoo_finance_price_history
 
 logger = logging.getLogger(__name__)
 
 # Allow override for testing
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 OUTPUTS_DIR = PROJECT_ROOT / "data" / "outputs"
+SCORECARD_DIR = PROJECT_ROOT / "data" / "scorecard"
 
 
 def setup_logging():
@@ -109,6 +111,85 @@ def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
     return "HOLD", "Default — no strong signal in either direction"
 
 
+def _get_current_price(ticker: str) -> float | None:
+    """Get most recent close price for a ticker."""
+    df = yahoo_finance_price_history(ticker, period="5d")
+    if df.empty:
+        return None
+    return float(df["Close"].iloc[-1])
+
+
+def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
+    """Collect today's verdicts and append to verdict_log.json with dedup."""
+    pdir = processed_dir or PROCESSED_DIR
+    sdir = scorecard_dir or SCORECARD_DIR
+    sdir.mkdir(parents=True, exist_ok=True)
+
+    from lib import data_envelope
+    original_dir = data_envelope.PROCESSED_DIR
+    data_envelope.PROCESSED_DIR = pdir
+
+    valuation = load_envelope("valuation.json")
+    earnings = load_envelope("earnings_tone.json")
+    portfolio = load_envelope("portfolio.json")
+
+    data_envelope.PROCESSED_DIR = original_dir
+
+    # Collect all tickers
+    all_tickers = set()
+    for comp in valuation["data"].get("comparisons", []):
+        all_tickers.add(comp.get("stock_a", ""))
+        all_tickers.add(comp.get("stock_b", ""))
+    for h in portfolio["data"].get("holdings", []):
+        all_tickers.add(h.get("ticker", ""))
+    all_tickers.discard("")
+
+    if not all_tickers:
+        logger.info("No tickers to log verdicts for")
+        return
+
+    date_str = get_eastern_date()
+
+    # Get SPY price for benchmark
+    spy_price = _get_current_price("SPY")
+
+    # Load existing log
+    log_path = sdir / "verdict_log.json"
+    if log_path.exists():
+        try:
+            log_data = json.loads(log_path.read_text())
+        except json.JSONDecodeError:
+            log_data = {"entries": []}
+    else:
+        log_data = {"entries": []}
+
+    # Dedup set: existing (date, ticker) pairs
+    existing = {(e.get("date"), e.get("ticker")) for e in log_data.get("entries", [])}
+
+    new_count = 0
+    for ticker in sorted(all_tickers):
+        if (date_str, ticker) in existing:
+            continue
+        verdict, reason = determine_verdict(
+            ticker, valuation["data"], earnings["data"], portfolio["data"])
+        price = _get_current_price(ticker)
+        log_data["entries"].append({
+            "date": date_str,
+            "ticker": ticker,
+            "verdict": verdict,
+            "reason": reason,
+            "price_at_verdict": price,
+            "spy_price_at_verdict": spy_price,
+        })
+        new_count += 1
+
+    # Atomic write: write to temp file then rename to prevent corruption
+    tmp_path = log_path.with_suffix(".tmp")
+    tmp_path.write_text(json.dumps(log_data, indent=2))
+    tmp_path.rename(log_path)
+    logger.info("Logged %d new verdicts to %s", new_count, log_path)
+
+
 def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     """Generate the morning brief markdown from all module outputs."""
     pdir = processed_dir or PROCESSED_DIR
@@ -124,12 +205,13 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     valuation = load_envelope("valuation.json")
     portfolio = load_envelope("portfolio.json")
     options = load_envelope("options.json")
+    scorecard = load_envelope("scorecard.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
     date_str = get_eastern_date()
     modules = {"Journal": journal, "Earnings": earnings, "Valuation": valuation,
-               "Portfolio": portfolio, "Options": options}
+               "Portfolio": portfolio, "Options": options, "Scorecard": scorecard}
 
     lines = [
         f"# Morning Brief — {date_str}",
@@ -260,6 +342,32 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         lines.append("*Data unavailable*")
     lines.append("")
 
+    # Verdict Scorecard
+    lines.append("## Verdict Scorecard")
+    if scorecard["status"] in ("success", "partial"):
+        sc = scorecard["data"]
+        summary = sc.get("summary", {})
+        total_scored = summary.get("total_scored", 0)
+        win_rate = summary.get("win_rate", 0)
+        lines.append(f"- **Verdicts Evaluated**: {sc.get('evaluated_verdicts', 0)}")
+        lines.append(f"- **Total Scored**: {total_scored}")
+        if total_scored > 0:
+            lines.append(f"- **Win Rate**: {win_rate:.1%}")
+            lines.append(f"- **Wins / Losses**: {summary.get('total_wins', 0)} / {summary.get('total_losses', 0)}")
+            by_verdict = summary.get("by_verdict", {})
+            if by_verdict:
+                lines.append("- **By Verdict**:")
+                for v, stats in by_verdict.items():
+                    if v == "REVIEW":
+                        lines.append(f"  - {v}: {stats.get('tracked', 0)} tracked (unscored)")
+                    elif stats.get("scored", 0) > 0:
+                        lines.append(f"  - {v}: {stats.get('wins', 0)}/{stats['scored']} ({stats.get('win_rate', 0):.1%})")
+        else:
+            lines.append("- *No windows have elapsed yet — check back in 5 days*")
+    else:
+        lines.append("*No scorecard data yet — verdicts will be evaluated after first run*")
+    lines.append("")
+
     # Watchlist Verdicts
     lines.append("## Watchlist Verdicts")
     all_tickers = set()
@@ -297,6 +405,12 @@ def main():
     output_path = odir / f"morning_brief_{date_str}.md"
     output_path.write_text(brief)
     logger.info("Morning brief written to %s", output_path)
+
+    # Log today's verdicts for future scorecard evaluation
+    try:
+        log_verdicts()
+    except Exception as e:
+        logger.warning("Failed to log verdicts: %s", e)
 
 
 if __name__ == "__main__":

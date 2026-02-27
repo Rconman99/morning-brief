@@ -2,6 +2,7 @@
 .venv/
 data/raw/
 data/processed/
+data/scorecard/
 __pycache__/
 *.pyc
 .pytest_cache/

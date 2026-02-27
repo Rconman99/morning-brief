@@ -25,6 +25,7 @@ MODULES = [
     ("valuation", "modules/valuation.py"),
     ("portfolio", "modules/portfolio.py"),
     ("options", "modules/options.py"),
+    ("scorecard", "modules/scorecard.py"),
     ("morning_brief", "modules/morning_brief.py"),
     ("brief_html", "modules/brief_html.py"),
 ]

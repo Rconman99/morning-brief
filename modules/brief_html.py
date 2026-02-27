@@ -305,13 +305,14 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     valuation = load_envelope("valuation.json")
     portfolio = load_envelope("portfolio.json")
     options = load_envelope("options.json")
+    scorecard = load_envelope("scorecard.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
     date_str = get_eastern_date()
     modules = {
         "Journal": journal, "Earnings": earnings, "Valuation": valuation,
-        "Portfolio": portfolio, "Options": options,
+        "Portfolio": portfolio, "Options": options, "Scorecard": scorecard,
     }
 
     # Total P&L
@@ -372,6 +373,69 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     <div class="verdict-reason">{_esc(reason)}</div>
 </div>""")
     parts.append('</div></div>')
+
+    # ── Scorecard Section ──
+    parts.append('<div class="section"><div class="section-title">Verdict Scorecard</div>')
+    if scorecard["status"] in ("success", "partial"):
+        sc = scorecard["data"]
+        summary = sc.get("summary", {})
+        total_scored = summary.get("total_scored", 0)
+        win_rate = summary.get("win_rate", 0)
+        evaluated = sc.get("evaluated_verdicts", 0)
+
+        wr_display = f"{win_rate:.0%}" if total_scored > 0 else "N/A"
+        wr_color = "var(--green)" if win_rate >= 0.5 else "var(--red)" if total_scored > 0 else "var(--text-secondary)"
+
+        parts.append(f"""
+<div class="stat-row">
+    <div class="stat-box">
+        <div class="stat-number">{evaluated}</div>
+        <div class="stat-label">Verdicts Evaluated</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:{wr_color}">{wr_display}</div>
+        <div class="stat-label">Win Rate</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--green)">{summary.get('total_wins', 0)}</div>
+        <div class="stat-label">Wins</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--red)">{summary.get('total_losses', 0)}</div>
+        <div class="stat-label">Losses</div>
+    </div>
+</div>""")
+
+        by_verdict = summary.get("by_verdict", {})
+        if by_verdict and total_scored > 0:
+            parts.append('<div class="card-grid">')
+            for v, stats in by_verdict.items():
+                if v == "REVIEW":
+                    parts.append(f"""
+<div class="card">
+    <div class="card-header"><span class="verdict-label verdict-label-{v}">{v}</span></div>
+    <div class="card-row"><span class="card-label">Tracked</span>
+        <span class="card-value">{stats.get('tracked', 0)}</span></div>
+    <div class="card-row"><span class="card-label">Status</span>
+        <span class="card-value" style="color:var(--text-muted)">Unscored</span></div>
+</div>""")
+                elif stats.get("scored", 0) > 0:
+                    v_wr = stats.get("win_rate", 0)
+                    v_color = "var(--green)" if v_wr >= 0.5 else "var(--red)"
+                    parts.append(f"""
+<div class="card">
+    <div class="card-header"><span class="verdict-label verdict-label-{v}">{v}</span></div>
+    <div class="card-row"><span class="card-label">Win Rate</span>
+        <span class="card-value" style="color:{v_color}">{v_wr:.0%}</span></div>
+    <div class="card-row"><span class="card-label">Record</span>
+        <span class="card-value">{stats.get('wins', 0)}W / {stats.get('losses', 0)}L</span></div>
+</div>""")
+            parts.append('</div>')
+        elif total_scored == 0:
+            parts.append('<div class="unavailable">No evaluation windows have elapsed yet — check back in 5 days</div>')
+    else:
+        parts.append('<div class="unavailable">No scorecard data yet — verdicts will be evaluated after first run</div>')
+    parts.append('</div>')
 
     # ── Portfolio Section ──
     parts.append('<div class="section"><div class="section-title">Portfolio Holdings</div>')

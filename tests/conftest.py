@@ -55,6 +55,21 @@ def mock_envelopes(tmp_path):
             {"ticker": "AAPL", "max_pain": 190, "front_month_expiry": "2026-03-20", "pmcc": {"long_strike": 166, "short_strike": 205, "net_debit": 22.0}, "top_strikes": [{"strike": 195, "total_oi": 80000}, {"strike": 190, "total_oi": 75000}, {"strike": 200, "total_oi": 70000}]},
             {"ticker": "VOO", "skipped": True, "reason": "No options data available for ETF"},
         ]},
+        "scorecard": {
+            "evaluated_verdicts": 6,
+            "evaluation_windows": [5, 10, 30],
+            "summary": {
+                "total_scored": 8, "total_wins": 5, "total_losses": 3,
+                "win_rate": 0.625,
+                "by_verdict": {
+                    "BUY": {"scored": 3, "wins": 2, "losses": 1, "win_rate": 0.667},
+                    "HOLD": {"scored": 3, "wins": 2, "losses": 1, "win_rate": 0.667},
+                    "SELL": {"scored": 2, "wins": 1, "losses": 1, "win_rate": 0.5},
+                    "REVIEW": {"tracked": 1, "scored": 0},
+                },
+            },
+            "details": [],
+        },
     }
     for name, data in modules.items():
         envelope = {
