@@ -219,7 +219,7 @@ tr:hover td { background: var(--bg-card-hover); }
     padding: 4px 0 4px 16px; position: relative;
 }
 .risk-list li::before {
-    content: '\26A0'; position: absolute; left: 0; color: var(--yellow);
+    content: '\26A0 '; position: absolute; left: 0; color: var(--yellow);
 }
 
 /* Footer */
@@ -527,7 +527,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     # ── Earnings Section ──
     parts.append('<div class="section"><div class="section-title">Earnings Tone Analysis</div>')
     if earnings["status"] in ("success", "partial"):
-        results = earnings["data"].get("results", [])
+        results = [r for r in earnings["data"].get("results", []) if not r.get("ticker", "").startswith("SAMPLE_")]
         if results:
             parts.append('<div class="card-grid">')
             for r in results:
