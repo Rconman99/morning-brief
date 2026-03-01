@@ -31,7 +31,10 @@ def setup_logging():
 
 
 def load_trades() -> list[dict]:
-    """Load trades from raw or sample CSV."""
+    """Load trades from raw or sample CSV.
+
+    Supports both old schema (no shares/fees/strategy_tag) and new schema.
+    """
     raw_path = PROJECT_ROOT / "data" / "raw" / "trades.csv"
     sample_path = PROJECT_ROOT / "data" / "sample" / "trades.csv"
     csv_path = raw_path if raw_path.exists() else sample_path
@@ -62,14 +65,26 @@ def load_trades() -> list[dict]:
                 logger.warning("Row %d: parse error %s, skipping", i, e)
                 continue
 
+            # Shares (default 1 for backward compatibility)
+            shares_str = row.get("shares", "").strip()
+            shares = int(shares_str) if shares_str else 1
+
+            # Fees (default 0)
+            fees_str = row.get("fees", "").strip()
+            fees = float(fees_str) if fees_str else 0.0
+
+            # Strategy tag (optional)
+            strategy_tag = row.get("strategy_tag", "").strip() or None
+
+            # PnL: use provided value, or calculate from prices * shares - fees
             pnl_str = row.get("pnl", "").strip()
             if pnl_str:
                 try:
                     pnl = float(pnl_str)
                 except ValueError:
-                    pnl = exit_price - entry_price
+                    pnl = (exit_price - entry_price) * shares - fees
             else:
-                pnl = exit_price - entry_price
+                pnl = (exit_price - entry_price) * shares - fees
 
             hold_str = row.get("hold_time_hours", "").strip()
             hold_time = float(hold_str) if hold_str else "unknown"
@@ -79,10 +94,13 @@ def load_trades() -> list[dict]:
                 "day_of_week": trade_date.strftime("%A"),
                 "ticker": ticker,
                 "direction": row.get("direction", "").strip(),
+                "shares": shares,
                 "entry_price": entry_price,
                 "exit_price": exit_price,
                 "pnl": pnl,
+                "fees": fees,
                 "hold_time_hours": hold_time,
+                "strategy_tag": strategy_tag,
                 "rationale": row.get("rationale", "").strip(),
             })
 
@@ -168,11 +186,41 @@ def analyze_trades(trades: list[dict]) -> dict:
     for d in day_flags:
         checklist.append(f"RULE: Avoid trading on {d['day']}s (historically poor performance)")
 
+    # Profit metrics
+    pnl_values = [t["pnl"] for t in trades]
+    total_pnl = round(sum(pnl_values), 2)
+    win_pnls = [p for p in pnl_values if p > 0]
+    loss_pnls = [p for p in pnl_values if p <= 0]
+    avg_win_size = round(sum(win_pnls) / len(win_pnls), 2) if win_pnls else 0.0
+    avg_loss_size = round(sum(loss_pnls) / len(loss_pnls), 2) if loss_pnls else 0.0
+    total_wins_pnl = sum(win_pnls)
+    total_losses_pnl = abs(sum(loss_pnls))
+    profit_factor = round(total_wins_pnl / total_losses_pnl, 2) if total_losses_pnl > 0 else None
+    largest_winner = round(max(pnl_values), 2)
+    largest_loser = round(min(pnl_values), 2)
+
+    # Max consecutive losses
+    max_consec_losses = 0
+    current_streak = 0
+    for t in sorted(trades, key=lambda x: x["date"]):
+        if t["pnl"] <= 0:
+            current_streak += 1
+            max_consec_losses = max(max_consec_losses, current_streak)
+        else:
+            current_streak = 0
+
     return {
         "win_rate": win_rate,
         "total_trades": total,
         "winners": winners,
         "losers": total - winners,
+        "total_pnl": total_pnl,
+        "avg_win_size": avg_win_size,
+        "avg_loss_size": avg_loss_size,
+        "profit_factor": profit_factor,
+        "largest_winner": largest_winner,
+        "largest_loser": largest_loser,
+        "max_consecutive_losses": max_consec_losses,
         "day_of_week_win_rates": day_win_rates,
         "patterns": patterns,
         "checklist": checklist,

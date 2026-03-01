@@ -17,7 +17,7 @@ from lib.api import yahoo_finance_price_history
 logger = logging.getLogger(__name__)
 
 SCORECARD_DIR = PROJECT_ROOT / "data" / "scorecard"
-EVALUATION_WINDOWS = [5, 10, 30]
+EVALUATION_WINDOWS = [1, 3, 5, 10]
 
 
 def setup_logging():
@@ -61,7 +61,7 @@ def get_price_on_date(history_df: pd.DataFrame, target_date: str) -> float | Non
 
 
 def evaluate_verdicts(entries: list, today_str: str) -> dict:
-    """Evaluate past verdicts at 5/10/30-day windows against SPY benchmark.
+    """Evaluate past verdicts at 1/3/5/10-day windows against SPY benchmark.
 
     Skips entries dated today (not enough time to evaluate).
     Returns summary with win/loss counts and per-entry details.

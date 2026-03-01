@@ -1,6 +1,7 @@
 python-dotenv
 numpy
 pandas
+pandas-ta
 yfinance
 requests
 pytest

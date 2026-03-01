@@ -24,6 +24,8 @@ MODULES = [
     ("earnings", "modules/earnings.py"),
     ("valuation", "modules/valuation.py"),
     ("portfolio", "modules/portfolio.py"),
+    ("technical_signals", "modules/technical_signals.py"),
+    ("news_sentiment", "modules/news_sentiment.py"),
     ("options", "modules/options.py"),
     ("scorecard", "modules/scorecard.py"),
     ("morning_brief", "modules/morning_brief.py"),

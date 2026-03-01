@@ -28,7 +28,7 @@ def main():
     all_ok &= check("Python >= 3.11", v.major == 3 and v.minor >= 11, f"{v.major}.{v.minor}.{v.micro}")
 
     # Packages
-    packages = ["dotenv", "numpy", "pandas", "yfinance", "requests", "pytest"]
+    packages = ["dotenv", "numpy", "pandas", "pandas_ta", "yfinance", "requests", "pytest"]
     for pkg in packages:
         try:
             __import__(pkg)

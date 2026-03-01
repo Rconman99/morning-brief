@@ -2,13 +2,9 @@
 .venv/
 data/raw/
 data/processed/
+data/processed/stop_tracker.json
 data/scorecard/
 __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
-
-# Generated output files (may contain real portfolio data)
-data/outputs/*.md
-data/outputs/*.html
-data/outputs/*.log

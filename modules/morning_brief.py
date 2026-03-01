@@ -46,26 +46,69 @@ def get_eastern_date() -> str:
         return datetime.now(eastern).strftime("%Y-%m-%d")
 
 
+def get_trading_windows(config_path: Path = None) -> list[dict]:
+    """Check trading windows from portfolio.json, return status for each."""
+    cfg = config_path or (PROJECT_ROOT / "config" / "portfolio.json")
+    try:
+        portfolio = json.loads(cfg.read_text())
+    except Exception:
+        return []
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    windows = []
+    for h in portfolio.get("holdings", []):
+        tw = h.get("trading_window")
+        if not tw:
+            continue
+        open_date = tw.get("open", "")
+        close_date = tw.get("close", "")
+        is_open = open_date <= today <= close_date
+        windows.append({
+            "ticker": h["ticker"],
+            "open": open_date,
+            "close": close_date,
+            "note": tw.get("note", ""),
+            "is_open": is_open,
+        })
+    return windows
+
+
 def status_icon(status: str) -> str:
     icons = {"success": "✅", "partial": "⚠️", "error": "❌", "missing": "⬜"}
     return icons.get(status, "❓")
 
 
 def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
-                      portfolio_data: dict) -> tuple[str, str]:
-    """Determine BUY/SELL/AVOID/HOLD/REVIEW verdict using exact rules from spec."""
+                      portfolio_data: dict, technical_data: dict = None,
+                      sentiment_data: dict = None) -> tuple[str, str]:
+    """Determine BUY/SELL/AVOID/HOLD/REVIEW verdict using all data sources.
+
+    Rules (evaluated in order):
+    - SELL: trailing stop within 5% of price OR technical composite < -3
+    - AVOID: news sentiment < -0.5 OR (technical composite < -2 AND earnings tone < -1)
+    - BUY: technical composite > +2 AND sentiment >= 0 AND (cheaper on 2+ metrics OR not in comparison pair)
+    - REVIEW: < 2 data sources available
+    - HOLD: default
+    """
     val_comparisons = valuation_data.get("comparisons", [])
     earnings_results = earnings_data.get("results", [])
     holdings = portfolio_data.get("holdings", [])
+    tech_results = (technical_data or {}).get("results", [])
+    sent_results = (sentiment_data or {}).get("results", [])
 
-    # Check SELL: trailing stop within 5% of current price
-    for h in holdings:
-        if h.get("ticker") == ticker:
-            stop = h.get("trailing_stop")
-            price = h.get("current_price")
-            if stop and price and price > 0:
-                if stop / price > 0.95:
-                    return "SELL", f"Trailing stop ${stop:.2f} is within 5% of current price ${price:.2f}"
+    # Get technical composite for this ticker
+    composite = None
+    for t in tech_results:
+        if t.get("ticker") == ticker:
+            composite = t.get("composite_score")
+            break
+
+    # Get news sentiment for this ticker
+    sentiment = None
+    for s in sent_results:
+        if s.get("ticker") == ticker:
+            sentiment = s.get("sentiment_score")
+            break
 
     # Get earnings tone for this ticker
     tone_score = None
@@ -74,39 +117,75 @@ def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
             tone_score = e.get("tone_score")
             break
 
-    # Check AVOID: tone_score <= -2 OR more expensive on 4+ metrics
+    # ── SELL ──
+    # Trailing stop within 5% of current price
+    for h in holdings:
+        if h.get("ticker") == ticker:
+            stop = h.get("trailing_stop")
+            price = h.get("current_price")
+            if stop and price and price > 0:
+                if stop / price > 0.95:
+                    return "SELL", f"Trailing stop ${stop:.2f} is within 5% of current price ${price:.2f}"
+
+    # Technical composite < -3
+    if composite is not None and composite < -3:
+        return "SELL", f"Technical composite score {composite:.1f} is strongly bearish (< -3)"
+
+    # ── AVOID ──
+    # News sentiment < -0.5
+    if sentiment is not None and sentiment < -0.5:
+        return "AVOID", f"News sentiment is {sentiment:.2f} (< -0.5)"
+
+    # Technical composite < -2 AND earnings tone < -1
+    if composite is not None and composite < -2 and tone_score is not None and tone_score < -1:
+        return "AVOID", f"Technical composite {composite:.1f} and earnings tone {tone_score:.1f} both negative"
+
+    # Earnings tone <= -2 (legacy rule, still useful)
     if tone_score is not None and tone_score <= -2:
         return "AVOID", f"Earnings tone score is {tone_score} (≤ -2)"
 
-    expensive_count = 0
+    # More expensive on 4+ metrics
     for comp in val_comparisons:
         if comp.get("stock_a") == ticker and comp.get("cheaper") == comp.get("stock_b"):
-            expensive_count = comp.get("a_wins", 0)
             total_comparable = comp.get("comparable_metrics", 0)
-            if total_comparable - expensive_count >= 4:
+            a_wins = comp.get("a_wins", 0)
+            if total_comparable - a_wins >= 4:
                 return "AVOID", f"More expensive than {comp['stock_b']} on 4+ metrics"
         elif comp.get("stock_b") == ticker and comp.get("cheaper") == comp.get("stock_a"):
-            expensive_count = comp.get("b_wins", 0)
             total_comparable = comp.get("comparable_metrics", 0)
-            if total_comparable - expensive_count >= 4:
+            b_wins = comp.get("b_wins", 0)
+            if total_comparable - b_wins >= 4:
                 return "AVOID", f"More expensive than {comp['stock_a']} on 4+ metrics"
 
-    # Check BUY: cheaper on 3+ metrics AND tone > 0 (or no earnings data)
-    for comp in val_comparisons:
-        if comp.get("stock_a") == ticker and comp.get("cheaper") == ticker:
-            if comp.get("a_wins", 0) >= 3:
-                if tone_score is None or tone_score > 0:
-                    return "BUY", f"Cheaper than {comp['stock_b']} on {comp['a_wins']} metrics with positive/neutral earnings tone"
-        elif comp.get("stock_b") == ticker and comp.get("cheaper") == ticker:
-            if comp.get("b_wins", 0) >= 3:
-                if tone_score is None or tone_score > 0:
-                    return "BUY", f"Cheaper than {comp['stock_a']} on {comp['b_wins']} metrics with positive/neutral earnings tone"
+    # ── BUY ──
+    # Technical composite > +2 AND sentiment >= 0
+    if composite is not None and composite > 2:
+        if sentiment is None or sentiment >= 0:
+            # Check if cheaper on 2+ metrics OR not in any comparison pair
+            in_comparison = False
+            for comp in val_comparisons:
+                if comp.get("stock_a") == ticker or comp.get("stock_b") == ticker:
+                    in_comparison = True
+                    if comp.get("cheaper") == ticker:
+                        wins = comp.get("a_wins", 0) if comp.get("stock_a") == ticker else comp.get("b_wins", 0)
+                        if wins >= 2:
+                            return "BUY", f"Strong technicals (composite {composite:.1f}) with positive sentiment and cheaper on {wins} metrics"
+            if not in_comparison:
+                return "BUY", f"Strong technicals (composite {composite:.1f}) with positive sentiment"
 
-    # Check REVIEW: insufficient data (valuation and portfolio both missing)
-    has_valuation = len(val_comparisons) > 0
-    has_portfolio = len(holdings) > 0
-    if not has_valuation and not has_portfolio:
-        return "REVIEW", "Insufficient data to make any determination"
+    # ── REVIEW ──
+    # Count available data sources
+    sources = 0
+    if len(val_comparisons) > 0:
+        sources += 1
+    if len(holdings) > 0:
+        sources += 1
+    if composite is not None:
+        sources += 1
+    if sentiment is not None:
+        sources += 1
+    if sources < 2:
+        return "REVIEW", f"Only {sources} data source(s) available for this ticker"
 
     return "HOLD", "Default — no strong signal in either direction"
 
@@ -132,6 +211,8 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
     valuation = load_envelope("valuation.json")
     earnings = load_envelope("earnings_tone.json")
     portfolio = load_envelope("portfolio.json")
+    technical = load_envelope("technical_signals.json")
+    sentiment = load_envelope("news_sentiment.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
@@ -142,6 +223,10 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
         all_tickers.add(comp.get("stock_b", ""))
     for h in portfolio["data"].get("holdings", []):
         all_tickers.add(h.get("ticker", ""))
+    for t in technical["data"].get("results", []):
+        all_tickers.add(t.get("ticker", ""))
+    for s in sentiment["data"].get("results", []):
+        all_tickers.add(s.get("ticker", ""))
     all_tickers.discard("")
 
     if not all_tickers:
@@ -171,7 +256,8 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
         if (date_str, ticker) in existing:
             continue
         verdict, reason = determine_verdict(
-            ticker, valuation["data"], earnings["data"], portfolio["data"])
+            ticker, valuation["data"], earnings["data"], portfolio["data"],
+            technical["data"], sentiment["data"])
         price = _get_current_price(ticker)
         log_data["entries"].append({
             "date": date_str,
@@ -204,6 +290,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     earnings = load_envelope("earnings_tone.json")
     valuation = load_envelope("valuation.json")
     portfolio = load_envelope("portfolio.json")
+    technical = load_envelope("technical_signals.json")
+    sentiment = load_envelope("news_sentiment.json")
     options = load_envelope("options.json")
     scorecard = load_envelope("scorecard.json")
 
@@ -211,7 +299,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 
     date_str = get_eastern_date()
     modules = {"Journal": journal, "Earnings": earnings, "Valuation": valuation,
-               "Portfolio": portfolio, "Options": options, "Scorecard": scorecard}
+               "Portfolio": portfolio, "Technical": technical, "Sentiment": sentiment,
+               "Options": options, "Scorecard": scorecard}
 
     lines = [
         f"# Morning Brief — {date_str}",
@@ -222,6 +311,21 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     for name, env in modules.items():
         lines.append(f"- {status_icon(env['status'])} **{name}**: {env['status']}")
     lines.append("")
+
+    # Trading Windows
+    windows = get_trading_windows()
+    if windows:
+        lines.append("## Trading Windows")
+        for w in windows:
+            status = "OPEN" if w["is_open"] else "CLOSED"
+            icon = "🟢" if w["is_open"] else "🔴"
+            if w["is_open"]:
+                lines.append(f"- {icon} **{w['ticker']}**: Window {status} (closes {w['close']})")
+            else:
+                lines.append(f"- {icon} **{w['ticker']}**: Window {status} (opens {w['open']})")
+            if w["note"]:
+                lines.append(f"  - {w['note']}")
+        lines.append("")
 
     # Journal Section
     lines.append("## Trade Journal Summary")
@@ -376,13 +480,48 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         all_tickers.add(comp.get("stock_b", ""))
     for h in portfolio["data"].get("holdings", []):
         all_tickers.add(h.get("ticker", ""))
+    for t in technical["data"].get("results", []):
+        all_tickers.add(t.get("ticker", ""))
+    for s in sentiment["data"].get("results", []):
+        all_tickers.add(s.get("ticker", ""))
     all_tickers.discard("")
 
     verdict_icons = {"BUY": "🟢", "SELL": "🔴", "AVOID": "🟡", "HOLD": "⚪", "REVIEW": "🔵"}
     for ticker in sorted(all_tickers):
         verdict, reason = determine_verdict(
-            ticker, valuation["data"], earnings["data"], portfolio["data"])
+            ticker, valuation["data"], earnings["data"], portfolio["data"],
+            technical["data"], sentiment["data"])
         lines.append(f"- {verdict_icons.get(verdict, '❓')} **{ticker}**: {verdict} — {reason}")
+    lines.append("")
+
+    # Technical Signals
+    lines.append("## Technical Signals")
+    if technical["status"] in ("success", "partial"):
+        for t in technical["data"].get("results", []):
+            lines.append(f"### {t['ticker']} (Composite: {t['composite_score']:+.1f})")
+            lines.append(f"- **RSI(14)**: {t.get('rsi_14', 'N/A')}")
+            lines.append(f"- **MACD**: {t.get('macd_signal', 'N/A')} (histogram: {t.get('macd_histogram', 'N/A')})")
+            lines.append(f"- **Bollinger**: {t.get('bb_position', 'N/A')}")
+            lines.append(f"- **SMA Trend**: {t.get('sma_trend', 'N/A')}")
+            lines.append(f"- **Volume Ratio**: {t.get('volume_ratio', 'N/A')}")
+            lines.append("")
+    else:
+        lines.append("*Data unavailable*")
+    lines.append("")
+
+    # News Sentiment
+    lines.append("## News Sentiment")
+    if sentiment["status"] in ("success", "partial"):
+        for s in sentiment["data"].get("results", []):
+            score = s.get("sentiment_score", 0)
+            icon = "🟢" if score > 0.2 else "🔴" if score < -0.2 else "🟡"
+            lines.append(f"- {icon} **{s['ticker']}**: {score:+.2f} ({s.get('article_count', 0)} articles)")
+            if s.get("key_headline"):
+                lines.append(f"  - {s['key_headline']}")
+            if s.get("summary"):
+                lines.append(f"  - {s['summary']}")
+    else:
+        lines.append("*Data unavailable*")
     lines.append("")
 
     # Disclaimer

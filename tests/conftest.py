@@ -55,9 +55,29 @@ def mock_envelopes(tmp_path):
             {"ticker": "AAPL", "max_pain": 190, "front_month_expiry": "2026-03-20", "pmcc": {"long_strike": 166, "short_strike": 205, "net_debit": 22.0}, "top_strikes": [{"strike": 195, "total_oi": 80000}, {"strike": 190, "total_oi": 75000}, {"strike": 200, "total_oi": 70000}]},
             {"ticker": "VOO", "skipped": True, "reason": "No options data available for ETF"},
         ]},
+        "technical_signals": {"results": [
+            {"ticker": "NVDA", "composite_score": 1.5, "rsi_14": 62.3, "macd_signal": "bullish_crossover", "macd_histogram": 2.45, "bb_position": "middle", "sma_trend": "golden_cross", "volume_ratio": 1.2, "indicators": [
+                {"name": "RSI", "value": 62.3, "signal": "neutral", "score": 0},
+                {"name": "MACD", "value": 2.45, "signal": "bullish_crossover", "score": 1},
+                {"name": "Bollinger Bands", "value": "middle", "signal": "middle", "score": 0},
+                {"name": "SMA", "value": "golden_cross", "signal": "golden_cross", "score": 0.5},
+                {"name": "Volume", "value": 1.2, "signal": "normal", "score": 0},
+            ]},
+            {"ticker": "AAPL", "composite_score": -0.5, "rsi_14": 45.1, "macd_signal": "neutral", "macd_histogram": -0.8, "bb_position": "middle", "sma_trend": "above_200", "volume_ratio": 0.9, "indicators": [
+                {"name": "RSI", "value": 45.1, "signal": "neutral", "score": 0},
+                {"name": "MACD", "value": -0.8, "signal": "neutral", "score": 0},
+                {"name": "Bollinger Bands", "value": "middle", "signal": "middle", "score": 0},
+                {"name": "SMA", "value": "above_200", "signal": "above_200", "score": 0.5},
+                {"name": "Volume", "value": 0.9, "signal": "normal", "score": 0},
+            ]},
+        ]},
+        "news_sentiment": {"results": [
+            {"ticker": "NVDA", "sentiment_score": 0.3, "article_count": 8, "key_headline": "NVIDIA AI demand remains strong", "summary": "Positive sentiment driven by data center growth.", "method": "keyword"},
+            {"ticker": "AAPL", "sentiment_score": -0.1, "article_count": 5, "key_headline": "Apple faces regulatory headwinds in EU", "summary": "Mixed sentiment with services strength offset by regulatory concerns.", "method": "keyword"},
+        ]},
         "scorecard": {
             "evaluated_verdicts": 6,
-            "evaluation_windows": [5, 10, 30],
+            "evaluation_windows": [1, 3, 5, 10],
             "summary": {
                 "total_scored": 8, "total_wins": 5, "total_losses": 3,
                 "win_rate": 0.625,

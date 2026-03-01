@@ -92,12 +92,14 @@ def test_evaluate_buy_win():
         "date": "2026-01-10", "ticker": "NVDA", "verdict": "BUY",
         "reason": "test", "price_at_verdict": 100.0, "spy_price_at_verdict": 500.0,
     }]
-    # After 5 days: NVDA +10%, SPY +2% → BUY wins
+    # After windows: NVDA outperforms SPY → BUY wins
     histories = {
-        "NVDA": _make_history([("2026-01-10", 100.0), ("2026-01-15", 110.0),
-                               ("2026-01-20", 112.0), ("2026-02-09", 115.0)]),
-        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-15", 510.0),
-                              ("2026-01-20", 512.0), ("2026-02-09", 515.0)]),
+        "NVDA": _make_history([("2026-01-10", 100.0), ("2026-01-11", 103.0),
+                               ("2026-01-13", 106.0), ("2026-01-15", 110.0),
+                               ("2026-01-20", 112.0)]),
+        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-11", 501.0),
+                              ("2026-01-13", 502.0), ("2026-01-15", 510.0),
+                              ("2026-01-20", 512.0)]),
     }
     with patch("modules.scorecard.yahoo_finance_price_history", side_effect=_mock_histories(histories)):
         result = evaluate_verdicts(entries, "2026-02-26")
@@ -114,12 +116,14 @@ def test_evaluate_sell_win():
         "date": "2026-01-10", "ticker": "TSLA", "verdict": "SELL",
         "reason": "test", "price_at_verdict": 200.0, "spy_price_at_verdict": 500.0,
     }]
-    # After 5 days: TSLA -5%, SPY +2% → SELL was correct
+    # After windows: TSLA drops, SPY up → SELL was correct
     histories = {
-        "TSLA": _make_history([("2026-01-10", 200.0), ("2026-01-15", 190.0),
-                                ("2026-01-20", 188.0), ("2026-02-09", 185.0)]),
-        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-15", 510.0),
-                              ("2026-01-20", 512.0), ("2026-02-09", 515.0)]),
+        "TSLA": _make_history([("2026-01-10", 200.0), ("2026-01-11", 197.0),
+                                ("2026-01-13", 194.0), ("2026-01-15", 190.0),
+                                ("2026-01-20", 188.0)]),
+        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-11", 501.0),
+                              ("2026-01-13", 503.0), ("2026-01-15", 510.0),
+                              ("2026-01-20", 512.0)]),
     }
     with patch("modules.scorecard.yahoo_finance_price_history", side_effect=_mock_histories(histories)):
         result = evaluate_verdicts(entries, "2026-02-26")
@@ -135,10 +139,12 @@ def test_evaluate_review_unscored():
         "reason": "test", "price_at_verdict": 150.0, "spy_price_at_verdict": 500.0,
     }]
     histories = {
-        "AMD": _make_history([("2026-01-10", 150.0), ("2026-01-15", 155.0),
-                              ("2026-01-20", 158.0), ("2026-02-09", 160.0)]),
-        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-15", 510.0),
-                              ("2026-01-20", 512.0), ("2026-02-09", 515.0)]),
+        "AMD": _make_history([("2026-01-10", 150.0), ("2026-01-11", 151.0),
+                              ("2026-01-13", 153.0), ("2026-01-15", 155.0),
+                              ("2026-01-20", 158.0)]),
+        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-11", 500.5),
+                              ("2026-01-13", 502.0), ("2026-01-15", 510.0),
+                              ("2026-01-20", 512.0)]),
     }
     with patch("modules.scorecard.yahoo_finance_price_history", side_effect=_mock_histories(histories)):
         result = evaluate_verdicts(entries, "2026-02-26")
@@ -156,17 +162,19 @@ def test_pending_window():
         "reason": "test", "price_at_verdict": 195.0, "spy_price_at_verdict": 520.0,
     }]
     histories = {
-        "AAPL": _make_history([("2026-02-24", 195.0), ("2026-02-26", 196.0)]),
-        "SPY": _make_history([("2026-02-24", 520.0), ("2026-02-26", 521.0)]),
+        "AAPL": _make_history([("2026-02-24", 195.0), ("2026-02-25", 195.5), ("2026-02-26", 196.0)]),
+        "SPY": _make_history([("2026-02-24", 520.0), ("2026-02-25", 520.3), ("2026-02-26", 521.0)]),
     }
     with patch("modules.scorecard.yahoo_finance_price_history", side_effect=_mock_histories(histories)):
         result = evaluate_verdicts(entries, "2026-02-26")
 
     detail = result["details"][0]
-    # 5 days from Feb 24 = Mar 1, which is after "today" Feb 26
+    # 1 day from Feb 24 = Feb 25, which is before "today" Feb 26
+    # 3 days from Feb 24 = Feb 27, which is after "today" Feb 26
+    assert detail["windows"][1]["status"] in ("win", "loss", "no_data")
+    assert detail["windows"][3]["status"] == "pending"
     assert detail["windows"][5]["status"] == "pending"
     assert detail["windows"][10]["status"] == "pending"
-    assert detail["windows"][30]["status"] == "pending"
 
 
 def test_skips_today():
@@ -178,10 +186,12 @@ def test_skips_today():
          "reason": "test", "price_at_verdict": 195.0, "spy_price_at_verdict": 500.0},
     ]
     histories = {
-        "AAPL": _make_history([("2026-01-10", 195.0), ("2026-01-15", 197.0),
-                               ("2026-01-20", 198.0), ("2026-02-09", 200.0)]),
-        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-15", 502.0),
-                              ("2026-01-20", 503.0), ("2026-02-09", 505.0)]),
+        "AAPL": _make_history([("2026-01-10", 195.0), ("2026-01-11", 195.5),
+                               ("2026-01-13", 196.0), ("2026-01-15", 197.0),
+                               ("2026-01-20", 198.0)]),
+        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-11", 500.5),
+                              ("2026-01-13", 501.0), ("2026-01-15", 502.0),
+                              ("2026-01-20", 503.0)]),
     }
     with patch("modules.scorecard.yahoo_finance_price_history", side_effect=_mock_histories(histories)):
         result = evaluate_verdicts(entries, "2026-02-26")
@@ -221,10 +231,12 @@ def test_main_with_log(tmp_path):
     (scorecard_dir / "verdict_log.json").write_text(json.dumps(log))
 
     histories = {
-        "NVDA": _make_history([("2026-01-10", 100.0), ("2026-01-15", 110.0),
-                               ("2026-01-20", 112.0), ("2026-02-09", 115.0)]),
-        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-15", 510.0),
-                              ("2026-01-20", 512.0), ("2026-02-09", 515.0)]),
+        "NVDA": _make_history([("2026-01-10", 100.0), ("2026-01-11", 103.0),
+                               ("2026-01-13", 106.0), ("2026-01-15", 110.0),
+                               ("2026-01-20", 112.0)]),
+        "SPY": _make_history([("2026-01-10", 500.0), ("2026-01-11", 501.0),
+                              ("2026-01-13", 502.0), ("2026-01-15", 510.0),
+                              ("2026-01-20", 512.0)]),
     }
 
     with patch("modules.scorecard.SCORECARD_DIR", scorecard_dir), \

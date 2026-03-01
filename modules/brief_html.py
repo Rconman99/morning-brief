@@ -304,6 +304,8 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     earnings = load_envelope("earnings_tone.json")
     valuation = load_envelope("valuation.json")
     portfolio = load_envelope("portfolio.json")
+    technical = load_envelope("technical_signals.json")
+    sentiment = load_envelope("news_sentiment.json")
     options = load_envelope("options.json")
     scorecard = load_envelope("scorecard.json")
 
@@ -312,7 +314,8 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     date_str = get_eastern_date()
     modules = {
         "Journal": journal, "Earnings": earnings, "Valuation": valuation,
-        "Portfolio": portfolio, "Options": options, "Scorecard": scorecard,
+        "Portfolio": portfolio, "Technical": technical, "Sentiment": sentiment,
+        "Options": options, "Scorecard": scorecard,
     }
 
     # Total P&L
@@ -325,12 +328,17 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         all_tickers.add(comp.get("stock_b", ""))
     for h in portfolio["data"].get("holdings", []):
         all_tickers.add(h.get("ticker", ""))
+    for t in technical["data"].get("results", []):
+        all_tickers.add(t.get("ticker", ""))
+    for s in sentiment["data"].get("results", []):
+        all_tickers.add(s.get("ticker", ""))
     all_tickers.discard("")
 
     verdicts = {}
     for ticker in sorted(all_tickers):
         v, reason = determine_verdict(
-            ticker, valuation["data"], earnings["data"], portfolio["data"])
+            ticker, valuation["data"], earnings["data"], portfolio["data"],
+            technical["data"], sentiment["data"])
         verdicts[ticker] = (v, reason)
 
     # ── Build HTML ──
@@ -620,6 +628,86 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             parts.append('<div class="unavailable">No valuation comparisons</div>')
     else:
         parts.append('<div class="unavailable">Valuation data unavailable</div>')
+    parts.append('</div>')
+
+    # ── Technical Signals Section ──
+    parts.append('<div class="section"><div class="section-title">Technical Signals</div>')
+    if technical["status"] in ("success", "partial"):
+        tech_results = technical["data"].get("results", [])
+        if tech_results:
+            parts.append('<div class="card-grid">')
+            for t in tech_results:
+                comp_score = t.get("composite_score", 0)
+                if comp_score > 2:
+                    score_color = "var(--green)"
+                elif comp_score < -2:
+                    score_color = "var(--red)"
+                else:
+                    score_color = "var(--yellow)"
+
+                rsi = t.get("rsi_14")
+                rsi_color = "var(--red)" if rsi and rsi > 70 else "var(--green)" if rsi and rsi < 30 else "var(--text-primary)"
+
+                parts.append(f"""
+<div class="card">
+    <div class="card-header">{_esc(t['ticker'])}</div>
+    <div class="card-row"><span class="card-label">Composite</span>
+        <span class="card-value" style="color:{score_color}">{comp_score:+.1f}</span></div>
+    <div class="card-row"><span class="card-label">RSI(14)</span>
+        <span class="card-value" style="color:{rsi_color}">{rsi if rsi else 'N/A'}</span></div>
+    <div class="card-row"><span class="card-label">MACD</span>
+        <span class="card-value">{_esc(t.get('macd_signal', 'N/A'))}</span></div>
+    <div class="card-row"><span class="card-label">Bollinger</span>
+        <span class="card-value">{_esc(t.get('bb_position', 'N/A'))}</span></div>
+    <div class="card-row"><span class="card-label">SMA Trend</span>
+        <span class="card-value">{_esc(t.get('sma_trend', 'N/A'))}</span></div>
+    <div class="card-row"><span class="card-label">Vol Ratio</span>
+        <span class="card-value">{t.get('volume_ratio', 'N/A')}</span></div>
+</div>""")
+            parts.append('</div>')
+        else:
+            parts.append('<div class="unavailable">No technical signals data</div>')
+    else:
+        parts.append('<div class="unavailable">Technical signals unavailable</div>')
+    parts.append('</div>')
+
+    # ── News Sentiment Section ──
+    parts.append('<div class="section"><div class="section-title">News Sentiment</div>')
+    if sentiment["status"] in ("success", "partial"):
+        sent_results = sentiment["data"].get("results", [])
+        if sent_results:
+            parts.append('<div class="card-grid">')
+            for s in sent_results:
+                score = s.get("sentiment_score", 0)
+                if score > 0.2:
+                    sent_color = "var(--green)"
+                    sent_bg = "var(--green-bg)"
+                elif score < -0.2:
+                    sent_color = "var(--red)"
+                    sent_bg = "var(--red-bg)"
+                else:
+                    sent_color = "var(--yellow)"
+                    sent_bg = "var(--yellow-bg)"
+
+                parts.append(f"""
+<div class="card" style="border-left:3px solid {sent_color}">
+    <div class="card-header">{_esc(s['ticker'])}</div>
+    <div class="card-row"><span class="card-label">Sentiment</span>
+        <span class="card-value" style="color:{sent_color}">{score:+.2f}</span></div>
+    <div class="card-row"><span class="card-label">Articles</span>
+        <span class="card-value">{s.get('article_count', 0)}</span></div>""")
+                headline = s.get("key_headline", "")
+                if headline:
+                    parts.append(f'<div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">{_esc(headline[:120])}</div>')
+                summary = s.get("summary", "")
+                if summary:
+                    parts.append(f'<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px">{_esc(summary[:150])}</div>')
+                parts.append('</div>')
+            parts.append('</div>')
+        else:
+            parts.append('<div class="unavailable">No news sentiment data</div>')
+    else:
+        parts.append('<div class="unavailable">News sentiment unavailable</div>')
     parts.append('</div>')
 
     # ── Options Section ──

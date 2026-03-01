@@ -1,4 +1,4 @@
-"""Portfolio analysis: P&L, correlations, ATR, trailing stops."""
+"""Portfolio analysis: P&L, correlations, ATR, trailing stops with persistence."""
 
 import sys
 from pathlib import Path
@@ -15,6 +15,29 @@ from lib.data_envelope import create_envelope, save_envelope
 from lib.api import yahoo_finance_price_history
 
 logger = logging.getLogger(__name__)
+
+STOP_TRACKER_PATH = PROJECT_ROOT / "data" / "processed" / "stop_tracker.json"
+
+
+def load_stop_tracker(path: Path = None) -> dict:
+    """Load persisted stop tracker. Returns {} if file missing or corrupt."""
+    p = path or STOP_TRACKER_PATH
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text())
+    except (json.JSONDecodeError, OSError):
+        logger.warning("Could not parse stop_tracker.json, starting fresh")
+        return {}
+
+
+def save_stop_tracker(tracker: dict, path: Path = None) -> None:
+    """Persist stop tracker to disk."""
+    p = path or STOP_TRACKER_PATH
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(tracker, indent=2))
+    tmp.rename(p)
 
 
 def setup_logging():
@@ -58,10 +81,18 @@ def compute_atr(history: pd.DataFrame, current_price: float, period: int = 14) -
     return None
 
 
-def analyze_portfolio(holdings: list[dict], settings: dict) -> dict:
-    """Analyze portfolio holdings with price data."""
+def analyze_portfolio(holdings: list[dict], settings: dict,
+                      stop_tracker: dict = None) -> dict:
+    """Analyze portfolio holdings with price data.
+
+    Args:
+        stop_tracker: Persisted max_price tracker. If provided, trailing stops
+                      only ratchet up (never decrease). Modified in-place.
+    """
     atr_mult = settings.get("atr_multiplier_default", 2.0)
     min_corr_days = settings.get("min_correlation_days", 60)
+    if stop_tracker is None:
+        stop_tracker = {}
 
     results = []
     daily_returns = {}
@@ -83,6 +114,7 @@ def analyze_portfolio(holdings: list[dict], settings: dict) -> dict:
                 "atr": None,
                 "trailing_stop": None,
                 "locked_profit": None,
+                "max_price": None,
                 "error": "No price data available",
             })
             continue
@@ -91,8 +123,24 @@ def analyze_portfolio(holdings: list[dict], settings: dict) -> dict:
         pnl = round((current_price - cost_basis) * shares, 2)
 
         atr = compute_atr(history, current_price)
-        trailing_stop = round(current_price - (atr_mult * atr), 2) if atr else None
+
+        # Trailing stop with ratchet: max_price only goes up
+        prev_max = stop_tracker.get(ticker, {}).get("max_price", cost_basis)
+        max_price = max(current_price, prev_max)
+        trailing_stop = round(max_price - (atr_mult * atr), 2) if atr else None
+
+        # Ensure stop never decreases from previous run
+        prev_stop = stop_tracker.get(ticker, {}).get("trailing_stop")
+        if trailing_stop is not None and prev_stop is not None:
+            trailing_stop = max(trailing_stop, prev_stop)
+
         locked_profit = round((trailing_stop - cost_basis) * shares, 2) if trailing_stop else None
+
+        # Update tracker
+        stop_tracker[ticker] = {
+            "max_price": max_price,
+            "trailing_stop": trailing_stop,
+        }
 
         # Collect daily returns for correlation
         rets = history["Close"].pct_change().dropna()
@@ -107,9 +155,10 @@ def analyze_portfolio(holdings: list[dict], settings: dict) -> dict:
             "atr": atr,
             "trailing_stop": trailing_stop,
             "locked_profit": locked_profit,
+            "max_price": max_price,
         })
-        logger.info("%s: price=%.2f pnl=%.2f atr=%s stop=%s",
-                    ticker, current_price, pnl, atr, trailing_stop)
+        logger.info("%s: price=%.2f pnl=%.2f atr=%s stop=%s max=%.2f",
+                    ticker, current_price, pnl, atr, trailing_stop, max_price)
 
     # Compute pairwise correlations
     correlations = {}
@@ -159,7 +208,9 @@ def main():
     settings = json.loads(settings_path.read_text()) if settings_path.exists() else {}
     holdings = portfolio.get("holdings", [])
 
-    result = analyze_portfolio(holdings, settings)
+    tracker = load_stop_tracker()
+    result = analyze_portfolio(holdings, settings, stop_tracker=tracker)
+    save_stop_tracker(tracker)
 
     has_data = any(h.get("current_price") is not None for h in result["holdings"])
     status = "success" if has_data else "error"

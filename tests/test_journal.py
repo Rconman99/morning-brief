@@ -26,6 +26,14 @@ def test_analyze_trades_win_rate(sample_dir):
     result = analyze_trades(trades)
     assert result["total_trades"] == 30
     assert 0.5 <= result["win_rate"] <= 0.7  # ~18/30 = 0.6
+    # New profit metrics
+    assert "total_pnl" in result
+    assert "profit_factor" in result
+    assert "largest_winner" in result
+    assert "largest_loser" in result
+    assert "max_consecutive_losses" in result
+    assert result["largest_winner"] > 0
+    assert result["largest_loser"] < 0
 
 
 def test_analyze_trades_tuesday_flag(sample_dir):

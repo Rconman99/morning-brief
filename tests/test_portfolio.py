@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from unittest.mock import patch
 
-from modules.portfolio import compute_atr, analyze_portfolio, main
+from modules.portfolio import compute_atr, analyze_portfolio, main, load_stop_tracker, save_stop_tracker
 
 
 def make_mock_history(days: int = 100, base_price: float = 500.0) -> pd.DataFrame:
@@ -60,6 +60,56 @@ def test_analyze_portfolio(mock_yf):
         assert h["atr"] is not None
         assert h["trailing_stop"] is not None
     assert "NVDA_AAPL" in result["correlations"]
+
+
+@patch("modules.portfolio.yahoo_finance_price_history")
+def test_trailing_stop_ratchets_up(mock_yf):
+    """Trailing stop should only increase, never decrease when price drops."""
+    # Run 1: price at 600
+    history_high = make_mock_history(100, 500.0)
+    # Override last close to 600
+    history_high.iloc[-1, history_high.columns.get_loc("Close")] = 600.0
+    mock_yf.return_value = history_high
+
+    holdings = [{"ticker": "NVDA", "shares": 50, "cost_basis": 485.0}]
+    settings = {"atr_multiplier_default": 2.0, "min_correlation_days": 60}
+    tracker = {}
+
+    result1 = analyze_portfolio(holdings, settings, stop_tracker=tracker)
+    stop1 = result1["holdings"][0]["trailing_stop"]
+    max1 = result1["holdings"][0]["max_price"]
+    assert stop1 is not None
+    assert max1 == 600.0
+
+    # Run 2: price drops to 500
+    history_low = make_mock_history(100, 500.0)
+    history_low.iloc[-1, history_low.columns.get_loc("Close")] = 500.0
+    mock_yf.return_value = history_low
+
+    result2 = analyze_portfolio(holdings, settings, stop_tracker=tracker)
+    stop2 = result2["holdings"][0]["trailing_stop"]
+    max2 = result2["holdings"][0]["max_price"]
+
+    # max_price should stay at 600 (not drop to 500)
+    assert max2 == 600.0
+    # trailing stop should never decrease
+    assert stop2 >= stop1, f"Stop dropped from {stop1} to {stop2}"
+
+
+def test_stop_tracker_persistence(tmp_path):
+    """Test load/save round-trip of stop tracker."""
+    tracker = {"NVDA": {"max_price": 600.0, "trailing_stop": 550.0}}
+    path = tmp_path / "stop_tracker.json"
+    save_stop_tracker(tracker, path)
+    loaded = load_stop_tracker(path)
+    assert loaded["NVDA"]["max_price"] == 600.0
+    assert loaded["NVDA"]["trailing_stop"] == 550.0
+
+
+def test_stop_tracker_missing(tmp_path):
+    """Missing tracker file returns empty dict."""
+    path = tmp_path / "nonexistent.json"
+    assert load_stop_tracker(path) == {}
 
 
 @patch("modules.portfolio.yahoo_finance_price_history")

@@ -25,6 +25,8 @@ def test_generate_brief_with_mock_data(mock_envelopes, tmp_path):
     assert "Valuation" in brief
     assert "Portfolio" in brief
     assert "Options" in brief
+    assert "Technical Signals" in brief
+    assert "News Sentiment" in brief
     assert "financial advice" in brief.lower()
 
 
@@ -46,6 +48,8 @@ def test_determine_verdict_hold():
         {"comparisons": []},
         {"results": []},
         {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+        {"results": [{"ticker": "AAPL", "composite_score": 0.5}]},
+        {"results": [{"ticker": "AAPL", "sentiment_score": 0.1}]},
     )
     assert verdict == "HOLD"
 
@@ -61,19 +65,47 @@ def test_determine_verdict_sell():
     assert verdict == "SELL"
 
 
+def test_determine_verdict_sell_technical():
+    """Technical composite < -3 should trigger SELL."""
+    verdict, _ = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": []},
+        {"results": [{"ticker": "AAPL", "composite_score": -3.5}]},
+        {"results": []},
+    )
+    assert verdict == "SELL"
+
+
+def test_determine_verdict_avoid_sentiment():
+    """News sentiment < -0.5 should trigger AVOID."""
+    verdict, _ = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+        {"results": []},
+        {"results": [{"ticker": "AAPL", "sentiment_score": -0.7}]},
+    )
+    assert verdict == "AVOID"
+
+
 def test_determine_verdict_avoid_tone():
     """Tone score <= -2 should trigger AVOID."""
     verdict, _ = determine_verdict(
         "AAPL",
         {"comparisons": []},
         {"results": [{"ticker": "AAPL", "tone_score": -3.0}]},
-        {"holdings": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+        {"results": []},
+        {"results": []},
     )
     assert verdict == "AVOID"
 
 
 def test_determine_verdict_review():
-    """No data at all should trigger REVIEW."""
+    """Fewer than 2 data sources should trigger REVIEW."""
     verdict, _ = determine_verdict("AAPL", {"comparisons": []}, {"results": []}, {"holdings": []})
     assert verdict == "REVIEW"
 
