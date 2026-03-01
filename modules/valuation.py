@@ -115,6 +115,60 @@ def compare_pair(ticker_a: str, ticker_b: str) -> dict:
     }
 
 
+def scenario_valuation(ticker: str) -> dict | None:
+    """Calculate bull/base/bear fair value scenarios using yfinance data.
+
+    Uses forward PE * forward EPS estimates with sector percentile adjustments.
+    Returns None if insufficient data.
+    """
+    info = yahoo_finance_info(ticker)
+
+    forward_pe = info.get("forwardPE")
+    forward_eps = info.get("forwardEps")
+    current_price = info.get("currentPrice") or info.get("regularMarketPrice")
+    target_high = info.get("targetHighPrice")
+    target_low = info.get("targetLowPrice")
+    target_mean = info.get("targetMeanPrice")
+
+    if not forward_pe or not current_price:
+        return None
+
+    # Use analyst targets if available, otherwise estimate from PE
+    if target_high and target_low and target_mean:
+        bull_price = target_high
+        base_price = target_mean
+        bear_price = target_low
+    elif forward_eps and forward_pe:
+        bull_price = round(forward_eps * forward_pe * 1.25, 2)
+        base_price = round(forward_eps * forward_pe, 2)
+        bear_price = round(forward_eps * forward_pe * 0.75, 2)
+    else:
+        return None
+
+    bull_upside = round((bull_price - current_price) / current_price, 4)
+    base_upside = round((base_price - current_price) / current_price, 4)
+    bear_downside = round((bear_price - current_price) / current_price, 4)
+
+    if bear_downside != 0:
+        risk_reward = round(abs(bull_upside / bear_downside), 2)
+    else:
+        risk_reward = None
+
+    return {
+        "ticker": ticker,
+        "current_price": round(current_price, 2),
+        "bull_price": round(bull_price, 2),
+        "base_price": round(base_price, 2),
+        "bear_price": round(bear_price, 2),
+        "bull_upside": bull_upside,
+        "base_upside": base_upside,
+        "bear_downside": bear_downside,
+        "risk_reward": risk_reward,
+        "forward_pe": round(forward_pe, 1) if forward_pe else None,
+        "forward_eps": round(forward_eps, 2) if forward_eps else None,
+    }
+
+
 def main():
     setup_logging()
     logger.info("=== Valuation Module ===")
@@ -143,11 +197,38 @@ def main():
             logger.error("Error comparing %s vs %s: %s", pair[0], pair[1], e)
             errors += 1
 
+    # Scenario valuations for all tickers
+    all_tickers = set()
+    for pair in pairs:
+        all_tickers.update(pair)
+    portfolio_path = PROJECT_ROOT / "config" / "portfolio.json"
+    if portfolio_path.exists():
+        try:
+            pf = json.loads(portfolio_path.read_text())
+            for h in pf.get("holdings", []):
+                all_tickers.add(h["ticker"])
+        except Exception:
+            pass
+
+    scenarios = []
+    for ticker in sorted(all_tickers):
+        try:
+            scenario = scenario_valuation(ticker)
+            if scenario:
+                scenarios.append(scenario)
+                logger.info("%s: bull=$%.0f (%+.1f%%), bear=$%.0f (%+.1f%%), R/R=%.1fx",
+                            ticker, scenario["bull_price"], scenario["bull_upside"] * 100,
+                            scenario["bear_price"], scenario["bear_downside"] * 100,
+                            scenario["risk_reward"] or 0)
+        except Exception as e:
+            logger.warning("Scenario valuation failed for %s: %s", ticker, e)
+
     status = "success" if comparisons and errors == 0 else "partial" if comparisons else "error"
     error = None if comparisons else "No comparisons could be made"
-    envelope = create_envelope("valuation", {"comparisons": comparisons}, status=status, error=error)
+    data = {"comparisons": comparisons, "scenarios": scenarios}
+    envelope = create_envelope("valuation", data, status=status, error=error)
     save_envelope(envelope, "valuation.json")
-    logger.info("Valuation analysis complete: %d pairs compared", len(comparisons))
+    logger.info("Valuation analysis complete: %d pairs compared, %d scenarios", len(comparisons), len(scenarios))
 
 
 if __name__ == "__main__":

@@ -6,3 +6,4 @@ yfinance
 requests
 pytest
 anthropic
+edgartools

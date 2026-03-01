@@ -10,5 +10,10 @@
   "risk_concentration_threshold": 0.40,
   "risk_correlation_alert": 0.85,
   "risk_stop_close_pct": 0.07,
-  "risk_stop_imminent_pct": 0.03
+  "risk_stop_imminent_pct": 0.03,
+  "risk_per_trade_pct": 0.02,
+  "max_position_pct": 0.15,
+  "insider_cluster_threshold": 3,
+  "insider_lookback_days": 30,
+  "scenario_pe_percentiles": [25, 50, 75]
 }

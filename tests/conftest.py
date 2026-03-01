@@ -44,6 +44,9 @@ def mock_envelopes(tmp_path):
             {"stock_a": "NVDA", "stock_b": "AMD", "metrics": {"pe": {"NVDA": 65.2, "AMD": 45.1}, "ev_ebitda": {"NVDA": 55.0, "AMD": 32.0}}, "cheaper": "AMD", "thesis": "AMD trades at a significant discount on most valuation metrics despite strong data center growth."},
             {"stock_a": "AAPL", "stock_b": "MSFT", "metrics": {"pe": {"AAPL": 28.5, "MSFT": 34.2}}, "cheaper": "AAPL", "thesis": "AAPL is modestly cheaper on P/E but both are fairly valued."},
             {"stock_a": "GOOGL", "stock_b": "META", "metrics": {"pe": {"GOOGL": 22.1, "META": 24.5}}, "cheaper": "GOOGL", "thesis": "GOOGL is slightly cheaper with comparable growth prospects."},
+        ], "scenarios": [
+            {"ticker": "NVDA", "current_price": 900.0, "bull_price": 1100.0, "base_price": 950.0, "bear_price": 750.0, "bull_upside": 0.2222, "base_upside": 0.0556, "bear_downside": -0.1667, "risk_reward": 1.33, "forward_pe": 35.0, "forward_eps": 27.14},
+            {"ticker": "AAPL", "current_price": 195.0, "bull_price": 230.0, "base_price": 210.0, "bear_price": 170.0, "bull_upside": 0.1795, "base_upside": 0.0769, "bear_downside": -0.1282, "risk_reward": 1.40, "forward_pe": 28.0, "forward_eps": 7.50},
         ]},
         "portfolio": {"holdings": [
             {"ticker": "NVDA", "shares": 50, "cost_basis": 485.00, "current_price": 900.0, "pnl": 20750.0, "atr": 25.0, "trailing_stop": 850.0},
@@ -114,6 +117,16 @@ def mock_envelopes(tmp_path):
             "regime_note": "Favorable conditions — lean into high-conviction setups",
             "vix": 22.5, "ten_year_yield": 4.25,
         },
+        "insider_tracker": {"results": [
+            {"ticker": "NVDA", "transaction_count": 4, "signal": "active", "cluster_buy": True, "detail": "4 Form 4 filings in last 30 days", "recent_filings": []},
+            {"ticker": "AAPL", "transaction_count": 1, "signal": "normal", "cluster_buy": False, "detail": "1 Form 4 filing in last 30 days", "recent_filings": []},
+        ]},
+        "trade_memory": {"results": [
+            {"ticker": "NVDA", "fingerprint": {"rsi_bucket": "neutral", "macd_direction": "bullish_crossover", "bb_position": "middle", "sma_trend": "golden_cross", "volume_bucket": "normal"}, "match_result": {"matches": 3, "wins": 2, "losses": 1, "win_rate": 0.67, "confidence": "mixed"}, "signal": "Mixed history: 2W/1L in 3 similar setups"},
+        ]},
+        "position_sizer": {"portfolio_value": 100000, "risk_per_trade_pct": 0.02, "max_position_pct": 0.15, "positions": [
+            {"ticker": "NVDA", "recommended_shares": 12, "recommended_value": 10800, "stop_loss": 880.00, "risk_per_share": 16.67, "portfolio_pct": 0.108, "note": "Based on 2% risk with $33.34 ATR stop"},
+        ]},
         "scorecard": {
             "evaluated_verdicts": 6,
             "evaluation_windows": [1, 3, 5, 10],

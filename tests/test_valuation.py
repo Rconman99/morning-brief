@@ -9,7 +9,7 @@ import json
 import pytest
 from unittest.mock import patch
 
-from modules.valuation import get_metrics, compare_pair, main
+from modules.valuation import get_metrics, compare_pair, scenario_valuation, main
 
 
 MOCK_INFO_NVDA = {
@@ -57,6 +57,69 @@ def test_compare_pair_inconclusive(mock_yf, mock_av):
     assert result["cheaper"] == "inconclusive"
 
 
+@patch("modules.valuation.yahoo_finance_info")
+def test_scenario_valuation_with_analyst_targets(mock_yf):
+    """Scenario valuation should use analyst targets when available."""
+    mock_yf.return_value = {
+        "forwardPE": 35.0,
+        "forwardEps": 27.14,
+        "currentPrice": 900.0,
+        "targetHighPrice": 1100.0,
+        "targetLowPrice": 750.0,
+        "targetMeanPrice": 950.0,
+    }
+    result = scenario_valuation("NVDA")
+    assert result is not None
+    assert result["bull_price"] == 1100.0
+    assert result["base_price"] == 950.0
+    assert result["bear_price"] == 750.0
+    assert result["bull_upside"] > 0
+    assert result["bear_downside"] < 0
+    assert result["risk_reward"] is not None
+
+
+@patch("modules.valuation.yahoo_finance_info")
+def test_scenario_valuation_from_pe(mock_yf):
+    """Scenario valuation should estimate from PE when no analyst targets."""
+    mock_yf.return_value = {
+        "forwardPE": 30.0,
+        "forwardEps": 10.0,
+        "currentPrice": 300.0,
+    }
+    result = scenario_valuation("TEST")
+    assert result is not None
+    # bull = 10 * 30 * 1.25 = 375
+    assert result["bull_price"] == 375.0
+    # base = 10 * 30 = 300
+    assert result["base_price"] == 300.0
+    # bear = 10 * 30 * 0.75 = 225
+    assert result["bear_price"] == 225.0
+
+
+@patch("modules.valuation.yahoo_finance_info")
+def test_scenario_valuation_insufficient_data(mock_yf):
+    """Should return None when forward PE is missing."""
+    mock_yf.return_value = {"currentPrice": 100.0}
+    result = scenario_valuation("TEST")
+    assert result is None
+
+
+@patch("modules.valuation.yahoo_finance_info")
+def test_scenario_valuation_risk_reward(mock_yf):
+    """Risk/reward ratio should be abs(bull_upside / bear_downside)."""
+    mock_yf.return_value = {
+        "forwardPE": 20.0,
+        "forwardEps": 5.0,
+        "currentPrice": 100.0,
+    }
+    result = scenario_valuation("TEST")
+    assert result is not None
+    # bull = 5 * 20 * 1.25 = 125 → upside = 0.25
+    # bear = 5 * 20 * 0.75 = 75 → downside = -0.25
+    # R/R = 0.25 / 0.25 = 1.0
+    assert result["risk_reward"] == 1.0
+
+
 @patch("modules.valuation.alpha_vantage_call", return_value={})
 @patch("modules.valuation.yahoo_finance_info")
 def test_main_creates_output(mock_yf, mock_av, tmp_path):
@@ -84,3 +147,4 @@ def test_main_creates_output(mock_yf, mock_av, tmp_path):
     assert envelope["module"] == "valuation"
     assert envelope["status"] in ("success", "partial")
     assert len(envelope["data"]["comparisons"]) == 1
+    assert "scenarios" in envelope["data"]

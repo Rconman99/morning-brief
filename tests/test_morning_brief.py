@@ -29,6 +29,10 @@ def test_generate_brief_with_mock_data(mock_envelopes, tmp_path):
     assert "News Sentiment" in brief
     assert "Risk Dashboard" in brief
     assert "Opportunity Scanner" in brief
+    assert "Trade Memory" in brief
+    assert "Insider Activity" in brief
+    assert "Scenario Valuations" in brief
+    assert "Position Sizing" in brief
     assert "financial advice" in brief.lower()
 
 
@@ -133,6 +137,39 @@ def test_determine_verdict_normal_regime_allows_buy():
         {"regime": "NORMAL"},
     )
     assert verdict == "BUY"
+
+
+def test_determine_verdict_insider_boost():
+    """Insider cluster buy with positive technicals should trigger BUY."""
+    verdict, reason = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+        {"results": [{"ticker": "AAPL", "composite_score": 1.5}]},
+        {"results": [{"ticker": "AAPL", "sentiment_score": 0.1}]},
+        None,  # risk_dashboard_data
+        {"results": [{"ticker": "AAPL", "cluster_buy": True}]},  # insider_data
+    )
+    assert verdict == "BUY"
+    assert "insider" in reason.lower()
+
+
+def test_determine_verdict_scenario_rr_in_reason():
+    """Favorable R/R should appear in BUY reason."""
+    verdict, reason = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+        {"results": [{"ticker": "AAPL", "composite_score": 3.0}]},
+        {"results": [{"ticker": "AAPL", "sentiment_score": 0.5}]},
+        {"regime": "NORMAL"},
+        None,  # insider_data
+        [{"ticker": "AAPL", "risk_reward": 2.0}],  # scenario_data
+    )
+    assert verdict == "BUY"
+    assert "R/R" in reason
 
 
 def test_determine_verdict_review():

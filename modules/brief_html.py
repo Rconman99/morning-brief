@@ -310,6 +310,9 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     opportunities = load_envelope("opportunities.json")
     risk_dashboard = load_envelope("risk_dashboard.json")
     scorecard = load_envelope("scorecard.json")
+    trade_memory = load_envelope("trade_memory.json")
+    insider = load_envelope("insider_tracker.json")
+    position_sizer = load_envelope("position_sizer.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
@@ -319,6 +322,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         "Portfolio": portfolio, "Technical": technical, "Sentiment": sentiment,
         "Options": options, "Scanner": opportunities,
         "Risk": risk_dashboard, "Scorecard": scorecard,
+        "Memory": trade_memory, "Insider": insider, "Sizer": position_sizer,
     }
 
     # Total P&L
@@ -339,11 +343,15 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 
     risk_data = risk_dashboard["data"]
 
+    insider_data = insider.get("data", {})
+    scenario_data = valuation["data"].get("scenarios", [])
+
     verdicts = {}
     for ticker in sorted(all_tickers):
         v, reason = determine_verdict(
             ticker, valuation["data"], earnings["data"], portfolio["data"],
-            technical["data"], sentiment["data"], risk_data)
+            technical["data"], sentiment["data"], risk_data,
+            insider_data, scenario_data)
         verdicts[ticker] = (v, reason)
 
     # ── Build HTML ──
@@ -459,6 +467,26 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 </div>""")
     parts.append('</div></div>')
 
+    # ── Position Sizing Section ──
+    parts.append('<div class="section"><div class="section-title">Position Sizing</div>')
+    if position_sizer["status"] in ("success", "partial"):
+        ps_data = position_sizer["data"]
+        positions = [p for p in ps_data.get("positions", []) if p.get("recommended_shares", 0) > 0]
+        pv = ps_data.get("portfolio_value", 0)
+        rpt = ps_data.get("risk_per_trade_pct", 0)
+        parts.append(f'<div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px">Portfolio: ${pv:,.0f} | Risk/trade: {rpt:.0%}</div>')
+        if positions:
+            parts.append('<div class="table-wrap"><table>')
+            parts.append('<thead><tr><th>Ticker</th><th>Shares</th><th>Value</th><th>Stop</th><th>Risk/Share</th><th>% of Portfolio</th></tr></thead><tbody>')
+            for p in positions:
+                parts.append(f'<tr><td style="font-weight:600">{_esc(p["ticker"])}</td><td>{p["recommended_shares"]}</td><td>{_fmt_price(p["recommended_value"])}</td><td>{_fmt_price(p["stop_loss"])}</td><td>{_fmt_price(p["risk_per_share"])}</td><td>{p["portfolio_pct"]:.1%}</td></tr>')
+            parts.append('</tbody></table></div>')
+        else:
+            parts.append('<div class="unavailable">No position sizing recommendations</div>')
+    else:
+        parts.append('<div class="unavailable">Position sizing data unavailable</div>')
+    parts.append('</div>')
+
     # ── Opportunity Scanner Section ──
     parts.append('<div class="section"><div class="section-title">Opportunity Scanner</div>')
     if opportunities["status"] in ("success", "partial"):
@@ -502,6 +530,90 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             parts.append('</div>')
     else:
         parts.append('<div class="unavailable">Opportunity scanner data unavailable</div>')
+    parts.append('</div>')
+
+    # ── Trade Memory Section ──
+    parts.append('<div class="section"><div class="section-title">Trade Memory &mdash; Pattern Matching</div>')
+    if trade_memory["status"] in ("success", "partial"):
+        mem_results = trade_memory["data"].get("results", [])
+        notable = [r for r in mem_results if r.get("match_result", {}).get("matches", 0) > 0]
+        if notable:
+            parts.append('<div class="card-grid">')
+            for r in notable:
+                match = r["match_result"]
+                confidence = match.get("confidence", "")
+                if confidence == "high_win":
+                    border_color = "var(--green)"
+                    bg_color = "var(--green-bg)"
+                elif confidence == "high_loss":
+                    border_color = "var(--red)"
+                    bg_color = "var(--red-bg)"
+                else:
+                    border_color = "var(--yellow)"
+                    bg_color = "var(--yellow-bg)"
+                wr = match.get("win_rate")
+                wr_str = f"{wr:.0%}" if wr is not None else "N/A"
+                parts.append(f"""
+<div class="card" style="border-left:3px solid {border_color}">
+    <div class="card-header">{_esc(r['ticker'])}</div>
+    <div class="card-row"><span class="card-label">Matches</span>
+        <span class="card-value">{match.get('matches', 0)}</span></div>
+    <div class="card-row"><span class="card-label">Win Rate</span>
+        <span class="card-value" style="color:{border_color}">{wr_str}</span></div>
+    <div class="card-row"><span class="card-label">Record</span>
+        <span class="card-value">{match.get('wins', 0)}W / {match.get('losses', 0)}L</span></div>
+    <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">{_esc(r.get('signal', ''))}</div>
+</div>""")
+            parts.append('</div>')
+        else:
+            parts.append('<div class="unavailable">No matching historical patterns found</div>')
+    else:
+        parts.append('<div class="unavailable">Trade memory data unavailable</div>')
+    parts.append('</div>')
+
+    # ── Insider Activity Section ──
+    parts.append('<div class="section"><div class="section-title">Insider Activity (SEC Form 4)</div>')
+    if insider["status"] in ("success", "partial"):
+        insider_results = insider["data"].get("results", [])
+        active = [r for r in insider_results if r.get("transaction_count", 0) > 0]
+        if active:
+            parts.append('<div class="table-wrap"><table>')
+            parts.append('<thead><tr><th>Ticker</th><th>Filings</th><th>Signal</th><th>Cluster Buy</th><th>Detail</th></tr></thead><tbody>')
+            for r in active:
+                cluster_icon = '<span style="color:var(--green);font-weight:700">YES</span>' if r.get("cluster_buy") else '<span style="color:var(--text-muted)">No</span>'
+                signal_color = "var(--green)" if r.get("signal") == "active" else "var(--text-secondary)"
+                parts.append(f'<tr><td style="font-weight:600">{_esc(r["ticker"])}</td><td>{r["transaction_count"]}</td><td style="color:{signal_color}">{_esc(r.get("signal", ""))}</td><td>{cluster_icon}</td><td style="font-size:0.85rem">{_esc(r.get("detail", ""))}</td></tr>')
+            parts.append('</tbody></table></div>')
+        else:
+            parts.append('<div class="unavailable">No recent insider activity detected</div>')
+    else:
+        parts.append('<div class="unavailable">Insider tracking data unavailable</div>')
+    parts.append('</div>')
+
+    # ── Scenario Valuations Section ──
+    scenarios = valuation["data"].get("scenarios", [])
+    parts.append('<div class="section"><div class="section-title">Scenario Valuations (Bull / Base / Bear)</div>')
+    if scenarios:
+        parts.append('<div class="card-grid">')
+        for s in scenarios:
+            rr = s.get("risk_reward")
+            rr_str = f"{rr:.1f}x" if rr else "N/A"
+            rr_color = "var(--green)" if rr and rr >= 1.5 else "var(--yellow)" if rr else "var(--text-muted)"
+            parts.append(f"""
+<div class="card">
+    <div class="card-header">{_esc(s['ticker'])} <span style="font-size:0.8rem;color:var(--text-muted);font-weight:400">(${s['current_price']:,.2f})</span></div>
+    <div class="card-row"><span class="card-label" style="color:var(--green)">Bull</span>
+        <span class="card-value" style="color:var(--green)">${s['bull_price']:,.2f} ({s['bull_upside']:+.1%})</span></div>
+    <div class="card-row"><span class="card-label">Base</span>
+        <span class="card-value">${s['base_price']:,.2f} ({s['base_upside']:+.1%})</span></div>
+    <div class="card-row"><span class="card-label" style="color:var(--red)">Bear</span>
+        <span class="card-value" style="color:var(--red)">${s['bear_price']:,.2f} ({s['bear_downside']:+.1%})</span></div>
+    <div class="card-row"><span class="card-label">R/R Ratio</span>
+        <span class="card-value" style="color:{rr_color}">{rr_str}</span></div>
+</div>""")
+        parts.append('</div>')
+    else:
+        parts.append('<div class="unavailable">No scenario valuation data available</div>')
     parts.append('</div>')
 
     # ── Scorecard Section ──

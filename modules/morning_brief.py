@@ -81,7 +81,9 @@ def status_icon(status: str) -> str:
 def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
                       portfolio_data: dict, technical_data: dict = None,
                       sentiment_data: dict = None,
-                      risk_dashboard_data: dict = None) -> tuple[str, str]:
+                      risk_dashboard_data: dict = None,
+                      insider_data: dict = None,
+                      scenario_data: list = None) -> tuple[str, str]:
     """Determine BUY/SELL/AVOID/HOLD/REVIEW verdict using all data sources.
 
     Rules (evaluated in order):
@@ -159,6 +161,20 @@ def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
             if total_comparable - b_wins >= 4:
                 return "AVOID", f"More expensive than {comp['stock_a']} on 4+ metrics"
 
+    # Insider cluster buy check
+    insider_boost = False
+    for ins in (insider_data or {}).get("results", []):
+        if ins.get("ticker") == ticker and ins.get("cluster_buy"):
+            insider_boost = True
+            break
+
+    # Scenario risk/reward check
+    scenario_rr = None
+    for sc in (scenario_data or []):
+        if sc.get("ticker") == ticker:
+            scenario_rr = sc.get("risk_reward")
+            break
+
     # ── GATE: Risk regime blocks aggressive BUY ──
     regime = (risk_dashboard_data or {}).get("regime", "NORMAL")
     if regime == "DANGER":
@@ -177,9 +193,24 @@ def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
                     if comp.get("cheaper") == ticker:
                         wins = comp.get("a_wins", 0) if comp.get("stock_a") == ticker else comp.get("b_wins", 0)
                         if wins >= 2:
-                            return "BUY", f"Strong technicals (composite {composite:.1f}) with positive sentiment and cheaper on {wins} metrics"
+                            reason = f"Strong technicals (composite {composite:.1f}) with positive sentiment and cheaper on {wins} metrics"
+                            if insider_boost:
+                                reason += " + insider cluster buying"
+                            if scenario_rr and scenario_rr >= 1.5:
+                                reason += f" + favorable R/R ({scenario_rr:.1f}x)"
+                            return "BUY", reason
             if not in_comparison:
-                return "BUY", f"Strong technicals (composite {composite:.1f}) with positive sentiment"
+                reason = f"Strong technicals (composite {composite:.1f}) with positive sentiment"
+                if insider_boost:
+                    reason += " + insider cluster buying"
+                if scenario_rr and scenario_rr >= 1.5:
+                    reason += f" + favorable R/R ({scenario_rr:.1f}x)"
+                return "BUY", reason
+
+    # Insider cluster buy with positive technicals (lower threshold)
+    if insider_boost and composite is not None and composite > 1:
+        if sentiment is None or sentiment >= -0.2:
+            return "BUY", f"Insider cluster buying detected with positive technicals (composite {composite:.1f})"
 
     # ── REVIEW ──
     # Count available data sources
@@ -222,10 +253,13 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
     technical = load_envelope("technical_signals.json")
     sentiment = load_envelope("news_sentiment.json")
     risk_dashboard = load_envelope("risk_dashboard.json")
+    insider = load_envelope("insider_tracker.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
     risk_data = risk_dashboard.get("data", {})
+    insider_data = insider.get("data", {})
+    scenario_data = valuation["data"].get("scenarios", [])
 
     # Collect all tickers
     all_tickers = set()
@@ -268,7 +302,8 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
             continue
         verdict, reason = determine_verdict(
             ticker, valuation["data"], earnings["data"], portfolio["data"],
-            technical["data"], sentiment["data"], risk_data)
+            technical["data"], sentiment["data"], risk_data,
+            insider_data, scenario_data)
         price = _get_current_price(ticker)
         log_data["entries"].append({
             "date": date_str,
@@ -307,6 +342,9 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     opportunities = load_envelope("opportunities.json")
     risk_dashboard = load_envelope("risk_dashboard.json")
     scorecard = load_envelope("scorecard.json")
+    trade_memory = load_envelope("trade_memory.json")
+    insider = load_envelope("insider_tracker.json")
+    position_sizer = load_envelope("position_sizer.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
@@ -314,7 +352,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     modules = {"Journal": journal, "Earnings": earnings, "Valuation": valuation,
                "Portfolio": portfolio, "Technical": technical, "Sentiment": sentiment,
                "Options": options, "Scanner": opportunities,
-               "Risk": risk_dashboard, "Scorecard": scorecard}
+               "Risk": risk_dashboard, "Scorecard": scorecard,
+               "Memory": trade_memory, "Insider": insider, "Sizer": position_sizer}
 
     lines = [
         f"# Morning Brief — {date_str}",
@@ -535,15 +574,31 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         all_tickers.add(s.get("ticker", ""))
     all_tickers.discard("")
 
+    insider_data = insider.get("data", {})
+    scenario_data = valuation["data"].get("scenarios", [])
+
     verdict_icons = {"BUY": "🟢", "SELL": "🔴", "AVOID": "🟡", "HOLD": "⚪", "REVIEW": "🔵"}
     for ticker in sorted(all_tickers):
         verdict, reason = determine_verdict(
             ticker, valuation["data"], earnings["data"], portfolio["data"],
-            technical["data"], sentiment["data"], risk_data)
+            technical["data"], sentiment["data"], risk_data,
+            insider_data, scenario_data)
         lines.append(f"- {verdict_icons.get(verdict, '❓')} **{ticker}**: {verdict} — {reason}")
     lines.append("")
 
-    # Opportunity Scanner — after Watchlist Verdicts
+    # Position Sizing — after Watchlist Verdicts
+    if position_sizer["status"] in ("success", "partial"):
+        ps_data = position_sizer["data"]
+        positions = [p for p in ps_data.get("positions", []) if p.get("recommended_shares", 0) > 0]
+        if positions:
+            lines.append("## Position Sizing Recommendations")
+            lines.append(f"*Portfolio value: ${ps_data.get('portfolio_value', 0):,.0f} | Risk per trade: {ps_data.get('risk_per_trade_pct', 0):.0%}*")
+            lines.append("")
+            for p in positions:
+                lines.append(f"- **{p['ticker']}**: {p['recommended_shares']} shares (${p['recommended_value']:,.0f}) — stop at ${p['stop_loss']} | {p['note']}")
+            lines.append("")
+
+    # Opportunity Scanner — after Position Sizing
     if opportunities["status"] in ("success", "partial"):
         opp_data = opportunities["data"]
         lines.append("## Opportunity Scanner")
@@ -566,6 +621,50 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             for etf, data in sector.items():
                 name = sector_names.get(etf, etf)
                 lines.append(f"- {etf} ({name}): {data['change_1d']:+.1f}% today, {data['change_5d']:+.1f}% this week — {data['trend']}")
+            lines.append("")
+
+    # Trade Memory — Pattern Matching
+    if trade_memory["status"] in ("success", "partial"):
+        mem_results = trade_memory["data"].get("results", [])
+        notable = [r for r in mem_results if r.get("match_result", {}).get("matches", 0) > 0]
+        if notable:
+            lines.append("## Trade Memory — Pattern Matching")
+            for r in notable:
+                match = r["match_result"]
+                confidence = match.get("confidence", "")
+                if confidence == "high_win":
+                    icon = "🟢"
+                elif confidence == "high_loss":
+                    icon = "🔴"
+                else:
+                    icon = "🟡"
+                lines.append(f"- {icon} **{r['ticker']}**: {r['signal']}")
+            lines.append("")
+
+    # Insider Activity (SEC Form 4)
+    if insider["status"] in ("success", "partial"):
+        insider_results = insider["data"].get("results", [])
+        active = [r for r in insider_results if r.get("transaction_count", 0) > 0]
+        if active:
+            lines.append("## Insider Activity (SEC Form 4)")
+            for r in active:
+                icon = "🟢" if r.get("cluster_buy") else "⚪"
+                lines.append(f"- {icon} **{r['ticker']}**: {r['detail']}")
+                if r.get("cluster_buy"):
+                    lines.append(f"  - **CLUSTER BUY detected** — {r['transaction_count']} filings in period")
+            lines.append("")
+
+    # Scenario Valuations (Bull / Base / Bear)
+    scenarios = valuation["data"].get("scenarios", [])
+    if scenarios:
+        lines.append("## Scenario Valuations (Bull / Base / Bear)")
+        for s in scenarios:
+            rr = s.get("risk_reward")
+            rr_str = f" | R/R: {rr:.1f}x" if rr else ""
+            lines.append(f"### {s['ticker']} (current: ${s['current_price']})")
+            lines.append(f"- 🟢 Bull: ${s['bull_price']} ({s['bull_upside']:+.1%})")
+            lines.append(f"- ⚪ Base: ${s['base_price']} ({s['base_upside']:+.1%})")
+            lines.append(f"- 🔴 Bear: ${s['bear_price']} ({s['bear_downside']:+.1%}){rr_str}")
             lines.append("")
 
     # Technical Signals
