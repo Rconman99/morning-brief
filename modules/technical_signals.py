@@ -55,6 +55,60 @@ def get_all_tickers() -> list[str]:
     return sorted(tickers)
 
 
+def calculate_vwap(history: pd.DataFrame) -> float | None:
+    """VWAP = cumulative(typical_price * volume) / cumulative(volume).
+    Uses full history. Returns latest VWAP value."""
+    if history.empty:
+        return None
+    try:
+        tp = (history["High"] + history["Low"] + history["Close"]) / 3
+        vol = history["Volume"]
+        if vol.sum() == 0:
+            return None
+        vwap = (tp * vol).cumsum() / vol.cumsum()
+        return round(float(vwap.iloc[-1]), 2)
+    except Exception:
+        return None
+
+
+def calculate_volume_profile(history: pd.DataFrame, bins: int = 20) -> dict | None:
+    """Identify price levels with highest traded volume.
+    Returns Point of Control (POC) and nearby support/resistance.
+    """
+    if history.empty or len(history) < 20:
+        return None
+    try:
+        import numpy as np
+        closes = history["Close"].values
+        volumes = history["Volume"].values
+        price_range = np.linspace(closes.min(), closes.max(), bins + 1)
+
+        profile = []
+        for i in range(len(price_range) - 1):
+            mask = (closes >= price_range[i]) & (closes < price_range[i + 1])
+            vol = float(volumes[mask].sum())
+            mid = round((price_range[i] + price_range[i + 1]) / 2, 2)
+            profile.append({"price_level": mid, "volume": vol})
+
+        if not profile:
+            return None
+
+        # Point of Control = price level with highest volume
+        poc = max(profile, key=lambda x: x["volume"])
+
+        # High Volume Nodes = top 3 levels (support/resistance)
+        sorted_profile = sorted(profile, key=lambda x: x["volume"], reverse=True)
+        hvn = [p["price_level"] for p in sorted_profile[:3]]
+
+        return {
+            "poc": poc["price_level"],
+            "poc_volume": poc["volume"],
+            "high_volume_nodes": hvn,
+        }
+    except Exception:
+        return None
+
+
 def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
     """Compute technical indicators for a single ticker.
 
@@ -193,7 +247,25 @@ def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
     vol_signal = "surge_up" if vol_score > 0 else "surge_down" if vol_score < 0 else "normal"
     indicators.append({"name": "Volume", "value": volume_ratio, "signal": vol_signal, "score": vol_score})
 
-    # Composite: sum clamped to [-5, +5]
+    # VWAP
+    vwap = calculate_vwap(history)
+    vwap_signal = None
+    vwap_score = 0.0
+    if vwap is not None:
+        if current_price > vwap * 1.01:
+            vwap_signal = "above"
+            vwap_score = 0.5
+        elif current_price < vwap * 0.99:
+            vwap_signal = "below"
+            vwap_score = -0.5
+        else:
+            vwap_signal = "at_vwap"
+        indicators.append({"name": "VWAP", "value": vwap, "signal": vwap_signal, "score": vwap_score})
+
+    # Volume Profile
+    vol_profile = calculate_volume_profile(history)
+
+    # Composite: sum clamped to [-5, +5] (includes VWAP score)
     raw_composite = sum(ind["score"] for ind in indicators)
     composite_score = round(max(-5.0, min(5.0, raw_composite)), 2)
 
@@ -206,6 +278,9 @@ def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
         "bb_position": bb_position,
         "sma_trend": sma_trend,
         "volume_ratio": volume_ratio,
+        "vwap": vwap,
+        "vwap_signal": vwap_signal,
+        "volume_profile": vol_profile,
         "indicators": indicators,
     }
 

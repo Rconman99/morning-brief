@@ -59,14 +59,14 @@ def mock_envelopes(tmp_path):
             {"ticker": "VOO", "skipped": True, "reason": "No options data available for ETF"},
         ]},
         "technical_signals": {"results": [
-            {"ticker": "NVDA", "composite_score": 1.5, "rsi_14": 62.3, "macd_signal": "bullish_crossover", "macd_histogram": 2.45, "bb_position": "middle", "sma_trend": "golden_cross", "volume_ratio": 1.2, "indicators": [
+            {"ticker": "NVDA", "composite_score": 1.5, "rsi_14": 62.3, "macd_signal": "bullish_crossover", "macd_histogram": 2.45, "bb_position": "middle", "sma_trend": "golden_cross", "volume_ratio": 1.2, "vwap": 875.50, "vwap_signal": "above", "volume_profile": {"poc": 880.0, "poc_volume": 5000000, "high_volume_nodes": [880.0, 860.0, 900.0]}, "indicators": [
                 {"name": "RSI", "value": 62.3, "signal": "neutral", "score": 0},
                 {"name": "MACD", "value": 2.45, "signal": "bullish_crossover", "score": 1},
                 {"name": "Bollinger Bands", "value": "middle", "signal": "middle", "score": 0},
                 {"name": "SMA", "value": "golden_cross", "signal": "golden_cross", "score": 0.5},
                 {"name": "Volume", "value": 1.2, "signal": "normal", "score": 0},
             ]},
-            {"ticker": "AAPL", "composite_score": -0.5, "rsi_14": 45.1, "macd_signal": "neutral", "macd_histogram": -0.8, "bb_position": "middle", "sma_trend": "above_200", "volume_ratio": 0.9, "indicators": [
+            {"ticker": "AAPL", "composite_score": -0.5, "rsi_14": 45.1, "macd_signal": "neutral", "macd_histogram": -0.8, "bb_position": "middle", "sma_trend": "above_200", "volume_ratio": 0.9, "vwap": 193.20, "vwap_signal": "above", "volume_profile": {"poc": 192.0, "poc_volume": 8000000, "high_volume_nodes": [192.0, 190.0, 195.0]}, "indicators": [
                 {"name": "RSI", "value": 45.1, "signal": "neutral", "score": 0},
                 {"name": "MACD", "value": -0.8, "signal": "neutral", "score": 0},
                 {"name": "Bollinger Bands", "value": "middle", "signal": "middle", "score": 0},

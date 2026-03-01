@@ -870,6 +870,10 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         <span class="card-value">{_esc(t.get('sma_trend', 'N/A'))}</span></div>
     <div class="card-row"><span class="card-label">Vol Ratio</span>
         <span class="card-value">{t.get('volume_ratio', 'N/A')}</span></div>
+    <div class="card-row"><span class="card-label">VWAP</span>
+        <span class="card-value">{f"${t['vwap']}" if t.get('vwap') else 'N/A'} <span style="color:var(--text-secondary)">({_esc(t.get('vwap_signal') or 'N/A')})</span></span></div>
+    <div class="card-row"><span class="card-label">POC</span>
+        <span class="card-value">{f"${t['volume_profile']['poc']}" if t.get('volume_profile') else 'N/A'}</span></div>
 </div>""")
             parts.append('</div>')
         else:

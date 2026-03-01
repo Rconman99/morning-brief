@@ -677,6 +677,12 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             lines.append(f"- **Bollinger**: {t.get('bb_position', 'N/A')}")
             lines.append(f"- **SMA Trend**: {t.get('sma_trend', 'N/A')}")
             lines.append(f"- **Volume Ratio**: {t.get('volume_ratio', 'N/A')}")
+            vwap = t.get("vwap")
+            if vwap:
+                lines.append(f"- **VWAP**: ${vwap} ({t.get('vwap_signal', 'N/A')})")
+            vp = t.get("volume_profile")
+            if vp:
+                lines.append(f"- **Point of Control**: ${vp['poc']} (strongest support/resistance)")
             lines.append("")
     else:
         lines.append("*Data unavailable*")

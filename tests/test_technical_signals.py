@@ -11,7 +11,10 @@ import numpy as np
 import pandas as pd
 from unittest.mock import patch
 
-from modules.technical_signals import analyze_ticker, analyze_technical_signals, main
+from modules.technical_signals import (
+    analyze_ticker, analyze_technical_signals, main,
+    calculate_vwap, calculate_volume_profile,
+)
 
 
 def make_mock_history(days: int = 260, base_price: float = 500.0,
@@ -46,7 +49,10 @@ def test_analyze_ticker_returns_all_fields():
     assert "sma_trend" in result
     assert "volume_ratio" in result
     assert "indicators" in result
-    assert len(result["indicators"]) == 5
+    assert len(result["indicators"]) >= 5  # 5 base + VWAP if calculable
+    assert "vwap" in result
+    assert "vwap_signal" in result
+    assert "volume_profile" in result
 
 
 def test_composite_score_in_range():
@@ -130,3 +136,110 @@ def test_main_creates_output(mock_tickers, mock_yf, tmp_path):
     assert envelope["module"] == "technical_signals"
     assert envelope["status"] in ("success", "partial")
     assert len(envelope["data"]["results"]) == 1
+
+
+# ── VWAP tests ──
+
+def test_calculate_vwap_basic():
+    """VWAP should be a weighted average of typical price by volume."""
+    np.random.seed(99)
+    history = pd.DataFrame({
+        "High": [110, 120, 115],
+        "Low": [90, 100, 95],
+        "Close": [100, 110, 105],
+        "Volume": [1000, 2000, 1000],
+    })
+    # typical_price = (H+L+C)/3 = [100, 110, 105]
+    # cum_tp_vol = [100*1000, 100*1000+110*2000, 100*1000+110*2000+105*1000]
+    #            = [100000, 320000, 425000]
+    # cum_vol   = [1000, 3000, 4000]
+    # vwap[-1]  = 425000 / 4000 = 106.25
+    vwap = calculate_vwap(history)
+    assert vwap == 106.25
+
+
+def test_calculate_vwap_empty():
+    """Empty history should return None."""
+    assert calculate_vwap(pd.DataFrame()) is None
+
+
+def test_calculate_vwap_zero_volume():
+    """All-zero volume should return None."""
+    history = pd.DataFrame({
+        "High": [110], "Low": [90], "Close": [100], "Volume": [0],
+    })
+    assert calculate_vwap(history) is None
+
+
+def test_calculate_vwap_with_full_history():
+    """VWAP from full mock history should be a reasonable price."""
+    history = make_mock_history(260, base_price=500.0)
+    vwap = calculate_vwap(history)
+    assert vwap is not None
+    # VWAP should be in the ballpark of the price range
+    assert 300 < vwap < 800
+
+
+# ── Volume Profile tests ──
+
+def test_calculate_volume_profile_basic():
+    """POC should be the price level with most volume."""
+    np.random.seed(99)
+    # Cluster most volume around $100, less at extremes
+    closes = np.array([100]*15 + [120]*3 + [80]*2)
+    volumes = np.array([10000]*15 + [1000]*3 + [500]*2)
+    history = pd.DataFrame({
+        "Close": closes,
+        "Volume": volumes,
+        "High": closes * 1.01,
+        "Low": closes * 0.99,
+    })
+    result = calculate_volume_profile(history, bins=10)
+    assert result is not None
+    assert "poc" in result
+    assert "poc_volume" in result
+    assert "high_volume_nodes" in result
+    # POC should be near $100 where most volume is
+    assert 95 <= result["poc"] <= 105
+
+
+def test_calculate_volume_profile_too_short():
+    """Less than 20 rows should return None."""
+    history = pd.DataFrame({
+        "Close": [100]*10, "Volume": [1000]*10,
+        "High": [101]*10, "Low": [99]*10,
+    })
+    assert calculate_volume_profile(history) is None
+
+
+def test_calculate_volume_profile_empty():
+    """Empty history should return None."""
+    assert calculate_volume_profile(pd.DataFrame()) is None
+
+
+def test_calculate_volume_profile_hvn_count():
+    """High volume nodes should have at most 3 entries."""
+    history = make_mock_history(260)
+    result = calculate_volume_profile(history)
+    assert result is not None
+    assert len(result["high_volume_nodes"]) <= 3
+
+
+# ── VWAP signal in analyze_ticker ──
+
+def test_vwap_signal_present():
+    """analyze_ticker should include VWAP signal in its result."""
+    history = make_mock_history(260)
+    result = analyze_ticker("NVDA", history)
+    assert result is not None
+    assert result["vwap"] is not None
+    assert result["vwap_signal"] in ("above", "below", "at_vwap")
+
+
+def test_volume_profile_present():
+    """analyze_ticker should include volume profile in its result."""
+    history = make_mock_history(260)
+    result = analyze_ticker("NVDA", history)
+    assert result is not None
+    assert result["volume_profile"] is not None
+    assert "poc" in result["volume_profile"]
