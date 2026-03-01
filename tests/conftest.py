@@ -75,6 +75,45 @@ def mock_envelopes(tmp_path):
             {"ticker": "NVDA", "sentiment_score": 0.3, "article_count": 8, "key_headline": "NVIDIA AI demand remains strong", "summary": "Positive sentiment driven by data center growth.", "method": "keyword"},
             {"ticker": "AAPL", "sentiment_score": -0.1, "article_count": 5, "key_headline": "Apple faces regulatory headwinds in EU", "summary": "Mixed sentiment with services strength offset by regulatory concerns.", "method": "keyword"},
         ]},
+        "opportunities": {
+            "scan_date": "2026-03-01",
+            "universe_size": 22,
+            "passed_filter": 2,
+            "opportunities": [
+                {
+                    "ticker": "AVGO", "composite_score": 3.2, "rsi_14": 58.3,
+                    "macd_signal": "bullish_crossover", "sma_trend": "golden_cross",
+                    "volume_ratio": 1.8, "pe_ttm": 32.5, "market_cap_b": 850.0,
+                    "reason": "Strong technicals (composite +3.2), bullish MACD crossover, 1.8x volume surge, golden cross active",
+                    "risk_note": "RSI approaching overbought at 58, elevated PE",
+                },
+                {
+                    "ticker": "MRVL", "composite_score": 2.8, "rsi_14": 42.1,
+                    "macd_signal": "bullish_crossover", "sma_trend": "above_200",
+                    "volume_ratio": 1.5, "pe_ttm": 45.2, "market_cap_b": 65.0,
+                    "reason": "Strong technicals (composite +2.8), 1.5x volume",
+                    "risk_note": "Elevated PE",
+                },
+            ],
+            "sector_read": {
+                "XLK": {"change_1d": 0.8, "change_5d": 2.1, "trend": "bullish"},
+                "XLF": {"change_1d": -0.3, "change_5d": -1.2, "trend": "bearish"},
+            },
+        },
+        "risk_dashboard": {
+            "now_risks": [
+                {"risk": "VIX_ELEVATED", "level": "medium", "detail": "VIX at 22.5 — elevated volatility"},
+                {"risk": "CORRELATED_PAIR", "level": "medium", "detail": "AAPL_VOO correlation 0.90 — moves in sync"},
+            ],
+            "short_risks": [
+                {"risk": "OVERBOUGHT", "level": "medium", "detail": "NVDA RSI 76 — pullback likely within days"},
+            ],
+            "long_risks": [],
+            "now_score": 2, "short_score": 1, "long_score": 0,
+            "total_risk": 2.7, "regime": "LOW_RISK",
+            "regime_note": "Favorable conditions — lean into high-conviction setups",
+            "vix": 22.5, "ten_year_yield": 4.25,
+        },
         "scorecard": {
             "evaluated_verdicts": 6,
             "evaluation_windows": [1, 3, 5, 10],

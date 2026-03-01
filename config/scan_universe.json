@@ -1,0 +1,7 @@
+{
+  "scan_tickers": ["AVGO", "CRM", "ORCL", "PLTR", "UBER", "SHOP", "SQ", "SNOW", "NET", "COIN", "MRVL", "QCOM", "MU", "ASML", "KLAC", "LRCX", "AMAT", "SMCI", "ARM", "MSTR", "IONQ", "RKLB"],
+  "sector_etfs": ["XLK", "XLF", "XLE", "XLV", "XLI", "ARKK"],
+  "max_scan_tickers": 30,
+  "min_composite_to_surface": 2.0,
+  "min_volume_ratio": 1.3
+}

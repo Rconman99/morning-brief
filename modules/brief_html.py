@@ -307,6 +307,8 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     technical = load_envelope("technical_signals.json")
     sentiment = load_envelope("news_sentiment.json")
     options = load_envelope("options.json")
+    opportunities = load_envelope("opportunities.json")
+    risk_dashboard = load_envelope("risk_dashboard.json")
     scorecard = load_envelope("scorecard.json")
 
     data_envelope.PROCESSED_DIR = original_dir
@@ -315,7 +317,8 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     modules = {
         "Journal": journal, "Earnings": earnings, "Valuation": valuation,
         "Portfolio": portfolio, "Technical": technical, "Sentiment": sentiment,
-        "Options": options, "Scorecard": scorecard,
+        "Options": options, "Scanner": opportunities,
+        "Risk": risk_dashboard, "Scorecard": scorecard,
     }
 
     # Total P&L
@@ -334,11 +337,13 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         all_tickers.add(s.get("ticker", ""))
     all_tickers.discard("")
 
+    risk_data = risk_dashboard["data"]
+
     verdicts = {}
     for ticker in sorted(all_tickers):
         v, reason = determine_verdict(
             ticker, valuation["data"], earnings["data"], portfolio["data"],
-            technical["data"], sentiment["data"])
+            technical["data"], sentiment["data"], risk_data)
         verdicts[ticker] = (v, reason)
 
     # ── Build HTML ──
@@ -368,6 +373,51 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     <div class="status-pills">{pills}</div>
 </div>
 """)
+
+    # ── Risk Dashboard Section ──
+    if risk_dashboard["status"] in ("success", "partial"):
+        rd = risk_data
+        regime = rd.get("regime", "UNKNOWN")
+        regime_note = rd.get("regime_note", "")
+        regime_colors = {
+            "DANGER": ("var(--red)", "var(--red-bg)"),
+            "CAUTION": ("var(--yellow)", "var(--yellow-bg)"),
+            "NORMAL": ("var(--green)", "var(--green-bg)"),
+            "LOW_RISK": ("var(--green)", "var(--green-bg)"),
+        }
+        r_color, r_bg = regime_colors.get(regime, ("var(--text-secondary)", "var(--bg-card)"))
+
+        parts.append(f"""
+<div class="section">
+    <div class="section-title">Risk Dashboard &mdash; <span style="color:{r_color}">{_esc(regime)}</span></div>
+    <div style="background:{r_bg};border:1px solid {r_color};border-radius:8px;padding:14px 18px;margin-bottom:16px;font-size:0.95rem;color:{r_color}">{_esc(regime_note)}</div>
+""")
+
+        vix_val = rd.get("vix")
+        tny_val = rd.get("ten_year_yield")
+        parts.append('<div class="stat-row">')
+        parts.append(f'<div class="stat-box"><div class="stat-number" style="color:{r_color}">{rd.get("total_risk", 0):.1f}</div><div class="stat-label">Risk Score</div></div>')
+        if vix_val is not None:
+            vix_color = "var(--red)" if vix_val > 30 else "var(--yellow)" if vix_val > 20 else "var(--green)"
+            parts.append(f'<div class="stat-box"><div class="stat-number" style="color:{vix_color}">{vix_val:.1f}</div><div class="stat-label">VIX</div></div>')
+        if tny_val is not None:
+            parts.append(f'<div class="stat-box"><div class="stat-number">{tny_val:.2f}%</div><div class="stat-label">10Y Yield</div></div>')
+        parts.append('</div>')
+
+        risk_level_colors = {"high": "var(--red)", "medium": "var(--yellow)", "low": "var(--green)"}
+        risk_level_bg = {"high": "var(--red-bg)", "medium": "var(--yellow-bg)", "low": "var(--green-bg)"}
+
+        for horizon_name, horizon_risks in [("NOW (Today)", rd.get("now_risks", [])),
+                                              ("SHORT (This Week)", rd.get("short_risks", [])),
+                                              ("LONG (This Month+)", rd.get("long_risks", []))]:
+            if horizon_risks:
+                parts.append(f'<div style="font-size:0.9rem;font-weight:600;color:var(--text-secondary);margin:12px 0 6px;text-transform:uppercase">{horizon_name}</div>')
+                for r in horizon_risks:
+                    rc = risk_level_colors.get(r["level"], "var(--text-secondary)")
+                    rb = risk_level_bg.get(r["level"], "var(--bg-card)")
+                    parts.append(f'<div style="background:{rb};border-left:3px solid {rc};border-radius:4px;padding:8px 12px;margin-bottom:4px;font-size:0.85rem">{_esc(r["detail"])}</div>')
+
+        parts.append('</div>')
 
     # ── Trading Windows Section ──
     from modules.morning_brief import get_trading_windows
@@ -408,6 +458,51 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     <div class="verdict-reason">{_esc(reason)}</div>
 </div>""")
     parts.append('</div></div>')
+
+    # ── Opportunity Scanner Section ──
+    parts.append('<div class="section"><div class="section-title">Opportunity Scanner</div>')
+    if opportunities["status"] in ("success", "partial"):
+        opp_data = opportunities["data"]
+        parts.append(f'<div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px">Scanned {opp_data.get("universe_size", 0)} tickers outside your watchlist</div>')
+
+        opps = opp_data.get("opportunities", [])
+        if opps:
+            parts.append('<div class="card-grid">')
+            for o in opps:
+                comp = o.get("composite_score", 0)
+                parts.append(f"""
+<div class="card" style="border-left:3px solid var(--green)">
+    <div class="card-header">{_esc(o['ticker'])}</div>
+    <div class="card-row"><span class="card-label">Composite</span>
+        <span class="card-value" style="color:var(--green)">{comp:+.1f}</span></div>
+    <div class="card-row"><span class="card-label">RSI</span>
+        <span class="card-value">{o.get('rsi_14', 'N/A')}</span></div>
+    <div class="card-row"><span class="card-label">MACD</span>
+        <span class="card-value">{_esc(o.get('macd_signal', 'N/A'))}</span></div>
+    <div class="card-row"><span class="card-label">Volume</span>
+        <span class="card-value">{o.get('volume_ratio', 'N/A')}x</span></div>
+    <div class="card-row"><span class="card-label">PE</span>
+        <span class="card-value">{o.get('pe_ttm', 'N/A')}</span></div>
+    <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">{_esc(o.get('reason', ''))}</div>
+    <div style="font-size:0.8rem;color:var(--yellow);margin-top:4px">{_esc(o.get('risk_note', ''))}</div>
+</div>""")
+            parts.append('</div>')
+        else:
+            parts.append('<div class="unavailable">No opportunities passed the filter criteria</div>')
+
+        sector = opp_data.get("sector_read", {})
+        if sector:
+            sector_names = {"XLK": "Tech", "XLF": "Financials", "XLE": "Energy",
+                           "XLV": "Health Care", "XLI": "Industrials", "ARKK": "Innovation"}
+            parts.append('<div style="margin-top:16px"><div style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:8px;font-weight:600">Sector Pulse</div>')
+            for etf, data in sector.items():
+                name = sector_names.get(etf, etf)
+                trend_color = "var(--green)" if data["trend"] == "bullish" else "var(--red)" if data["trend"] == "bearish" else "var(--yellow)"
+                parts.append(f'<div style="display:inline-block;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:6px 12px;margin:3px;font-size:0.85rem">{_esc(etf)} ({_esc(name)}): <span style="color:{trend_color}">{data["change_1d"]:+.1f}% / {data["change_5d"]:+.1f}%</span></div>')
+            parts.append('</div>')
+    else:
+        parts.append('<div class="unavailable">Opportunity scanner data unavailable</div>')
+    parts.append('</div>')
 
     # ── Scorecard Section ──
     parts.append('<div class="section"><div class="section-title">Verdict Scorecard</div>')

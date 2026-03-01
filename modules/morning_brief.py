@@ -80,12 +80,14 @@ def status_icon(status: str) -> str:
 
 def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
                       portfolio_data: dict, technical_data: dict = None,
-                      sentiment_data: dict = None) -> tuple[str, str]:
+                      sentiment_data: dict = None,
+                      risk_dashboard_data: dict = None) -> tuple[str, str]:
     """Determine BUY/SELL/AVOID/HOLD/REVIEW verdict using all data sources.
 
     Rules (evaluated in order):
     - SELL: trailing stop within 5% of price OR technical composite < -3
     - AVOID: news sentiment < -0.5 OR (technical composite < -2 AND earnings tone < -1)
+    - DANGER GATE: if risk regime is DANGER, downgrade BUY to HOLD
     - BUY: technical composite > +2 AND sentiment >= 0 AND (cheaper on 2+ metrics OR not in comparison pair)
     - REVIEW: < 2 data sources available
     - HOLD: default
@@ -157,6 +159,12 @@ def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
             if total_comparable - b_wins >= 4:
                 return "AVOID", f"More expensive than {comp['stock_a']} on 4+ metrics"
 
+    # ── GATE: Risk regime blocks aggressive BUY ──
+    regime = (risk_dashboard_data or {}).get("regime", "NORMAL")
+    if regime == "DANGER":
+        if composite is not None and composite > 2:
+            return "HOLD", f"Technicals bullish ({composite:.1f}) but risk regime is DANGER — wait for conditions to improve"
+
     # ── BUY ──
     # Technical composite > +2 AND sentiment >= 0
     if composite is not None and composite > 2:
@@ -213,8 +221,11 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
     portfolio = load_envelope("portfolio.json")
     technical = load_envelope("technical_signals.json")
     sentiment = load_envelope("news_sentiment.json")
+    risk_dashboard = load_envelope("risk_dashboard.json")
 
     data_envelope.PROCESSED_DIR = original_dir
+
+    risk_data = risk_dashboard.get("data", {})
 
     # Collect all tickers
     all_tickers = set()
@@ -257,7 +268,7 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
             continue
         verdict, reason = determine_verdict(
             ticker, valuation["data"], earnings["data"], portfolio["data"],
-            technical["data"], sentiment["data"])
+            technical["data"], sentiment["data"], risk_data)
         price = _get_current_price(ticker)
         log_data["entries"].append({
             "date": date_str,
@@ -293,6 +304,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     technical = load_envelope("technical_signals.json")
     sentiment = load_envelope("news_sentiment.json")
     options = load_envelope("options.json")
+    opportunities = load_envelope("opportunities.json")
+    risk_dashboard = load_envelope("risk_dashboard.json")
     scorecard = load_envelope("scorecard.json")
 
     data_envelope.PROCESSED_DIR = original_dir
@@ -300,7 +313,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     date_str = get_eastern_date()
     modules = {"Journal": journal, "Earnings": earnings, "Valuation": valuation,
                "Portfolio": portfolio, "Technical": technical, "Sentiment": sentiment,
-               "Options": options, "Scorecard": scorecard}
+               "Options": options, "Scanner": opportunities,
+               "Risk": risk_dashboard, "Scorecard": scorecard}
 
     lines = [
         f"# Morning Brief — {date_str}",
@@ -311,6 +325,41 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     for name, env in modules.items():
         lines.append(f"- {status_icon(env['status'])} **{name}**: {env['status']}")
     lines.append("")
+
+    # Risk Dashboard — after Module Status, BEFORE everything else
+    risk_data = risk_dashboard["data"]
+    regime = risk_data.get("regime", "UNKNOWN")
+    regime_note = risk_data.get("regime_note", "")
+    if risk_dashboard["status"] in ("success", "partial"):
+        lines.append(f"## Risk Dashboard — {regime}")
+        lines.append(regime_note)
+        lines.append("")
+
+        risk_icons = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+
+        now_risks = risk_data.get("now_risks", [])
+        if now_risks:
+            lines.append("### NOW (Today)")
+            for r in now_risks:
+                icon = risk_icons.get(r["level"], "⚪")
+                lines.append(f"- {icon} {r['detail']}")
+            lines.append("")
+
+        short_risks = risk_data.get("short_risks", [])
+        if short_risks:
+            lines.append("### SHORT (This Week)")
+            for r in short_risks:
+                icon = risk_icons.get(r["level"], "⚪")
+                lines.append(f"- {icon} {r['detail']}")
+            lines.append("")
+
+        long_risks = risk_data.get("long_risks", [])
+        if long_risks:
+            lines.append("### LONG (This Month+)")
+            for r in long_risks:
+                icon = risk_icons.get(r["level"], "⚪")
+                lines.append(f"- {icon} {r['detail']}")
+            lines.append("")
 
     # Trading Windows
     windows = get_trading_windows()
@@ -490,9 +539,34 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     for ticker in sorted(all_tickers):
         verdict, reason = determine_verdict(
             ticker, valuation["data"], earnings["data"], portfolio["data"],
-            technical["data"], sentiment["data"])
+            technical["data"], sentiment["data"], risk_data)
         lines.append(f"- {verdict_icons.get(verdict, '❓')} **{ticker}**: {verdict} — {reason}")
     lines.append("")
+
+    # Opportunity Scanner — after Watchlist Verdicts
+    if opportunities["status"] in ("success", "partial"):
+        opp_data = opportunities["data"]
+        lines.append("## Opportunity Scanner")
+        lines.append(f"*Scanned {opp_data.get('universe_size', 0)} tickers outside your watchlist*")
+        lines.append("")
+
+        opps = opp_data.get("opportunities", [])
+        if opps:
+            lines.append("### Top Opportunities (sorted by composite score)")
+            for o in opps:
+                pe_str = f" | PE: {o['pe_ttm']}" if o.get("pe_ttm") else ""
+                lines.append(f"- 🟢 **{o['ticker']}** (composite {o['composite_score']:+.1f}) — {o['reason']}{pe_str} | Risk: {o['risk_note']}")
+            lines.append("")
+
+        sector = opp_data.get("sector_read", {})
+        if sector:
+            sector_names = {"XLK": "Tech", "XLF": "Financials", "XLE": "Energy",
+                           "XLV": "Health Care", "XLI": "Industrials", "ARKK": "Innovation"}
+            lines.append("### Sector Pulse")
+            for etf, data in sector.items():
+                name = sector_names.get(etf, etf)
+                lines.append(f"- {etf} ({name}): {data['change_1d']:+.1f}% today, {data['change_5d']:+.1f}% this week — {data['trend']}")
+            lines.append("")
 
     # Technical Signals
     lines.append("## Technical Signals")

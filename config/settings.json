@@ -4,5 +4,11 @@
   "min_correlation_days": 60,
   "max_api_calls_per_run": 20,
   "cache_expiry_hours": 24,
-  "output_format": "markdown"
+  "output_format": "markdown",
+  "risk_vix_high": 20,
+  "risk_vix_extreme": 30,
+  "risk_concentration_threshold": 0.40,
+  "risk_correlation_alert": 0.85,
+  "risk_stop_close_pct": 0.07,
+  "risk_stop_imminent_pct": 0.03
 }

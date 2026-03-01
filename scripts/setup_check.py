@@ -53,7 +53,7 @@ def main():
         all_ok &= check(".env exists", False, "Create .env with ALPHA_VANTAGE_API_KEY")
 
     # Config files
-    for cfg in ["watchlist.json", "portfolio.json", "settings.json"]:
+    for cfg in ["watchlist.json", "portfolio.json", "settings.json", "scan_universe.json"]:
         path = PROJECT_ROOT / "config" / cfg
         if path.exists():
             try:
@@ -80,6 +80,20 @@ def main():
     # Git
     git_dir = PROJECT_ROOT / ".git"
     all_ok &= check("Git initialized", git_dir.exists())
+
+    # Market data tickers (VIX, 10Y yield — warn only, don't fail)
+    try:
+        import yfinance as yf
+        vix_data = yf.download("^VIX", period="1d", progress=False)
+        check("Market data: ^VIX", not vix_data.empty, "Fetchable" if not vix_data.empty else "Failed")
+    except Exception:
+        check("Market data: ^VIX (optional)", False, "yfinance fetch failed — risk dashboard will skip VIX")
+
+    try:
+        tny_data = yf.download("^TNX", period="1d", progress=False)
+        check("Market data: ^TNX", not tny_data.empty, "Fetchable" if not tny_data.empty else "Failed")
+    except Exception:
+        check("Market data: ^TNX (optional)", False, "yfinance fetch failed — risk dashboard will skip 10Y yield")
 
     print("=" * 50)
     print("ALL CHECKS PASSED ✅" if all_ok else "SOME CHECKS FAILED ❌")

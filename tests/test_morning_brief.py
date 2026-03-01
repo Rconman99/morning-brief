@@ -27,6 +27,8 @@ def test_generate_brief_with_mock_data(mock_envelopes, tmp_path):
     assert "Options" in brief
     assert "Technical Signals" in brief
     assert "News Sentiment" in brief
+    assert "Risk Dashboard" in brief
+    assert "Opportunity Scanner" in brief
     assert "financial advice" in brief.lower()
 
 
@@ -102,6 +104,35 @@ def test_determine_verdict_avoid_tone():
         {"results": []},
     )
     assert verdict == "AVOID"
+
+
+def test_determine_verdict_danger_regime_blocks_buy():
+    """DANGER regime should downgrade BUY to HOLD."""
+    verdict, reason = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+        {"results": [{"ticker": "AAPL", "composite_score": 3.0}]},
+        {"results": [{"ticker": "AAPL", "sentiment_score": 0.5}]},
+        {"regime": "DANGER"},
+    )
+    assert verdict == "HOLD"
+    assert "DANGER" in reason
+
+
+def test_determine_verdict_normal_regime_allows_buy():
+    """NORMAL regime should NOT block BUY."""
+    verdict, _ = determine_verdict(
+        "AAPL",
+        {"comparisons": []},
+        {"results": []},
+        {"holdings": [{"ticker": "AAPL", "current_price": 195, "trailing_stop": 170}]},
+        {"results": [{"ticker": "AAPL", "composite_score": 3.0}]},
+        {"results": [{"ticker": "AAPL", "sentiment_score": 0.5}]},
+        {"regime": "NORMAL"},
+    )
+    assert verdict == "BUY"
 
 
 def test_determine_verdict_review():
