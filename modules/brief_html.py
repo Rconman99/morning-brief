@@ -11,6 +11,13 @@ from datetime import datetime
 
 from lib.data_envelope import load_envelope
 from modules.morning_brief import determine_verdict, get_eastern_date
+from modules.brief_learning import (
+    KNOWLEDGE_BASE, LEARNING_CSS, LEARNING_JS,
+    label as ll, section_title as st,
+    build_data_snapshot, resolve_quiz_tokens, build_concepts_json,
+    build_panel_html, build_tour_html, build_learning_path_html,
+    build_how_to_use_html,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -354,6 +361,12 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             insider_data, scenario_data)
         verdicts[ticker] = (v, reason)
 
+    # ── Build Learning Data ──
+    snapshot = build_data_snapshot(
+        portfolio["data"], technical["data"], earnings["data"], risk_data)
+    resolved_kb = resolve_quiz_tokens(KNOWLEDGE_BASE, snapshot)
+    concepts_json = build_concepts_json(resolved_kb)
+
     # ── Build HTML ──
     parts = [f"""<!DOCTYPE html>
 <html lang="en">
@@ -361,7 +374,9 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Morning Brief &mdash; {_esc(date_str)}</title>
-<style>{CSS}</style>
+<style>{CSS}
+{LEARNING_CSS}</style>
+<script>window.__LEARN_CONCEPTS={concepts_json};</script>
 </head>
 <body>
 <div class="container">
@@ -382,6 +397,10 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 </div>
 """)
 
+    # ── Learning Path + How to Use ──
+    parts.append(build_learning_path_html())
+    parts.append(build_how_to_use_html())
+
     # ── Risk Dashboard Section ──
     if risk_dashboard["status"] in ("success", "partial"):
         rd = risk_data
@@ -397,7 +416,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 
         parts.append(f"""
 <div class="section">
-    <div class="section-title">Risk Dashboard &mdash; <span style="color:{r_color}">{_esc(regime)}</span></div>
+    {st("Risk Dashboard", extra_html=f' &mdash; <span style="color:{r_color}">{_esc(regime)}</span>')}
     <div style="background:{r_bg};border:1px solid {r_color};border-radius:8px;padding:14px 18px;margin-bottom:16px;font-size:0.95rem;color:{r_color}">{_esc(regime_note)}</div>
 """)
 
@@ -431,7 +450,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     from modules.morning_brief import get_trading_windows
     windows = get_trading_windows()
     if windows:
-        parts.append('<div class="section"><div class="section-title">Trading Windows</div>')
+        parts.append(f'<div class="section">{st("Trading Windows")}')
         for w in windows:
             if w["is_open"]:
                 bg = "var(--green-bg)"
@@ -455,7 +474,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         parts.append('</div>')
 
     # ── Verdicts Section ──
-    parts.append('<div class="section"><div class="section-title">Watchlist Verdicts</div>')
+    parts.append(f'<div class="section">{st("Watchlist Verdicts")}')
     parts.append('<div class="verdict-grid">')
     for ticker in sorted(verdicts.keys()):
         v, reason = verdicts[ticker]
@@ -468,7 +487,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div></div>')
 
     # ── Position Sizing Section ──
-    parts.append('<div class="section"><div class="section-title">Position Sizing</div>')
+    parts.append(f'<div class="section">{st("Position Sizing")}')
     if position_sizer["status"] in ("success", "partial"):
         ps_data = position_sizer["data"]
         positions = [p for p in ps_data.get("positions", []) if p.get("recommended_shares", 0) > 0]
@@ -488,7 +507,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Opportunity Scanner Section ──
-    parts.append('<div class="section"><div class="section-title">Opportunity Scanner</div>')
+    parts.append(f'<div class="section">{st("Opportunity Scanner")}')
     if opportunities["status"] in ("success", "partial"):
         opp_data = opportunities["data"]
         parts.append(f'<div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px">Scanned {opp_data.get("universe_size", 0)} tickers outside your watchlist</div>')
@@ -501,15 +520,15 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f"""
 <div class="card" style="border-left:3px solid var(--green)">
     <div class="card-header">{_esc(o['ticker'])}</div>
-    <div class="card-row"><span class="card-label">Composite</span>
+    <div class="card-row">{ll("Composite")}
         <span class="card-value" style="color:var(--green)">{comp:+.1f}</span></div>
-    <div class="card-row"><span class="card-label">RSI</span>
+    <div class="card-row">{ll("RSI")}
         <span class="card-value">{o.get('rsi_14', 'N/A')}</span></div>
-    <div class="card-row"><span class="card-label">MACD</span>
+    <div class="card-row">{ll("MACD")}
         <span class="card-value">{_esc(o.get('macd_signal', 'N/A'))}</span></div>
-    <div class="card-row"><span class="card-label">Volume</span>
+    <div class="card-row">{ll("Volume")}
         <span class="card-value">{o.get('volume_ratio', 'N/A')}x</span></div>
-    <div class="card-row"><span class="card-label">PE</span>
+    <div class="card-row">{ll("PE")}
         <span class="card-value">{o.get('pe_ttm', 'N/A')}</span></div>
     <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">{_esc(o.get('reason', ''))}</div>
     <div style="font-size:0.8rem;color:var(--yellow);margin-top:4px">{_esc(o.get('risk_note', ''))}</div>
@@ -533,7 +552,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Trade Memory Section ──
-    parts.append('<div class="section"><div class="section-title">Trade Memory &mdash; Pattern Matching</div>')
+    parts.append(f'<div class="section">{st("Trade Memory", extra_html=" &mdash; Pattern Matching")}')
     if trade_memory["status"] in ("success", "partial"):
         mem_results = trade_memory["data"].get("results", [])
         notable = [r for r in mem_results if r.get("match_result", {}).get("matches", 0) > 0]
@@ -556,11 +575,11 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f"""
 <div class="card" style="border-left:3px solid {border_color}">
     <div class="card-header">{_esc(r['ticker'])}</div>
-    <div class="card-row"><span class="card-label">Matches</span>
+    <div class="card-row">{ll("Matches")}
         <span class="card-value">{match.get('matches', 0)}</span></div>
-    <div class="card-row"><span class="card-label">Win Rate</span>
+    <div class="card-row">{ll("Win Rate")}
         <span class="card-value" style="color:{border_color}">{wr_str}</span></div>
-    <div class="card-row"><span class="card-label">Record</span>
+    <div class="card-row">{ll("Record")}
         <span class="card-value">{match.get('wins', 0)}W / {match.get('losses', 0)}L</span></div>
     <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">{_esc(r.get('signal', ''))}</div>
 </div>""")
@@ -572,7 +591,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Insider Activity Section ──
-    parts.append('<div class="section"><div class="section-title">Insider Activity (SEC Form 4)</div>')
+    parts.append(f'<div class="section">{st("Insider Activity (SEC Form 4)")}')
     if insider["status"] in ("success", "partial"):
         insider_results = insider["data"].get("results", [])
         active = [r for r in insider_results if r.get("transaction_count", 0) > 0]
@@ -592,7 +611,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
 
     # ── Scenario Valuations Section ──
     scenarios = valuation["data"].get("scenarios", [])
-    parts.append('<div class="section"><div class="section-title">Scenario Valuations (Bull / Base / Bear)</div>')
+    parts.append(f'<div class="section">{st("Scenario Valuations (Bull / Base / Bear)")}')
     if scenarios:
         parts.append('<div class="card-grid">')
         for s in scenarios:
@@ -602,13 +621,13 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             parts.append(f"""
 <div class="card">
     <div class="card-header">{_esc(s['ticker'])} <span style="font-size:0.8rem;color:var(--text-muted);font-weight:400">(${s['current_price']:,.2f})</span></div>
-    <div class="card-row"><span class="card-label" style="color:var(--green)">Bull</span>
+    <div class="card-row"><span class="card-label learnable" data-concept="scenario_valuation" style="color:var(--green)">Bull</span>
         <span class="card-value" style="color:var(--green)">${s['bull_price']:,.2f} ({s['bull_upside']:+.1%})</span></div>
-    <div class="card-row"><span class="card-label">Base</span>
+    <div class="card-row">{ll("Base")}
         <span class="card-value">${s['base_price']:,.2f} ({s['base_upside']:+.1%})</span></div>
-    <div class="card-row"><span class="card-label" style="color:var(--red)">Bear</span>
+    <div class="card-row"><span class="card-label learnable" data-concept="scenario_valuation" style="color:var(--red)">Bear</span>
         <span class="card-value" style="color:var(--red)">${s['bear_price']:,.2f} ({s['bear_downside']:+.1%})</span></div>
-    <div class="card-row"><span class="card-label">R/R Ratio</span>
+    <div class="card-row">{ll("R/R Ratio")}
         <span class="card-value" style="color:{rr_color}">{rr_str}</span></div>
 </div>""")
         parts.append('</div>')
@@ -617,7 +636,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Scorecard Section ──
-    parts.append('<div class="section"><div class="section-title">Verdict Scorecard</div>')
+    parts.append(f'<div class="section">{st("Verdict Scorecard")}')
     if scorecard["status"] in ("success", "partial"):
         sc = scorecard["data"]
         summary = sc.get("summary", {})
@@ -656,9 +675,9 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                     parts.append(f"""
 <div class="card">
     <div class="card-header"><span class="verdict-label verdict-label-{v}">{v}</span></div>
-    <div class="card-row"><span class="card-label">Tracked</span>
+    <div class="card-row">{ll("Tracked")}
         <span class="card-value">{stats.get('tracked', 0)}</span></div>
-    <div class="card-row"><span class="card-label">Status</span>
+    <div class="card-row">{ll("Status")}
         <span class="card-value" style="color:var(--text-muted)">Unscored</span></div>
 </div>""")
                 elif stats.get("scored", 0) > 0:
@@ -667,9 +686,9 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                     parts.append(f"""
 <div class="card">
     <div class="card-header"><span class="verdict-label verdict-label-{v}">{v}</span></div>
-    <div class="card-row"><span class="card-label">Win Rate</span>
+    <div class="card-row">{ll("Win Rate")}
         <span class="card-value" style="color:{v_color}">{v_wr:.0%}</span></div>
-    <div class="card-row"><span class="card-label">Record</span>
+    <div class="card-row">{ll("Record")}
         <span class="card-value">{stats.get('wins', 0)}W / {stats.get('losses', 0)}L</span></div>
 </div>""")
             parts.append('</div>')
@@ -680,7 +699,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Portfolio Section ──
-    parts.append('<div class="section"><div class="section-title">Portfolio Holdings</div>')
+    parts.append(f'<div class="section">{st("Portfolio Holdings")}')
     if portfolio["status"] in ("success", "partial"):
         holdings = portfolio["data"].get("holdings", [])
         parts.append('<div class="table-wrap"><table>')
@@ -726,7 +745,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Journal Section ──
-    parts.append('<div class="section"><div class="section-title">Trade Journal</div>')
+    parts.append(f'<div class="section">{st("Trade Journal")}')
     if journal["status"] in ("success", "partial"):
         jd = journal["data"]
         wr = jd.get("win_rate")
@@ -767,7 +786,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Earnings Section ──
-    parts.append('<div class="section"><div class="section-title">Earnings Tone Analysis</div>')
+    parts.append(f'<div class="section">{st("Earnings Tone Analysis")}')
     if earnings["status"] in ("success", "partial"):
         results = earnings["data"].get("results", [])
         if results:
@@ -786,12 +805,12 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f"""
 <div class="card">
     <div class="card-header">{_esc(ticker_display)}</div>
-    <div class="card-row"><span class="card-label">Tone Score</span>
+    <div class="card-row">{ll("Tone Score")}
         <span class="card-value" style="color:{tone_color}">{tone:+.1f}</span></div>
     <div class="tone-bar"><div class="tone-fill" style="width:{tone_pct}%;background:{tone_color}"></div></div>
-    <div class="card-row"><span class="card-label">Confidence</span>
+    <div class="card-row">{ll("Confidence")}
         <span class="card-value">{conf:.2f}</span></div>
-    <div class="card-row"><span class="card-label">Hedge / Definitive</span>
+    <div class="card-row">{ll("Hedge / Definitive")}
         <span class="card-value">{r.get('hedge_count', 0)} / {r.get('definitive_count', 0)}</span></div>""")
 
                 risks = r.get("risk_factors", [])
@@ -813,7 +832,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Valuation Section ──
-    parts.append('<div class="section"><div class="section-title">Valuation Comparisons</div>')
+    parts.append(f'<div class="section">{st("Valuation Comparisons")}')
     if valuation["status"] in ("success", "partial"):
         comps = valuation["data"].get("comparisons", [])
         if comps:
@@ -824,9 +843,9 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f"""
 <div class="card">
     <div class="card-header">{_esc(comp['stock_a'])} vs {_esc(comp['stock_b'])}</div>
-    <div class="card-row"><span class="card-label">Cheaper</span>
+    <div class="card-row">{ll("Cheaper")}
         <span class="card-value" style="color:{cheaper_color}">{_esc(cheaper)}</span></div>
-    <div class="card-row"><span class="card-label">Metrics</span>
+    <div class="card-row">{ll("Metrics")}
         <span class="card-value">{comp.get('a_wins', 0)}-{comp.get('b_wins', 0)} ({comp.get('comparable_metrics', 0)} comparable)</span></div>
     <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">{_esc(comp.get('thesis', ''))}</div>
 </div>""")
@@ -838,7 +857,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Technical Signals Section ──
-    parts.append('<div class="section"><div class="section-title">Technical Signals</div>')
+    parts.append(f'<div class="section">{st("Technical Signals")}')
     if technical["status"] in ("success", "partial"):
         tech_results = technical["data"].get("results", [])
         if tech_results:
@@ -858,21 +877,21 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f"""
 <div class="card">
     <div class="card-header">{_esc(t['ticker'])}</div>
-    <div class="card-row"><span class="card-label">Composite</span>
+    <div class="card-row">{ll("Composite")}
         <span class="card-value" style="color:{score_color}">{comp_score:+.1f}</span></div>
-    <div class="card-row"><span class="card-label">RSI(14)</span>
+    <div class="card-row">{ll("RSI(14)")}
         <span class="card-value" style="color:{rsi_color}">{rsi if rsi else 'N/A'}</span></div>
-    <div class="card-row"><span class="card-label">MACD</span>
+    <div class="card-row">{ll("MACD")}
         <span class="card-value">{_esc(t.get('macd_signal', 'N/A'))}</span></div>
-    <div class="card-row"><span class="card-label">Bollinger</span>
+    <div class="card-row">{ll("Bollinger")}
         <span class="card-value">{_esc(t.get('bb_position', 'N/A'))}</span></div>
-    <div class="card-row"><span class="card-label">SMA Trend</span>
+    <div class="card-row">{ll("SMA Trend")}
         <span class="card-value">{_esc(t.get('sma_trend', 'N/A'))}</span></div>
-    <div class="card-row"><span class="card-label">Vol Ratio</span>
+    <div class="card-row">{ll("Vol Ratio")}
         <span class="card-value">{t.get('volume_ratio', 'N/A')}</span></div>
-    <div class="card-row"><span class="card-label">VWAP</span>
+    <div class="card-row">{ll("VWAP")}
         <span class="card-value">{f"${t['vwap']}" if t.get('vwap') else 'N/A'} <span style="color:var(--text-secondary)">({_esc(t.get('vwap_signal') or 'N/A')})</span></span></div>
-    <div class="card-row"><span class="card-label">POC</span>
+    <div class="card-row">{ll("POC")}
         <span class="card-value">{f"${t['volume_profile']['poc']}" if t.get('volume_profile') else 'N/A'}</span></div>
 </div>""")
             parts.append('</div>')
@@ -883,7 +902,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── News Sentiment Section ──
-    parts.append('<div class="section"><div class="section-title">News Sentiment</div>')
+    parts.append(f'<div class="section">{st("News Sentiment")}')
     if sentiment["status"] in ("success", "partial"):
         sent_results = sentiment["data"].get("results", [])
         if sent_results:
@@ -903,9 +922,9 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f"""
 <div class="card" style="border-left:3px solid {sent_color}">
     <div class="card-header">{_esc(s['ticker'])}</div>
-    <div class="card-row"><span class="card-label">Sentiment</span>
+    <div class="card-row">{ll("Sentiment")}
         <span class="card-value" style="color:{sent_color}">{score:+.2f}</span></div>
-    <div class="card-row"><span class="card-label">Articles</span>
+    <div class="card-row">{ll("Articles")}
         <span class="card-value">{s.get('article_count', 0)}</span></div>""")
                 headline = s.get("key_headline", "")
                 if headline:
@@ -922,7 +941,7 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     parts.append('</div>')
 
     # ── Options Section ──
-    parts.append('<div class="section"><div class="section-title">Options Analysis</div>')
+    parts.append(f'<div class="section">{st("Options Analysis")}')
     if options["status"] in ("success", "partial"):
         tickers = options["data"].get("tickers", [])
         if tickers:
@@ -941,16 +960,16 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f"""
 <div class="card">
     <div class="card-header">{_esc(ticker)}</div>
-    <div class="card-row"><span class="card-label">Max Pain</span>
+    <div class="card-row">{ll("Max Pain")}
         <span class="card-value">{_fmt_price(t.get('max_pain'))}</span></div>
-    <div class="card-row"><span class="card-label">Front Month</span>
+    <div class="card-row">{ll("Front Month")}
         <span class="card-value">{_esc(t.get('front_month_expiry', 'N/A'))}</span></div>""")
 
                 # Top strikes
                 top = t.get("top_strikes", [])
                 if top:
                     strikes_str = ", ".join(f"${s['strike']} ({s['total_oi']:,})" for s in top)
-                    parts.append(f'<div class="card-row"><span class="card-label">Top OI</span><span class="card-value" style="font-size:0.8rem">{_esc(strikes_str)}</span></div>')
+                    parts.append(f'<div class="card-row">{ll("Top OI")}<span class="card-value" style="font-size:0.8rem">{_esc(strikes_str)}</span></div>')
 
                 # PMCC details
                 if pmcc:
@@ -979,6 +998,9 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     Generated {_esc(datetime.now().astimezone().strftime('%Y-%m-%d %H:%M %Z'))}
 </div>
 </div>
+{build_panel_html()}
+{build_tour_html()}
+<script>{LEARNING_JS}</script>
 </body>
 </html>""")
 
