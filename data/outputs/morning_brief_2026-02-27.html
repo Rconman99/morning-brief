@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Brief &mdash; 2026-02-27</title>
+<style>
+:root {
+    --bg-primary: #0d1117;
+    --bg-card: #161b22;
+    --bg-card-hover: #1c2333;
+    --border: #30363d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #484f58;
+    --green: #3fb950;
+    --green-bg: rgba(63,185,80,0.12);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.12);
+    --yellow: #d29922;
+    --yellow-bg: rgba(210,153,34,0.12);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.12);
+    --gray: #8b949e;
+    --gray-bg: rgba(139,148,158,0.12);
+    --accent: #58a6ff;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    padding: 0;
+}
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+/* Hero Banner */
+.hero {
+    background: linear-gradient(135deg, #161b22 0%, #1a2332 50%, #161b22 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+.hero h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+.hero .date { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 16px; }
+.hero .pnl {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 12px 0 20px;
+    font-variant-numeric: tabular-nums;
+}
+.pnl-positive { color: var(--green); }
+.pnl-negative { color: var(--red); }
+.pnl-neutral { color: var(--text-secondary); }
+.status-pills { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 12px; border-radius: 16px; font-size: 0.8rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+}
+.pill-success { border-color: var(--green); color: var(--green); }
+.pill-partial { border-color: var(--yellow); color: var(--yellow); }
+.pill-error { border-color: var(--red); color: var(--red); }
+.pill-missing { border-color: var(--text-muted); color: var(--text-muted); }
+
+/* Section headers */
+.section { margin-bottom: 24px; }
+.section-title {
+    font-size: 1.1rem; font-weight: 600; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    padding-bottom: 8px; margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Card grid */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px;
+    transition: background 0.15s;
+}
+.card:hover { background: var(--bg-card-hover); }
+.card-header {
+    font-size: 1rem; font-weight: 600; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+}
+.card-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0; font-size: 0.9rem;
+}
+.card-label { color: var(--text-secondary); }
+.card-value { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* Verdict grid */
+.verdict-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.verdict-card {
+    border-radius: 8px; padding: 16px;
+    border-left: 4px solid transparent;
+}
+.verdict-BUY { background: var(--green-bg); border-left-color: var(--green); }
+.verdict-SELL { background: var(--red-bg); border-left-color: var(--red); }
+.verdict-AVOID { background: var(--yellow-bg); border-left-color: var(--yellow); }
+.verdict-HOLD { background: var(--gray-bg); border-left-color: var(--gray); }
+.verdict-REVIEW { background: var(--blue-bg); border-left-color: var(--blue); }
+.verdict-ticker { font-size: 1.1rem; font-weight: 700; }
+.verdict-label {
+    display: inline-block; font-size: 0.75rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px; margin-left: 8px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.verdict-label-BUY { background: var(--green); color: #0d1117; }
+.verdict-label-SELL { background: var(--red); color: #0d1117; }
+.verdict-label-AVOID { background: var(--yellow); color: #0d1117; }
+.verdict-label-HOLD { background: var(--gray); color: #0d1117; }
+.verdict-label-REVIEW { background: var(--blue); color: #0d1117; }
+.verdict-reason { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; }
+
+/* Portfolio table */
+.table-wrap { overflow-x: auto; }
+table {
+    width: 100%; border-collapse: collapse;
+    background: var(--bg-card); border-radius: 8px;
+    overflow: hidden;
+}
+th {
+    text-align: left; padding: 12px 16px; font-size: 0.8rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-secondary); background: #1c2128;
+    border-bottom: 1px solid var(--border);
+}
+td {
+    padding: 10px 16px; font-size: 0.9rem;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg-card-hover); }
+
+/* Correlation badges */
+.corr-high {
+    display: inline-block; padding: 4px 10px; border-radius: 6px;
+    background: var(--red-bg); color: var(--red);
+    font-size: 0.85rem; font-weight: 600;
+    margin: 3px;
+}
+
+/* Journal stats */
+.stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat-box {
+    flex: 1; min-width: 120px; text-align: center;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+}
+.stat-number { font-size: 1.8rem; font-weight: 700; }
+.stat-label { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; }
+
+/* Patterns / checklist */
+.alert-box {
+    background: var(--yellow-bg); border: 1px solid var(--yellow);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+.checklist-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+/* Earnings */
+.tone-bar {
+    height: 8px; border-radius: 4px; background: var(--border);
+    position: relative; margin: 8px 0;
+}
+.tone-fill {
+    height: 100%; border-radius: 4px;
+    position: absolute; top: 0;
+}
+.risk-list { list-style: none; padding: 0; margin-top: 8px; }
+.risk-list li {
+    font-size: 0.85rem; color: var(--text-secondary);
+    padding: 4px 0 4px 16px; position: relative;
+}
+.risk-list li::before {
+    content: 'A0 '; position: absolute; left: 0; color: var(--yellow);
+}
+
+/* Footer */
+.footer {
+    text-align: center; padding: 24px; margin-top: 32px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem; color: var(--text-muted);
+}
+
+/* Options compact cards */
+.options-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.pmcc-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 3px 0; }
+.pmcc-label { color: var(--text-secondary); }
+.pmcc-value { font-weight: 500; }
+.tag-skipped {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    background: var(--gray-bg); color: var(--gray); font-size: 0.8rem;
+}
+
+/* Unavailable placeholder */
+.unavailable {
+    color: var(--text-muted); font-style: italic;
+    padding: 24px; text-align: center;
+    background: var(--bg-card); border-radius: 8px;
+    border: 1px dashed var(--border);
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+
+<div class="hero">
+    <h1>Morning Brief</h1>
+    <div class="date">2026-02-27</div>
+    <div class="pnl pnl-negative">$-1,228.25</div>
+    <div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">Total Portfolio P&amp;L</div>
+    <div class="status-pills"><span class="pill pill-success">&#10003; Journal</span> <span class="pill pill-partial">&#9888; Earnings</span> <span class="pill pill-success">&#10003; Valuation</span> <span class="pill pill-success">&#10003; Portfolio</span> <span class="pill pill-success">&#10003; Options</span> <span class="pill pill-partial">&#9888; Scorecard</span></div>
+</div>
+
+<div class="section"><div class="section-title">Watchlist Verdicts</div>
+<div class="verdict-grid">
+
+<div class="verdict-card verdict-HOLD">
+    <div><span class="verdict-ticker">AAPL</span>
+    <span class="verdict-label verdict-label-HOLD">HOLD</span></div>
+    <div class="verdict-reason">Default — no strong signal in either direction</div>
+</div>
+
+<div class="verdict-card verdict-HOLD">
+    <div><span class="verdict-ticker">AMD</span>
+    <span class="verdict-label verdict-label-HOLD">HOLD</span></div>
+    <div class="verdict-reason">Default — no strong signal in either direction</div>
+</div>
+
+<div class="verdict-card verdict-AVOID">
+    <div><span class="verdict-ticker">GOOGL</span>
+    <span class="verdict-label verdict-label-AVOID">AVOID</span></div>
+    <div class="verdict-reason">More expensive than META on 4+ metrics</div>
+</div>
+
+<div class="verdict-card verdict-BUY">
+    <div><span class="verdict-ticker">META</span>
+    <span class="verdict-label verdict-label-BUY">BUY</span></div>
+    <div class="verdict-reason">Cheaper than GOOGL on 4 metrics with positive/neutral earnings tone</div>
+</div>
+
+<div class="verdict-card verdict-BUY">
+    <div><span class="verdict-ticker">MSFT</span>
+    <span class="verdict-label verdict-label-BUY">BUY</span></div>
+    <div class="verdict-reason">Cheaper than AAPL on 3 metrics with positive/neutral earnings tone</div>
+</div>
+
+<div class="verdict-card verdict-HOLD">
+    <div><span class="verdict-ticker">NVDA</span>
+    <span class="verdict-label verdict-label-HOLD">HOLD</span></div>
+    <div class="verdict-reason">Default — no strong signal in either direction</div>
+</div>
+
+<div class="verdict-card verdict-SELL">
+    <div><span class="verdict-ticker">VOO</span>
+    <span class="verdict-label verdict-label-SELL">SELL</span></div>
+    <div class="verdict-reason">Trailing stop $614.20 is within 5% of current price $629.11</div>
+</div>
+</div></div>
+<div class="section"><div class="section-title">Verdict Scorecard</div>
+
+<div class="stat-row">
+    <div class="stat-box">
+        <div class="stat-number">7</div>
+        <div class="stat-label">Verdicts Evaluated</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--text-secondary)">N/A</div>
+        <div class="stat-label">Win Rate</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--green)">0</div>
+        <div class="stat-label">Wins</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--red)">0</div>
+        <div class="stat-label">Losses</div>
+    </div>
+</div>
+<div class="unavailable">No evaluation windows have elapsed yet — check back in 5 days</div>
+</div>
+<div class="section"><div class="section-title">Portfolio Holdings</div>
+<div class="table-wrap"><table>
+<thead><tr>
+            <th>Ticker</th><th>Shares</th><th>Cost Basis</th>
+            <th>Price</th><th>P&amp;L</th><th>ATR</th>
+            <th>Trail Stop</th><th>Locked Profit</th>
+        </tr></thead><tbody>
+<tr>
+                <td style="font-weight:600">NVDA</td>
+                <td>50</td>
+                <td>$485.00</td>
+                <td>$179.42</td>
+                <td style="color:var(--red);font-weight:600">$-15,279.00</td>
+                <td>$6.07</td>
+                <td>$167.29</td>
+                <td style="color:var(--red)">$-15,885.50</td>
+            </tr>
+<tr>
+                <td style="font-weight:600">AAPL</td>
+                <td>100</td>
+                <td>$178.50</td>
+                <td>$266.73</td>
+                <td style="color:var(--green);font-weight:600">$+8,823.00</td>
+                <td>$6.72</td>
+                <td>$253.29</td>
+                <td style="color:var(--green)">$+7,479.00</td>
+            </tr>
+<tr>
+                <td style="font-weight:600">VOO</td>
+                <td>25</td>
+                <td>$420.00</td>
+                <td>$629.11</td>
+                <td style="color:var(--green);font-weight:600">$+5,227.75</td>
+                <td>$7.45</td>
+                <td>$614.20</td>
+                <td style="color:var(--green)">$+4,855.00</td>
+            </tr>
+</tbody></table></div>
+</div>
+<div class="section"><div class="section-title">Trade Journal</div>
+
+<div class="stat-row">
+    <div class="stat-box">
+        <div class="stat-number">30</div>
+        <div class="stat-label">Total Trades</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--green)">63%</div>
+        <div class="stat-label">Win Rate</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--green)">19</div>
+        <div class="stat-label">Winners</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-number" style="color:var(--red)">11</div>
+        <div class="stat-label">Losers</div>
+    </div>
+</div>
+<div class="alert-box">TSLA: 4 consecutive losses within 48hrs</div>
+<div class="alert-box">Tuesday win rate 0% (8 trades)</div>
+<div class="checklist-item">RULE: After 2 consecutive losses on TSLA, stop trading that ticker for 24hrs</div>
+<div class="checklist-item">RULE: Avoid trading on Tuesdays (historically poor performance)</div>
+</div>
+<div class="section"><div class="section-title">Earnings Tone Analysis</div>
+<div class="unavailable">No earnings results</div>
+</div>
+<div class="section"><div class="section-title">Valuation Comparisons</div>
+<div class="card-grid">
+
+<div class="card">
+    <div class="card-header">NVDA vs AMD</div>
+    <div class="card-row"><span class="card-label">Cheaper</span>
+        <span class="card-value" style="color:var(--text-muted)">inconclusive</span></div>
+    <div class="card-row"><span class="card-label">Metrics</span>
+        <span class="card-value">2-2 (4 comparable)</span></div>
+    <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">NVDA and AMD are similarly valued across 4 comparable metrics.</div>
+</div>
+
+<div class="card">
+    <div class="card-header">AAPL vs MSFT</div>
+    <div class="card-row"><span class="card-label">Cheaper</span>
+        <span class="card-value" style="color:var(--green)">MSFT</span></div>
+    <div class="card-row"><span class="card-label">Metrics</span>
+        <span class="card-value">1-3 (4 comparable)</span></div>
+    <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">MSFT appears cheaper than AAPL on 3 of 4 comparable metrics.</div>
+</div>
+
+<div class="card">
+    <div class="card-header">GOOGL vs META</div>
+    <div class="card-row"><span class="card-label">Cheaper</span>
+        <span class="card-value" style="color:var(--green)">META</span></div>
+    <div class="card-row"><span class="card-label">Metrics</span>
+        <span class="card-value">0-4 (4 comparable)</span></div>
+    <div style="margin-top:8px;font-size:0.85rem;color:var(--text-secondary)">META appears cheaper than GOOGL on 4 of 4 comparable metrics.</div>
+</div>
+</div>
+</div>
+<div class="section"><div class="section-title">Options Analysis</div>
+<div class="options-grid">
+
+<div class="card">
+    <div class="card-header">NVDA</div>
+    <div class="card-row"><span class="card-label">Max Pain</span>
+        <span class="card-value">$165.00</span></div>
+    <div class="card-row"><span class="card-label">Front Month</span>
+        <span class="card-value">2026-03-20</span></div>
+<div class="card-row"><span class="card-label">Top OI</span><span class="card-value" style="font-size:0.8rem">$200.0 (257,156), $160.0 (176,584), $190.0 (159,904)</span></div>
+<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;font-weight:600">PMCC Setup</div>
+
+    <div class="pmcc-row"><span class="pmcc-label">Long 2026-09-18</span>
+        <span class="pmcc-value">$155.0 @ $40.92 (N/A)</span></div>
+    <div class="pmcc-row"><span class="pmcc-label">Short 2026-03-20</span>
+        <span class="pmcc-value">$190.0 @ $3.88 (N/A)</span></div>
+    <div class="pmcc-row"><span class="pmcc-label">Net Debit</span>
+        <span class="pmcc-value" style="color:var(--accent)">$37.04</span></div>
+</div>
+</div>
+
+<div class="card">
+    <div class="card-header">AAPL</div>
+    <div class="card-row"><span class="card-label">Max Pain</span>
+        <span class="card-value">$250.00</span></div>
+    <div class="card-row"><span class="card-label">Front Month</span>
+        <span class="card-value">2026-03-20</span></div>
+<div class="card-row"><span class="card-label">Top OI</span><span class="card-value" style="font-size:0.8rem">$280.0 (71,913), $300.0 (56,311), $260.0 (54,782)</span></div>
+<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;font-weight:600">PMCC Setup</div>
+
+    <div class="pmcc-row"><span class="pmcc-label">Long 2026-09-18</span>
+        <span class="pmcc-value">$225.0 @ $55.45 (N/A)</span></div>
+    <div class="pmcc-row"><span class="pmcc-label">Short 2026-03-20</span>
+        <span class="pmcc-value">$280.0 @ $1.85 (N/A)</span></div>
+    <div class="pmcc-row"><span class="pmcc-label">Net Debit</span>
+        <span class="pmcc-value" style="color:var(--accent)">$53.60</span></div>
+</div>
+</div>
+
+<div class="card">
+    <div class="card-header">VOO</div>
+    <div class="card-row"><span class="card-label">Max Pain</span>
+        <span class="card-value">$610.00</span></div>
+    <div class="card-row"><span class="card-label">Front Month</span>
+        <span class="card-value">2026-03-20</span></div>
+<div class="card-row"><span class="card-label">Top OI</span><span class="card-value" style="font-size:0.8rem">$650.0 (665), $640.0 (618), $630.0 (461)</span></div>
+<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:6px;font-weight:600">PMCC Setup</div>
+
+    <div class="pmcc-row"><span class="pmcc-label">Long 2026-09-18</span>
+        <span class="pmcc-value">$550.0 @ $100.37 (N/A)</span></div>
+    <div class="pmcc-row"><span class="pmcc-label">Short 2026-03-20</span>
+        <span class="pmcc-value">$660.0 @ $0.32 (N/A)</span></div>
+    <div class="pmcc-row"><span class="pmcc-label">Net Debit</span>
+        <span class="pmcc-value" style="color:var(--accent)">$100.05</span></div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="footer">
+    This is analysis, not financial advice. All trading decisions are yours.<br>
+    Generated 2026-02-27 11:13 MST
+</div>
+</div>
+</body>
+</html>
