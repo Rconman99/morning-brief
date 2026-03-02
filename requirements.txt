@@ -7,3 +7,4 @@ requests
 pytest
 anthropic
 edgartools
+pyetrade

@@ -38,10 +38,29 @@ MODULES = [
 ]
 
 
+SYNC_STEP = ("sync_portfolio", "scripts/sync_portfolio.py")
+
+
 def main():
     venv_python = get_venv_python()
     print(f"Using Python: {venv_python}")
     print("=" * 60)
+
+    # Step 0: Portfolio Sync (non-blocking)
+    print("\n=== Step 0: Portfolio Sync ===")
+    try:
+        result = subprocess.run(
+            [venv_python, str(PROJECT_ROOT / SYNC_STEP[1])],
+            capture_output=True, text=True, timeout=30, cwd=str(PROJECT_ROOT),
+        )
+        if result.returncode == 0:
+            if result.stdout.strip():
+                print(result.stdout.strip())
+            print("Portfolio synced successfully")
+        else:
+            print(f"Sync skipped: {result.stderr.strip()[:100]}")
+    except Exception as e:
+        print(f"Sync skipped: {e}")
 
     results = []
     total_start = time.time()

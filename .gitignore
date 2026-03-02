@@ -4,6 +4,8 @@ data/raw/
 data/processed/
 data/processed/stop_tracker.json
 data/scorecard/
+config/etrade_tokens.json
+config/portfolio.json.bak.*
 __pycache__/
 *.pyc
 .pytest_cache/
