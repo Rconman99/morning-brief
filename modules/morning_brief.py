@@ -122,13 +122,18 @@ def determine_verdict(ticker: str, valuation_data: dict, earnings_data: dict,
             break
 
     # ── SELL ──
-    # Trailing stop within 5% of current price
+    # Trailing stop within 5% of current price (stop must be BELOW price)
+    # OR price has already breached the stop (price < stop)
     for h in holdings:
         if h.get("ticker") == ticker:
             stop = h.get("trailing_stop")
             price = h.get("current_price")
             if stop and price and price > 0:
-                if stop / price > 0.95:
+                if price < stop:
+                    # Price has breached the trailing stop
+                    return "SELL", f"Price ${price:.2f} has breached trailing stop ${stop:.2f} — stop triggered"
+                elif (price - stop) / price < 0.05:
+                    # Stop is within 5% below current price
                     return "SELL", f"Trailing stop ${stop:.2f} is within 5% of current price ${price:.2f}"
 
     # Technical composite < -3

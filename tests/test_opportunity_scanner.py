@@ -103,10 +103,10 @@ def test_filter_excludes_death_cross(mock_history, mock_info):
 
 @patch("modules.opportunity_scanner.yahoo_finance_info")
 @patch("modules.opportunity_scanner.yahoo_finance_price_history")
-def test_filter_excludes_low_volume(mock_history, mock_info):
-    """Ticker with low volume ratio should be excluded."""
-    hist = _make_history(250, 100, "up")
-    # Make volume uniform (ratio ~1.0)
+def test_filter_excludes_weak_signal(mock_history, mock_info):
+    """Ticker with weak overall signal should be excluded by high opportunity score threshold."""
+    hist = _make_history(250, 100, "flat")
+    # Make volume uniform (ratio ~1.0) — no volume signal
     hist["Volume"] = 5_000_000.0
     mock_history.return_value = hist
     mock_info.return_value = {}
@@ -114,11 +114,12 @@ def test_filter_excludes_low_volume(mock_history, mock_info):
     config = {
         "scan_tickers": ["TEST"],
         "sector_etfs": [],
-        "min_composite_to_surface": -10.0,
-        "min_volume_ratio": 1.5,  # require high volume
+        "min_composite_to_surface": 2.0,
+        "min_volume_ratio": 1.3,
+        "min_opportunity_score": 7.0,  # very high bar — flat stock won't pass
     }
     data = scan_opportunities(config=config)
-    # With uniform volume (ratio=1.0), should be excluded by 1.5 threshold
+    # Flat trend with no volume surge should not meet a high opportunity score threshold
     assert data["passed_filter"] == 0
 
 
@@ -143,7 +144,10 @@ def test_ranking_order(mock_history, mock_info):
     opps = data["opportunities"]
     if len(opps) >= 2:
         for i in range(len(opps) - 1):
-            assert opps[i]["composite_score"] >= opps[i + 1]["composite_score"]
+            # Ranked by opportunity_score (or composite_score as fallback)
+            score_a = opps[i].get("opportunity_score", opps[i].get("composite_score", 0))
+            score_b = opps[i+1].get("opportunity_score", opps[i+1].get("composite_score", 0))
+            assert score_a >= score_b
 
 
 # ── Sector ETF tests ──

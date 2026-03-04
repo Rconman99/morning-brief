@@ -103,8 +103,8 @@ def scan_opportunities(scan_tickers: list[str] = None, config: dict = None) -> d
     # Scan sector ETFs
     sector_read = scan_sector_etfs(sector_etfs)
 
-    # Analyze each scan ticker
-    survivors = []
+    # Analyze each scan ticker — weighted scoring instead of AND gate
+    scored_tickers = []
     for ticker in scan_tickers:
         try:
             history = yahoo_finance_price_history(ticker, period="1y")
@@ -117,24 +117,61 @@ def scan_opportunities(scan_tickers: list[str] = None, config: dict = None) -> d
             volume_ratio = result.get("volume_ratio")
             sma_trend = result.get("sma_trend", "")
 
-            # Filter: ALL conditions must pass
-            if composite < min_composite:
-                continue
-            if volume_ratio is None or volume_ratio < min_volume:
-                continue
-            if rsi is None or rsi < 30 or rsi > 65:
-                continue
-            if sma_trend not in ("golden_cross", "above_200"):
+            # Weighted opportunity score (out of 10)
+            opp_score = 0.0
+
+            # Composite is the primary signal (0-4 points)
+            opp_score += max(0.0, min(4.0, composite))
+
+            # SMA trend (0-2 points)
+            if sma_trend == "golden_cross":
+                opp_score += 2.0
+            elif sma_trend == "above_200":
+                opp_score += 1.5
+            elif sma_trend == "below_200":
+                opp_score += 0.0
+            elif sma_trend == "death_cross":
+                opp_score -= 1.0
+
+            # Volume confirmation (0-1.5 points)
+            if volume_ratio is not None:
+                if volume_ratio > 2.0:
+                    opp_score += 1.5
+                elif volume_ratio > 1.5:
+                    opp_score += 1.0
+                elif volume_ratio > 1.2:
+                    opp_score += 0.5
+
+            # RSI sweet spot bonus (0-1.5 points): best at 40-55
+            if rsi is not None:
+                if 35 <= rsi <= 55:
+                    opp_score += 1.5  # ideal zone
+                elif 30 <= rsi <= 65:
+                    opp_score += 0.75  # acceptable
+                elif rsi > 75:
+                    opp_score -= 1.0  # overbought penalty
+                elif rsi < 25:
+                    opp_score += 0.5  # deeply oversold — bounce potential
+
+            # Hard filter: minimum composite > 0 (at least slightly bullish)
+            if composite <= 0:
                 continue
 
-            survivors.append(result)
-            logger.info("%s: PASSED filter (composite=%.1f, rsi=%.1f, vol=%.1f, sma=%s)",
-                        ticker, composite, rsi, volume_ratio, sma_trend)
+            # Minimum opportunity score to surface
+            min_opp_score = config.get("min_opportunity_score", 3.5)
+            if opp_score >= min_opp_score:
+                result["opportunity_score"] = round(opp_score, 2)
+                scored_tickers.append(result)
+                logger.info("%s: PASSED filter (opp_score=%.1f, composite=%.1f, rsi=%s, vol=%s, sma=%s)",
+                            ticker, opp_score, composite, rsi, volume_ratio, sma_trend)
         except Exception as e:
             logger.warning("%s: scan failed: %s", ticker, e)
 
-    # Rank by composite descending
-    survivors.sort(key=lambda x: x.get("composite_score", 0), reverse=True)
+    # Rename for downstream compatibility
+    survivors = scored_tickers
+
+    # Rank by opportunity score descending (falls back to composite)
+    survivors.sort(key=lambda x: x.get("opportunity_score", x.get("composite_score", 0)), reverse=True)
 
     # Top 5: enrich with valuation info
     opportunities = []

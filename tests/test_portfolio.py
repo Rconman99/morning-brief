@@ -63,11 +63,10 @@ def test_analyze_portfolio(mock_yf):
 
 
 @patch("modules.portfolio.yahoo_finance_price_history")
-def test_trailing_stop_ratchets_up(mock_yf):
-    """Trailing stop should only increase, never decrease when price drops."""
+def test_trailing_stop_ratchets_up_when_above_stop(mock_yf):
+    """Trailing stop ratchets up when price stays above the stop."""
     # Run 1: price at 600
     history_high = make_mock_history(100, 500.0)
-    # Override last close to 600
     history_high.iloc[-1, history_high.columns.get_loc("Close")] = 600.0
     mock_yf.return_value = history_high
 
@@ -81,19 +80,50 @@ def test_trailing_stop_ratchets_up(mock_yf):
     assert stop1 is not None
     assert max1 == 600.0
 
-    # Run 2: price drops to 500
-    history_low = make_mock_history(100, 500.0)
-    history_low.iloc[-1, history_low.columns.get_loc("Close")] = 500.0
-    mock_yf.return_value = history_low
+    # Run 2: price rises to 620 (still above stop, higher than before)
+    history_mid = make_mock_history(100, 500.0)
+    history_mid.iloc[-1, history_mid.columns.get_loc("Close")] = 620.0
+    mock_yf.return_value = history_mid
 
     result2 = analyze_portfolio(holdings, settings, stop_tracker=tracker)
     stop2 = result2["holdings"][0]["trailing_stop"]
     max2 = result2["holdings"][0]["max_price"]
 
-    # max_price should stay at 600 (not drop to 500)
-    assert max2 == 600.0
-    # trailing stop should never decrease
+    # max_price should update to 620
+    assert max2 == 620.0
+    # trailing stop should NOT decrease when price is still above stop
     assert stop2 >= stop1, f"Stop dropped from {stop1} to {stop2}"
+
+
+@patch("modules.portfolio.yahoo_finance_price_history")
+def test_trailing_stop_resets_when_breached(mock_yf):
+    """Trailing stop resets to sensible level when price crashes through it."""
+    # Run 1: price at 600, sets a high stop
+    history_high = make_mock_history(100, 500.0)
+    history_high.iloc[-1, history_high.columns.get_loc("Close")] = 600.0
+    mock_yf.return_value = history_high
+
+    holdings = [{"ticker": "NVDA", "shares": 50, "cost_basis": 485.0}]
+    settings = {"atr_multiplier_default": 2.0, "min_correlation_days": 60}
+    tracker = {}
+
+    result1 = analyze_portfolio(holdings, settings, stop_tracker=tracker)
+    stop1 = result1["holdings"][0]["trailing_stop"]
+    assert stop1 is not None
+
+    # Run 2: price crashes to 200 (well below stop)
+    history_crash = make_mock_history(100, 500.0)
+    history_crash.iloc[-1, history_crash.columns.get_loc("Close")] = 200.0
+    mock_yf.return_value = history_crash
+
+    result2 = analyze_portfolio(holdings, settings, stop_tracker=tracker)
+    stop2 = result2["holdings"][0]["trailing_stop"]
+
+    # Stop should reset to below current price, not stay frozen above it
+    assert stop2 < 200.0, f"Stop {stop2} should be below crashed price 200.0"
+    # Locked profit should be 0 for underwater position
+    locked = result2["holdings"][0]["locked_profit"]
+    assert locked == 0.0, f"Locked profit should be 0 for underwater position, got {locked}"
 
 
 def test_stop_tracker_persistence(tmp_path):

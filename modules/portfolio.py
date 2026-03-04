@@ -129,12 +129,30 @@ def analyze_portfolio(holdings: list[dict], settings: dict,
         max_price = max(current_price, prev_max)
         trailing_stop = round(max_price - (atr_mult * atr), 2) if atr else None
 
-        # Ensure stop never decreases from previous run
+        # Ratchet logic: stop only goes up WHILE price is above the stop.
+        # If price has crashed through the stop, recalculate from current price
+        # so the stop resets to a sensible level below the current price.
         prev_stop = stop_tracker.get(ticker, {}).get("trailing_stop")
         if trailing_stop is not None and prev_stop is not None:
-            trailing_stop = max(trailing_stop, prev_stop)
+            if current_price >= prev_stop:
+                # Price still above previous stop — ratchet up only
+                trailing_stop = max(trailing_stop, prev_stop)
+            else:
+                # Price has breached the stop — recalculate fresh from current price
+                trailing_stop = round(current_price - (atr_mult * atr), 2) if atr else trailing_stop
+                logger.warning("%s: price $%.2f breached previous stop $%.2f — resetting stop to $%.2f",
+                               ticker, current_price, prev_stop, trailing_stop)
 
-        locked_profit = round((trailing_stop - cost_basis) * shares, 2) if trailing_stop else None
+        # Locked profit: only meaningful when stop is below current price
+        # and stop is above cost basis
+        if trailing_stop is not None:
+            if trailing_stop > current_price:
+                # Stop is above current price (breached) — no locked profit
+                locked_profit = 0.0
+            else:
+                locked_profit = round(max(0.0, (trailing_stop - cost_basis) * shares), 2)
+        else:
+            locked_profit = None
 
         # Update tracker
         stop_tracker[ticker] = {

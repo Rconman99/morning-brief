@@ -298,10 +298,11 @@ def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
         # Price change today
         price_change = float(close.iloc[-1] - close.iloc[-2]) if len(close) >= 2 else 0
 
-        # Composite scoring
+        # Composite scoring — CONTINUOUS scores for better differentiation
         indicators = []
 
-        # RSI score
+        # RSI score: continuous mapping from 0-100 to [-1, +1]
+        # 30 → +1 (oversold=bullish), 50 → 0, 70 → -1 (overbought=bearish)
         rsi_score = 0.0
         if rsi_14 is not None:
             if rsi_14 < 30:
@@ -310,54 +311,69 @@ def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
             elif rsi_14 > 70:
                 rsi_score = -1.0
                 rsi_signal = "overbought"
+            elif rsi_14 < 50:
+                # 30-50 maps to +1 to 0 (linear)
+                rsi_score = round((50 - rsi_14) / 20, 2)
+                rsi_signal = "bullish_lean"
             else:
-                rsi_signal = "neutral"
+                # 50-70 maps to 0 to -1 (linear)
+                rsi_score = round(-(rsi_14 - 50) / 20, 2)
+                rsi_signal = "bearish_lean"
             indicators.append({"name": "RSI", "value": rsi_14, "signal": rsi_signal, "score": rsi_score})
 
-        # MACD score
+        # MACD score: use histogram magnitude relative to price for continuous scoring
         macd_score = 0.0
-        if macd_histogram > 0:
-            macd_score = 1.0
-        elif macd_histogram < 0:
-            macd_score = -1.0
+        if current_price > 0 and macd_histogram != 0:
+            # Normalize histogram by price, scale to [-1, +1]
+            normalized = macd_histogram / current_price * 100  # percent of price
+            macd_score = round(max(-1.0, min(1.0, normalized * 10)), 2)
         indicators.append({"name": "MACD", "value": macd_histogram, "signal": macd_signal, "score": macd_score})
 
-        # Bollinger Bands score
+        # Bollinger Bands score: continuous based on position within bands
         bb_score = 0.0
-        if bb_position == "below_lower":
-            bb_score = 1.0
-        elif bb_position == "above_upper":
-            bb_score = -1.0
+        if upper_bb and lower_bb and middle_bb:
+            bb_range = upper_bb - lower_bb
+            if bb_range > 0:
+                # Position: -1 at upper band, +1 at lower band (mean-reversion logic)
+                bb_position_pct = (current_price - middle_bb) / (bb_range / 2)
+                bb_score = round(max(-1.0, min(1.0, -bb_position_pct)), 2)
         indicators.append({"name": "Bollinger Bands", "value": bb_position, "signal": bb_position, "score": bb_score})
 
-        # SMA score
+        # SMA score: continuous based on price distance from moving averages
         sma_score = 0.0
-        if sma_200 and current_price > sma_200:
-            sma_score += 0.5
+        if sma_200 and sma_200 > 0:
+            # Distance from 200 SMA as % of price, scaled
+            sma_dist_200 = (current_price - sma_200) / sma_200
+            sma_score += round(max(-0.5, min(0.5, sma_dist_200 * 5)), 2)
         if sma_trend == "golden_cross":
-            sma_score += 0.5
+            sma_score = round(min(1.0, sma_score + 0.5), 2)
         elif sma_trend == "death_cross":
-            sma_score = -1.0
+            sma_score = round(max(-1.0, sma_score - 0.5), 2)
         indicators.append({"name": "SMA", "value": sma_trend, "signal": sma_trend, "score": sma_score})
 
-        # Volume score
+        # Volume score: continuous based on volume ratio magnitude
         vol_score = 0.0
-        if volume_ratio and volume_ratio > 1.5:
-            vol_score = 1.0 if price_change > 0 else -1.0
-        vol_signal = "surge_up" if vol_score > 0 else "surge_down" if vol_score < 0 else "normal"
+        if volume_ratio is not None and volume_ratio > 0:
+            # Directional volume: high volume amplifies the price direction
+            vol_magnitude = min(1.0, (volume_ratio - 1.0) / 1.5) if volume_ratio > 1.0 else 0.0
+            if price_change > 0:
+                vol_score = round(vol_magnitude, 2)
+            elif price_change < 0:
+                vol_score = round(-vol_magnitude, 2)
+        vol_signal = "surge_up" if vol_score > 0.3 else "surge_down" if vol_score < -0.3 else "normal"
         indicators.append({"name": "Volume", "value": volume_ratio, "signal": vol_signal, "score": vol_score})
 
-        # VWAP
+        # VWAP: continuous based on distance from VWAP
         vwap = calculate_vwap(history)
         vwap_signal = None
         vwap_score = 0.0
-        if vwap is not None:
-            if current_price > vwap * 1.01:
+        if vwap is not None and vwap > 0:
+            vwap_dist = (current_price - vwap) / vwap
+            vwap_score = round(max(-0.5, min(0.5, vwap_dist * 20)), 2)
+            if vwap_score > 0.1:
                 vwap_signal = "above"
-                vwap_score = 0.5
-            elif current_price < vwap * 0.99:
+            elif vwap_score < -0.1:
                 vwap_signal = "below"
-                vwap_score = -0.5
             else:
                 vwap_signal = "at_vwap"
             indicators.append({"name": "VWAP", "value": vwap, "signal": vwap_signal, "score": vwap_score})

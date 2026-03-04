@@ -154,13 +154,18 @@ def assess_now_risks(portfolio_data: dict, sentiment_data: dict,
         stop = h.get("trailing_stop")
         price = h.get("current_price")
         if stop and price and price > 0:
-            distance_pct = (price - stop) / price
-            if distance_pct < stop_imminent:
-                risks.append({"risk": "STOP_IMMINENT", "level": "high",
-                              "detail": f"{h['ticker']} only {distance_pct:.1%} above trailing stop"})
-            elif distance_pct < stop_close:
-                risks.append({"risk": "STOP_CLOSE", "level": "medium",
-                              "detail": f"{h['ticker']} {distance_pct:.1%} above trailing stop"})
+            if price < stop:
+                # Price has breached the stop — this is the most urgent state
+                risks.append({"risk": "STOP_BREACHED", "level": "high",
+                              "detail": f"{h['ticker']} price ${price:.2f} is BELOW trailing stop ${stop:.2f} — exit signal"})
+            else:
+                distance_pct = (price - stop) / price
+                if distance_pct < stop_imminent:
+                    risks.append({"risk": "STOP_IMMINENT", "level": "high",
+                                  "detail": f"{h['ticker']} only {distance_pct:.1%} above trailing stop"})
+                elif distance_pct < stop_close:
+                    risks.append({"risk": "STOP_CLOSE", "level": "medium",
+                                  "detail": f"{h['ticker']} {distance_pct:.1%} above trailing stop"})
 
     # 5. Sentiment shock
     for s in sentiment_data.get("results", []):
