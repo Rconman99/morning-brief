@@ -1,0 +1,62 @@
+{
+  "signal": "high_impact",
+  "signal_detail": "FOMC Meeting 2026-03-18",
+  "upcoming_events": [
+    {
+      "name": "CPI Release",
+      "date": "2026-03-13",
+      "impact": "medium",
+      "description": "Consumer Price Index - inflation data"
+    },
+    {
+      "name": "Non-Farm Payroll (NFP)",
+      "date": "2026-03-06",
+      "impact": "high",
+      "description": "US employment data release"
+    },
+    {
+      "name": "FOMC Meeting",
+      "date": "2026-03-18",
+      "impact": "high",
+      "description": "Federal Reserve interest rate decision and policy statement"
+    }
+  ],
+  "recent_indicators": {
+    "Federal Funds Rate": {
+      "value": 4.50,
+      "date": "2026-02-01",
+      "series": "FEDFUNDS"
+    },
+    "CPI (All Urban Consumers)": {
+      "value": 2.8,
+      "date": "2026-02-13",
+      "series": "CPIAUCSL"
+    },
+    "Unemployment Rate": {
+      "value": 3.9,
+      "date": "2026-02-06",
+      "series": "UNRATE"
+    },
+    "10-Year Treasury Yield": {
+      "value": 4.25,
+      "date": "2026-03-03",
+      "series": "DGS10"
+    },
+    "10Y Breakeven Inflation": {
+      "value": 2.35,
+      "date": "2026-03-03",
+      "series": "T10YIE"
+    },
+    "Real GDP": {
+      "value": 28500.5,
+      "date": "2026-02-26",
+      "series": "GDPC1"
+    }
+  },
+  "fomc_next": {
+    "date": "2026-03-18",
+    "days_until": 15
+  },
+  "data_source": "sample_data",
+  "analyzed_at": "2026-03-04T10:30:00-05:00"
+}
