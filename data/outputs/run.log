@@ -89,3 +89,111 @@
 2026-02-27 11:13:04,096 [__main__] INFO: Logged 7 new verdicts to /Users/rconwell/morning-brief/data/scorecard/verdict_log.json
 2026-02-27 11:13:04,513 [__main__] INFO: === Brief HTML Module ===
 2026-02-27 11:13:04,514 [__main__] INFO: HTML brief written to /Users/rconwell/morning-brief/data/outputs/morning_brief_2026-02-27.html
+2026-03-03 18:32:47,170 [__main__] INFO: API sync unavailable: ETRADE_CONSUMER_KEY not configured
+2026-03-03 18:32:47,224 [__main__] INFO: === Journal Module ===
+2026-03-03 18:32:47,224 [__main__] INFO: Loading trades from /Users/rconwell/morning-brief/data/sample/trades.csv
+2026-03-03 18:32:47,227 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/journal.json
+2026-03-03 18:32:47,227 [__main__] INFO: Journal analysis complete: 30 trades, 63.3% win rate
+2026-03-03 18:32:47,651 [__main__] INFO: === Earnings Module ===
+2026-03-03 18:32:47,652 [__main__] INFO: No transcript for AAPL
+2026-03-03 18:32:47,652 [__main__] INFO: No transcript for NVDA
+2026-03-03 18:32:47,652 [__main__] INFO: No transcript for MSFT
+2026-03-03 18:32:47,652 [__main__] INFO: Used sample transcript as fallback
+2026-03-03 18:32:47,652 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/earnings_tone.json
+2026-03-03 18:32:47,652 [__main__] INFO: Earnings analysis complete: 1 transcripts analyzed
+2026-03-03 18:32:48,018 [__main__] INFO: === Valuation Module ===
+2026-03-03 18:32:48,019 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-03 18:32:48,760 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-03 18:32:49,022 [__main__] INFO: Compared NVDA vs AMD: cheaper=inconclusive
+2026-03-03 18:32:49,022 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-03 18:32:49,309 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-03 18:32:49,577 [__main__] INFO: Compared AAPL vs MSFT: cheaper=MSFT
+2026-03-03 18:32:49,578 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-03 18:32:49,973 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-03 18:32:50,248 [__main__] INFO: Compared GOOGL vs META: cheaper=META
+2026-03-03 18:32:50,331 [__main__] INFO: AAPL: bull=$350 (+32.7%), bear=$205 (-22.3%), R/R=1.5x
+2026-03-03 18:32:50,503 [__main__] INFO: AMD: bull=$365 (+91.1%), bear=$220 (+15.2%), R/R=6.0x
+2026-03-03 18:32:50,588 [__main__] INFO: GOOGL: bull=$443 (+45.9%), bear=$185 (-39.1%), R/R=1.2x
+2026-03-03 18:32:50,670 [__main__] INFO: META: bull=$1144 (+74.6%), bear=$700 (+6.9%), R/R=10.9x
+2026-03-03 18:32:50,861 [__main__] INFO: MSFT: bull=$730 (+80.7%), bear=$392 (-2.9%), R/R=27.4x
+2026-03-03 18:32:51,037 [__main__] INFO: NVDA: bull=$380 (+111.1%), bear=$140 (-22.2%), R/R=5.0x
+2026-03-03 18:32:51,297 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/valuation.json
+2026-03-03 18:32:51,297 [__main__] INFO: Valuation analysis complete: 3 pairs compared, 6 scenarios
+2026-03-03 18:32:51,664 [__main__] INFO: === Portfolio Module ===
+2026-03-03 18:32:52,474 [__main__] INFO: NVDA: price=180.05 pnl=-15247.50 atr=6.2793 stop=488.67 max=501.23
+2026-03-03 18:32:52,825 [__main__] INFO: AAPL: price=263.75 pnl=8525.00 atr=7.1957 stop=249.36 max=263.75
+2026-03-03 18:32:53,160 [__main__] INFO: VOO: price=625.72 pnl=5143.00 atr=8.4331 stop=608.85 max=625.72
+2026-03-03 18:32:53,162 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/portfolio.json
+2026-03-03 18:32:53,163 [__main__] INFO: Portfolio analysis complete: total P&L = $-1579.50
+2026-03-03 18:32:53,534 [__main__] INFO: === Technical Signals Module ===
+2026-03-03 18:32:54,474 [__main__] INFO: AAPL: composite=1.5 rsi=47.31 macd=neutral
+2026-03-03 18:32:54,866 [__main__] INFO: AMD: composite=0.5 rsi=37.5 macd=bearish_crossover
+2026-03-03 18:32:55,301 [__main__] INFO: AMZN: composite=0.0 rsi=41.59 macd=neutral
+2026-03-03 18:32:55,600 [__main__] INFO: GOOGL: composite=0.5 rsi=38.7 macd=bearish_crossover
+2026-03-03 18:32:55,848 [__main__] INFO: META: composite=-2.0 rsi=49.92 macd=bearish_crossover
+2026-03-03 18:32:56,308 [__main__] INFO: MSFT: composite=-1.5 rsi=44.22 macd=neutral
+2026-03-03 18:32:56,676 [__main__] INFO: NVDA: composite=1.5 rsi=44.08 macd=neutral
+2026-03-03 18:32:57,001 [__main__] INFO: TSLA: composite=1.5 rsi=37.09 macd=bearish_crossover
+2026-03-03 18:32:57,287 [__main__] INFO: VOO: composite=-0.5 rsi=43.57 macd=bearish_crossover
+2026-03-03 18:32:57,288 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/technical_signals.json
+2026-03-03 18:32:57,288 [__main__] INFO: Technical signals complete: 9 tickers analyzed
+2026-03-03 18:32:57,495 [__main__] INFO: === News Sentiment Module ===
+2026-03-03 18:32:58,499 [__main__] INFO: AAPL: sentiment=0.33 (keyword) articles=10
+2026-03-03 18:32:58,666 [__main__] INFO: AMD: sentiment=0.56 (keyword) articles=10
+2026-03-03 18:32:58,817 [__main__] INFO: AMZN: sentiment=0.27 (keyword) articles=10
+2026-03-03 18:32:59,021 [__main__] INFO: GOOGL: sentiment=1.00 (keyword) articles=10
+2026-03-03 18:32:59,157 [__main__] INFO: META: sentiment=0.67 (keyword) articles=10
+2026-03-03 18:32:59,376 [__main__] INFO: MSFT: sentiment=0.20 (keyword) articles=10
+2026-03-03 18:32:59,542 [__main__] INFO: NVDA: sentiment=0.23 (keyword) articles=10
+2026-03-03 18:32:59,679 [__main__] INFO: TSLA: sentiment=0.33 (keyword) articles=10
+2026-03-03 18:32:59,965 [__main__] INFO: VOO: sentiment=0.60 (keyword) articles=10
+2026-03-03 18:32:59,966 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/news_sentiment.json
+2026-03-03 18:32:59,966 [__main__] INFO: News sentiment complete: 9 tickers analyzed
+2026-03-03 18:33:00,344 [__main__] INFO: === Options Module ===
+2026-03-03 18:33:00,344 [__main__] INFO: Analyzing options for NVDA
+2026-03-03 18:33:02,231 [__main__] INFO: Analyzing options for AAPL
+2026-03-03 18:33:03,975 [__main__] INFO: Analyzing options for VOO
+2026-03-03 18:33:05,735 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/options.json
+2026-03-03 18:33:05,735 [__main__] INFO: Options analysis complete: 3 tickers processed
+2026-03-03 18:33:05,854 [__main__] INFO: === Insider Tracker Module ===
+2026-03-03 18:33:05,855 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/insider_tracker.json
+2026-03-03 18:33:05,855 [__main__] INFO: Insider tracker complete: 9 tickers, 0 with activity
+2026-03-03 18:33:06,172 [__main__] INFO: === Opportunity Scanner Module ===
+2026-03-03 18:33:06,814 [__main__] INFO: XLK: 1d=-1.46% 5d=-2.01% trend=bearish
+2026-03-03 18:33:07,110 [__main__] INFO: XLF: 1d=-0.18% 5d=+0.45% trend=mixed
+2026-03-03 18:33:07,365 [__main__] INFO: XLE: 1d=-0.91% 5d=+2.58% trend=mixed
+2026-03-03 18:33:07,744 [__main__] INFO: XLV: 1d=-1.13% 5d=-0.72% trend=bearish
+2026-03-03 18:33:08,056 [__main__] INFO: XLI: 1d=-1.93% 5d=-0.87% trend=bearish
+2026-03-03 18:33:08,286 [__main__] INFO: ARKK: 1d=-2.64% 5d=+0.26% trend=mixed
+2026-03-03 18:33:11,424 [yfinance] ERROR: $SQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "No data found, symbol may be delisted")
+2026-03-03 18:33:11,432 [yfinance] ERROR: 
+1 Failed download:
+2026-03-03 18:33:11,433 [yfinance] ERROR: ['SQ']: possibly delisted; no price data found  (period=1y) (Yahoo error = "No data found, symbol may be delisted")
+2026-03-03 18:33:11,435 [lib.api] WARNING: No price data for SQ
+2026-03-03 18:33:11,435 [modules.technical_signals] WARNING: SQ: insufficient history (0 rows, need 200+)
+2026-03-03 18:33:17,270 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/opportunities.json
+2026-03-03 18:33:17,270 [__main__] INFO: Opportunity scan complete: 0/22 passed filter, 0 surfaced
+2026-03-03 18:33:17,785 [__main__] INFO: === Risk Dashboard Module ===
+2026-03-03 18:33:19,202 [yfinance] ERROR: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: VOO"}}}
+2026-03-03 18:33:19,899 [__main__] INFO: Risk regime: CAUTION (total=14.5, now=11.0, short=1.0, long=7.0)
+2026-03-03 18:33:19,901 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/risk_dashboard.json
+2026-03-03 18:33:19,901 [__main__] INFO: Risk dashboard complete: regime=CAUTION, total_risk=14.5
+2026-03-03 18:33:20,026 [__main__] INFO: === Trade Memory Module ===
+2026-03-03 18:33:20,027 [__main__] INFO: AAPL: Mixed history: 3W/2L in 5 similar setups
+2026-03-03 18:33:20,027 [__main__] INFO: AMD: Mixed history: 3W/2L in 5 similar setups
+2026-03-03 18:33:20,027 [__main__] INFO: META: HIGH CONFIDENCE: Setup matches 4/4 winning patterns (100%)
+2026-03-03 18:33:20,027 [__main__] INFO: MSFT: HIGH CONFIDENCE: Setup matches 3/4 winning patterns (75%)
+2026-03-03 18:33:20,027 [__main__] INFO: NVDA: Mixed history: 4W/2L in 6 similar setups
+2026-03-03 18:33:20,027 [__main__] INFO: TSLA: Mixed history: 2W/4L in 6 similar setups
+2026-03-03 18:33:20,027 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/trade_memory.json
+2026-03-03 18:33:20,027 [__main__] INFO: Trade memory complete: 9 tickers analyzed
+2026-03-03 18:33:20,069 [__main__] INFO: === Position Sizer Module ===
+2026-03-03 18:33:20,075 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/position_sizer.json
+2026-03-03 18:33:20,379 [__main__] INFO: === Scorecard Module ===
+2026-03-03 18:33:22,588 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/scorecard.json
+2026-03-03 18:33:22,588 [__main__] INFO: Scorecard: 21 verdicts evaluated, 52% win rate
+2026-03-03 18:33:22,963 [__main__] INFO: === Morning Brief Module ===
+2026-03-03 18:33:22,966 [__main__] INFO: Morning brief written to /Users/rconwell/morning-brief/data/outputs/morning_brief_2026-03-03.md
+2026-03-03 18:33:24,034 [__main__] INFO: Logged 2 new verdicts to /Users/rconwell/morning-brief/data/scorecard/verdict_log.json
+2026-03-03 18:33:24,446 [__main__] INFO: === Brief HTML Module ===
+2026-03-03 18:33:24,449 [__main__] INFO: HTML brief written to /Users/rconwell/morning-brief/data/outputs/morning_brief_2026-03-03.html
