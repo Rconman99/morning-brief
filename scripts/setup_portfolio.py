@@ -12,7 +12,11 @@ import os
 import shutil
 from datetime import date
 
-import anthropic
+try:
+    import anthropic
+    HAS_ANTHROPIC = True
+except ImportError:
+    HAS_ANTHROPIC = False
 from dotenv import load_dotenv
 
 load_dotenv(PROJECT_ROOT / ".env")

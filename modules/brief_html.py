@@ -256,6 +256,23 @@ tr:hover td { background: var(--bg-card-hover); }
 """
 
 
+def get_all_watchlist_tickers() -> set:
+    """Get all tickers from watchlist and portfolio configs."""
+    tickers = set()
+    for cfg_name in ("watchlist.json", "portfolio.json"):
+        cfg_path = PROJECT_ROOT / "config" / cfg_name
+        if cfg_path.exists():
+            try:
+                data = json.loads(cfg_path.read_text())
+                tickers.update(data.get("tickers", []))
+                for h in data.get("holdings", []):
+                    tickers.add(h.get("ticker", ""))
+            except Exception:
+                pass
+    tickers.discard("")
+    return tickers
+
+
 def _esc(text) -> str:
     """HTML-escape a string."""
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
@@ -320,6 +337,11 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     trade_memory = load_envelope("trade_memory.json")
     insider = load_envelope("insider_tracker.json")
     position_sizer = load_envelope("position_sizer.json")
+    congress = load_envelope("congress_tracker.json")
+    polymarket = load_envelope("polymarket.json")
+    econ_calendar = load_envelope("economic_calendar.json")
+    macro = load_envelope("macro_dashboard.json")
+    sector_rot = load_envelope("sector_rotation.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
@@ -330,6 +352,8 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         "Options": options, "Scanner": opportunities,
         "Risk": risk_dashboard, "Scorecard": scorecard,
         "Memory": trade_memory, "Insider": insider, "Sizer": position_sizer,
+        "Congress": congress, "Polymarket": polymarket,
+        "EconCalendar": econ_calendar, "Macro": macro, "SectorRotation": sector_rot,
     }
 
     # Total P&L
@@ -444,6 +468,109 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                     rb = risk_level_bg.get(r["level"], "var(--bg-card)")
                     parts.append(f'<div style="background:{rb};border-left:3px solid {rc};border-radius:4px;padding:8px 12px;margin-bottom:4px;font-size:0.85rem">{_esc(r["detail"])}</div>')
 
+        parts.append('</div>')
+
+    # ── Economic Calendar Section ──
+    if econ_calendar["status"] in ("success", "partial"):
+        ec = econ_calendar["data"]
+        ec_signal = ec.get("signal", "calm")
+        sig_color = {"high_impact": "var(--red)", "moderate": "var(--yellow)", "low": "var(--green)", "calm": "var(--gray)"}.get(ec_signal, "var(--gray)")
+        parts.append(f'<div class="section">{st("Economic Calendar")}'
+                     f'<span class="badge" style="background:{sig_color};color:#fff;padding:2px 8px;border-radius:4px;margin-left:8px;font-size:0.8em">{ec_signal.upper()}</span>')
+        parts.append(f'<p class="text-secondary">{_esc(ec.get("signal_detail", ""))}</p>')
+        events = ec.get("upcoming_events", [])
+        if events:
+            parts.append('<div class="card" style="margin-top:12px"><div class="card-header">This Week</div><div class="card-body">')
+            for ev in events:
+                impact = ev.get("impact", "low")
+                ic = {"high": "var(--red)", "medium": "var(--yellow)", "low": "var(--green)"}.get(impact, "var(--gray)")
+                parts.append(f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+                             f'<span style="width:8px;height:8px;border-radius:50%;background:{ic};display:inline-block"></span>'
+                             f'<strong>{_esc(ev["name"])}</strong> <span class="text-muted">{ev.get("date", "TBD")}</span>'
+                             f'<span class="text-secondary" style="margin-left:auto">{_esc(ev.get("description", ""))}</span></div>')
+            parts.append('</div></div>')
+        fomc = ec.get("fomc_next", {})
+        if fomc:
+            parts.append(f'<p class="text-muted" style="margin-top:8px">Next FOMC: {fomc.get("date", "?")} ({fomc.get("days_until", "?")} days)</p>')
+        indicators = ec.get("recent_indicators", {})
+        if indicators:
+            parts.append('<div class="card" style="margin-top:12px"><div class="card-header">Key Indicators</div><div class="card-body">'
+                         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">')
+            for name, info in indicators.items():
+                val = info.get("value", "N/A")
+                parts.append(f'<div style="padding:8px;background:var(--bg-primary);border-radius:6px">'
+                             f'<div class="text-muted" style="font-size:0.75em">{_esc(name)}</div>'
+                             f'<div style="font-size:1.1em;font-weight:600">{val}</div></div>')
+            parts.append('</div></div></div>')
+        parts.append('</div>')
+
+    # ── Macro Dashboard Section ──
+    if macro["status"] in ("success", "partial"):
+        md = macro["data"]
+        macro_signal = md.get("signal", "mixed")
+        ms_color = {"crisis": "var(--red)", "risk_off": "var(--yellow)", "risk_on": "var(--green)", "mixed": "var(--blue)"}.get(macro_signal, "var(--gray)")
+        parts.append(f'<div class="section">{st("Macro Dashboard")}'
+                     f'<span class="badge" style="background:{ms_color};color:#fff;padding:2px 8px;border-radius:4px;margin-left:8px;font-size:0.8em">{macro_signal.upper()}</span>')
+        parts.append(f'<p class="text-secondary">{_esc(md.get("regime_summary", md.get("signal_detail", "")))}</p>')
+        indicators = md.get("indicators", {})
+        if indicators:
+            parts.append('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:12px">')
+            for key, ind in indicators.items():
+                val = ind.get("value", "N/A")
+                c1d = ind.get("change_1d", 0)
+                c5d = ind.get("change_5d", 0)
+                trend = ind.get("trend", "flat")
+                interp = ind.get("interpretation", "")
+                t_icon = "↑" if trend == "rising" else "↓" if trend == "falling" else "→"
+                t_color = "var(--green)" if trend == "rising" else "var(--red)" if trend == "falling" else "var(--gray)"
+                c1d_color = "var(--green)" if c1d > 0 else "var(--red)" if c1d < 0 else "var(--gray)"
+                parts.append(f'<div class="card"><div class="card-body" style="padding:12px">'
+                             f'<div style="display:flex;justify-content:space-between;align-items:center">'
+                             f'<span style="font-weight:700">{_esc(key)}</span>'
+                             f'<span style="color:{t_color};font-size:1.2em">{t_icon}</span></div>'
+                             f'<div style="font-size:1.5em;font-weight:700;margin:4px 0">{val}</div>'
+                             f'<div style="font-size:0.8em"><span style="color:{c1d_color}">{c1d:+.1f}% 1d</span> · {c5d:+.1f}% 5d</div>'
+                             f'<div class="text-muted" style="font-size:0.75em;margin-top:4px">{_esc(interp)}</div>'
+                             f'</div></div>')
+            parts.append('</div>')
+        parts.append('</div>')
+
+    # ── Sector Rotation Section ──
+    if sector_rot["status"] in ("success", "partial"):
+        sr = sector_rot["data"]
+        sr_signal = sr.get("signal", "stable")
+        sr_color = {"rotation_alert": "var(--red)", "broad_selloff": "var(--red)", "growth_momentum": "var(--green)", "broad_rally": "var(--green)", "stable": "var(--gray)", "mixed": "var(--blue)"}.get(sr_signal, "var(--gray)")
+        parts.append(f'<div class="section">{st("Sector Rotation")}'
+                     f'<span class="badge" style="background:{sr_color};color:#fff;padding:2px 8px;border-radius:4px;margin-left:8px;font-size:0.8em">{sr_signal.upper()}</span>')
+        parts.append(f'<p class="text-secondary">{_esc(sr.get("signal_detail", ""))}</p>')
+        leaders = sr.get("leaders_21d", [])
+        laggards = sr.get("laggards_21d", [])
+        if leaders or laggards:
+            parts.append('<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">')
+            if leaders:
+                parts.append('<div class="card"><div class="card-header" style="color:var(--green)">Leaders (21d)</div><div class="card-body">')
+                for l in leaders[:3]:
+                    ret = l.get("return_21d", 0)
+                    rs = l.get("relative_strength", 0)
+                    parts.append(f'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+                                 f'<span><strong>{l.get("etf", "?")}</strong> <span class="text-muted">{_esc(l.get("sector", ""))}</span></span>'
+                                 f'<span style="color:var(--green)">{ret:+.1f}% (RS: {rs:+.1f}%)</span></div>')
+                parts.append('</div></div>')
+            if laggards:
+                parts.append('<div class="card"><div class="card-header" style="color:var(--red)">Laggards (21d)</div><div class="card-body">')
+                for l in laggards[:3]:
+                    ret = l.get("return_21d", 0)
+                    rs = l.get("relative_strength", 0)
+                    parts.append(f'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
+                                 f'<span><strong>{l.get("etf", "?")}</strong> <span class="text-muted">{_esc(l.get("sector", ""))}</span></span>'
+                                 f'<span style="color:var(--red)">{ret:+.1f}% (RS: {rs:+.1f}%)</span></div>')
+                parts.append('</div></div>')
+            parts.append('</div>')
+        breadth = sr.get("breadth", {})
+        if breadth:
+            pos = breadth.get("positive_sectors", 0)
+            neg = breadth.get("negative_sectors", 0)
+            parts.append(f'<p class="text-muted" style="margin-top:8px">Breadth: {pos} sectors positive, {neg} negative — {breadth.get("label", "mixed")}</p>')
         parts.append('</div>')
 
     # ── Trading Windows Section ──
@@ -607,6 +734,94 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             parts.append('<div class="unavailable">No recent insider activity detected</div>')
     else:
         parts.append('<div class="unavailable">Insider tracking data unavailable</div>')
+    parts.append('</div>')
+
+    # ── Congressional Trading (Pelosi Tracker) Section ──
+    congress_data = congress.get("data", {})
+    delay_note = '<span style="font-size:0.75rem;color:var(--text-muted);margin-left:8px">45-day disclosure delay</span>'
+    parts.append(f'<div class="section">{st("Congressional Trading (STOCK Act)", extra_html=delay_note)}')
+    if congress["status"] in ("success", "partial"):
+        stats = congress_data.get("summary_stats", {})
+        signal = congress_data.get("signal", "no_data")
+        signal_detail = congress_data.get("signal_detail", "")
+
+        # Signal badge
+        signal_colors = {
+            "cluster_detected": ("var(--green)", "CLUSTER"),
+            "significant_activity": ("var(--yellow)", "SIGNIFICANT"),
+            "active": ("var(--blue)", "ACTIVE"),
+            "normal": ("var(--text-secondary)", "NORMAL"),
+            "quiet": ("var(--text-muted)", "QUIET"),
+        }
+        sig_color, sig_label = signal_colors.get(signal, ("var(--text-muted)", signal.upper()))
+        parts.append(f'<div class="metric-row"><span class="label">{ll("Signal")}</span><span class="value" style="color:{sig_color}">{sig_label}</span></div>')
+        parts.append(f'<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px">{_esc(signal_detail)}</div>')
+
+        # Summary stats row
+        if stats:
+            parts.append('<div class="metric-row">')
+            parts.append(f'<span class="label">Total Trades</span><span class="value">{stats.get("total_trades", 0)}</span>')
+            parts.append(f'<span class="label" style="margin-left:16px">Buys</span><span class="value" style="color:var(--green)">{stats.get("buy_count", 0)}</span>')
+            parts.append(f'<span class="label" style="margin-left:16px">Sells</span><span class="value" style="color:var(--red)">{stats.get("sell_count", 0)}</span>')
+            parts.append(f'<span class="label" style="margin-left:16px">Watchlist Hits</span><span class="value" style="color:var(--blue)">{stats.get("watchlist_matches", 0)}</span>')
+            parts.append('</div>')
+
+        # Cluster signals (most important)
+        clusters = congress_data.get("cluster_signals", [])
+        if clusters:
+            parts.append(f'<h4 style="color:var(--green);margin:12px 0 6px">{ll("Cluster Signals")} ({len(clusters)})</h4>')
+            parts.append('<div class="table-wrap"><table>')
+            parts.append('<thead><tr><th>Ticker</th><th>Direction</th><th>Politicians</th><th>Est. Total</th><th>Signal</th></tr></thead><tbody>')
+            for c in clusters:
+                dir_color = "var(--green)" if c["direction"] == "buy" else "var(--red)"
+                dir_icon = "+" if c["direction"] == "buy" else "-"
+                est = c.get("estimated_total", 0)
+                est_str = f"${est:,.0f}" if est else "N/A"
+                wl_tag = ' <span style="color:var(--blue);font-size:0.75rem">WATCHLIST</span>' if c.get("in_watchlist") else ""
+                sig_style = "color:var(--green);font-weight:700" if "bullish" in c.get("signal", "") else "color:var(--red);font-weight:700"
+                parts.append(f'<tr><td style="font-weight:600">{_esc(c["ticker"])}{wl_tag}</td>'
+                             f'<td style="color:{dir_color}">{dir_icon} {_esc(c["direction"].upper())}</td>'
+                             f'<td>{c["politician_count"]} ({_esc(", ".join(c.get("politicians", [])[:3]))})</td>'
+                             f'<td>{est_str}</td>'
+                             f'<td style="{sig_style}">{_esc(c.get("signal", "").replace("_", " ").title())}</td></tr>')
+            parts.append('</tbody></table></div>')
+
+        # Watchlist trades table
+        wl_trades = congress_data.get("watchlist_trades", [])
+        if wl_trades:
+            parts.append(f'<h4 style="color:var(--blue);margin:12px 0 6px">Your Watchlist Trades ({len(wl_trades)})</h4>')
+            parts.append('<div class="table-wrap"><table>')
+            parts.append('<thead><tr><th>Politician</th><th>Party</th><th>Ticker</th><th>Type</th><th>Amount</th><th>Date</th></tr></thead><tbody>')
+            for t in wl_trades[:12]:
+                party_color = "var(--blue)" if t.get("party") == "D" else "var(--red)" if t.get("party") == "R" else "var(--text-secondary)"
+                tx_type = t.get("transaction_type", "")
+                tx_color = "var(--green)" if "purchase" in tx_type.lower() else "var(--red)" if "sale" in tx_type.lower() else "var(--text-secondary)"
+                parts.append(f'<tr><td>{_esc(t.get("politician", "Unknown"))}</td>'
+                             f'<td style="color:{party_color};font-weight:600">{_esc(t.get("party", ""))}</td>'
+                             f'<td style="font-weight:600">{_esc(t.get("ticker", ""))}</td>'
+                             f'<td style="color:{tx_color}">{_esc(tx_type)}</td>'
+                             f'<td style="font-size:0.85rem">{_esc(t.get("amount_range", ""))}</td>'
+                             f'<td style="font-size:0.85rem">{_esc(t.get("transaction_date", ""))}</td></tr>')
+            parts.append('</tbody></table></div>')
+
+        # Notable big trades
+        big_trades = congress_data.get("big_trades", [])
+        if big_trades:
+            wl_big = [t for t in big_trades if t.get("ticker", "").upper() in {tk.upper() for tk in get_all_watchlist_tickers()}]
+            other_big = [t for t in big_trades if t not in wl_big][:5]
+            if wl_big or other_big:
+                parts.append(f'<h4 style="color:var(--yellow);margin:12px 0 6px">{ll("Big Trades")} ($500k+)</h4>')
+                for t in (wl_big + other_big)[:8]:
+                    tx_type = t.get("transaction_type", "")
+                    icon = "🟢" if "purchase" in tx_type.lower() else "🔴"
+                    parts.append(f'<div style="font-size:0.85rem;padding:2px 0">{icon} <strong>{_esc(t.get("politician", ""))}</strong> ({_esc(t.get("party", ""))}) — {_esc(tx_type)} {_esc(t.get("ticker", ""))} — {_esc(t.get("amount_range", ""))}</div>')
+
+        # Source note
+        source = congress_data.get("data_source", "unknown")
+        source_label = {"sample_data": "Sample data (API unavailable)", "house_api": "House Stock Watcher", "senate_api": "Senate Stock Watcher", "house_api+senate_api": "House + Senate APIs"}.get(source, source)
+        parts.append(f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:8px">Source: {_esc(source_label)} | STOCK Act requires disclosure within 45 days</div>')
+    else:
+        parts.append('<div class="unavailable">Congressional trading data unavailable</div>')
     parts.append('</div>')
 
     # ── Scenario Valuations Section ──
@@ -989,6 +1204,79 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             parts.append('<div class="unavailable">No options data</div>')
     else:
         parts.append('<div class="unavailable">Options data unavailable</div>')
+    parts.append('</div>')
+
+    # ── Polymarket Prediction Markets Section ──
+    pm_data = polymarket.get("data", {})
+    parts.append(f'<div class="section">{st("Polymarket Prediction Markets")}')
+    if polymarket["status"] in ("success", "partial"):
+        pm_signal = pm_data.get("signal", "no_data")
+        pm_detail = pm_data.get("signal_detail", "")
+        pm_scanned = pm_data.get("markets_scanned", 0)
+
+        signal_colors = {
+            "multiple_opportunities": ("var(--green)", "OPPORTUNITIES"),
+            "opportunities_found": ("var(--green)", "OPPORTUNITY"),
+            "volatile": ("var(--yellow)", "VOLATILE"),
+            "quiet": ("var(--text-muted)", "QUIET"),
+        }
+        sig_color, sig_label = signal_colors.get(pm_signal, ("var(--text-muted)", pm_signal.upper()))
+        parts.append(f'<div class="metric-row"><span class="label">Signal</span><span class="value" style="color:{sig_color}">{sig_label}</span>')
+        parts.append(f'<span class="label" style="margin-left:16px">Markets</span><span class="value">{pm_scanned}</span></div>')
+        parts.append(f'<div style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px">{_esc(pm_detail)}</div>')
+
+        # Opportunities table
+        pm_opps = pm_data.get("opportunities", [])
+        if pm_opps:
+            parts.append(f'<h4 style="color:var(--green);margin:12px 0 6px">{ll("Opportunities")} ({len(pm_opps)})</h4>')
+            parts.append('<div class="table-wrap"><table>')
+            parts.append('<thead><tr><th>Market</th><th>Side</th><th>Price</th><th>Edge</th><th>Confidence</th><th>Type</th></tr></thead><tbody>')
+            for o in pm_opps[:8]:
+                conf_colors = {"high": "var(--green)", "medium": "var(--yellow)", "low": "var(--text-muted)"}
+                conf_c = conf_colors.get(o.get("confidence", ""), "var(--text-muted)")
+                side = o.get("recommended_side", "?")
+                side_c = "var(--green)" if side == "YES" else "var(--red)" if side == "NO" else "var(--blue)"
+                price = o.get("market_price", 0)
+                edge = o.get("edge_pct", 0)
+                q_short = _esc(o.get("question", "")[:65])
+                parts.append(f'<tr><td style="font-size:0.85rem">{q_short}</td>'
+                             f'<td style="color:{side_c};font-weight:700">{side}</td>'
+                             f'<td>{price:.0%}</td>'
+                             f'<td style="color:var(--green);font-weight:600">+{edge:.1f}%</td>'
+                             f'<td style="color:{conf_c}">{_esc(o.get("confidence", "").upper())}</td>'
+                             f'<td style="font-size:0.8rem;color:var(--text-muted)">{_esc(o.get("opportunity_type", ""))}</td></tr>')
+            parts.append('</tbody></table></div>')
+
+        # Big movers
+        pm_movers = pm_data.get("big_movers", [])
+        if pm_movers:
+            parts.append(f'<h4 style="color:var(--yellow);margin:12px 0 6px">{ll("Big Movers")} (24h)</h4>')
+            for m in pm_movers[:5]:
+                move = m.get("move_pct", 0)
+                icon = "📈" if move > 0 else "📉"
+                move_c = "var(--green)" if move > 0 else "var(--red)"
+                vol = m.get("volume_24h", 0)
+                q_short = _esc(m.get("question", "")[:70])
+                parts.append(f'<div style="font-size:0.85rem;padding:3px 0">{icon} {q_short} — <span style="color:{move_c};font-weight:600">{move:+.1f}%</span> (Vol: ${vol:,.0f})</div>')
+
+        # Category summary
+        pm_cats = pm_data.get("category_summary", {})
+        if pm_cats:
+            parts.append('<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">')
+            sorted_cats = sorted(pm_cats.items(), key=lambda x: x[1].get("markets", 0), reverse=True)
+            for cat, info in sorted_cats[:8]:
+                count = info.get("markets", 0)
+                opp_count = info.get("opportunities", 0)
+                badge = f' <span style="color:var(--green);font-size:0.7rem">({opp_count} opp)</span>' if opp_count > 0 else ""
+                parts.append(f'<span style="background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:4px;font-size:0.75rem">{_esc(cat)}: {count}{badge}</span>')
+            parts.append('</div>')
+
+        # Source + disclaimer
+        pm_source = pm_data.get("data_source", "unknown")
+        source_label = {"sample_data": "Sample data", "gamma_api": "Polymarket Gamma API", "none": "Unavailable"}.get(pm_source, pm_source)
+        parts.append(f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:8px">Source: {_esc(source_label)} | 80% of prediction market participants lose money | Not financial advice</div>')
+    else:
+        parts.append('<div class="unavailable">Polymarket data unavailable</div>')
     parts.append('</div>')
 
     # Footer

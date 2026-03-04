@@ -1,4 +1,7 @@
-"""Technical signals: RSI, MACD, Bollinger Bands, SMA, volume analysis with composite scoring."""
+"""Technical signals: RSI, MACD, Bollinger Bands, SMA, volume analysis with composite scoring.
+
+Pure pandas/numpy implementations. No pandas-ta dependency.
+"""
 
 import sys
 from pathlib import Path
@@ -9,6 +12,7 @@ import json
 import logging
 
 import pandas as pd
+import numpy as np
 
 from lib.data_envelope import create_envelope, save_envelope
 from lib.api import yahoo_finance_price_history
@@ -109,6 +113,139 @@ def calculate_volume_profile(history: pd.DataFrame, bins: int = 20) -> dict | No
         return None
 
 
+def calculate_rsi(close: pd.Series, length: int = 14) -> float | None:
+    """Calculate RSI(length) using EWM method.
+
+    Args:
+        close: Close price series
+        length: Period (default 14)
+
+    Returns:
+        RSI value or None if insufficient data
+    """
+    if len(close) < length:
+        return None
+
+    try:
+        delta = close.diff()
+        gain = delta.where(delta > 0, 0.0)
+        loss = (-delta).where(delta < 0, 0.0)
+
+        # EWM with alpha = 1/length
+        avg_gain = gain.ewm(alpha=1/length, min_periods=length).mean()
+        avg_loss = loss.ewm(alpha=1/length, min_periods=length).mean()
+
+        rs = avg_gain / avg_loss.replace(0, np.nan)
+        rsi = 100 - (100 / (1 + rs))
+
+        return round(float(rsi.iloc[-1]), 2)
+    except Exception as e:
+        logger.debug("RSI calculation error: %s", e)
+        return None
+
+
+def calculate_macd(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple[float, float, str]:
+    """Calculate MACD histogram, line, signal line, and crossover signal.
+
+    Args:
+        close: Close price series
+        fast: Fast EMA period (default 12)
+        slow: Slow EMA period (default 26)
+        signal: Signal line period (default 9)
+
+    Returns:
+        (macd_histogram_value, macd_line, signal_direction)
+    """
+    if len(close) < slow:
+        return 0.0, 0.0, "neutral"
+
+    try:
+        ema_12 = close.ewm(span=fast, adjust=False).mean()
+        ema_26 = close.ewm(span=slow, adjust=False).mean()
+        macd_line = ema_12 - ema_26
+        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+        histogram = macd_line - signal_line
+
+        hist_curr = float(histogram.iloc[-1])
+        hist_prev = float(histogram.iloc[-2]) if len(histogram) >= 2 else 0.0
+        line_curr = float(macd_line.iloc[-1])
+        line_signal = float(signal_line.iloc[-1])
+
+        # Determine crossover
+        if line_curr > line_signal and hist_curr > hist_prev:
+            macd_signal = "bullish_crossover"
+        elif line_curr < line_signal and hist_curr < hist_prev:
+            macd_signal = "bearish_crossover"
+        else:
+            macd_signal = "neutral"
+
+        return round(hist_curr, 4), line_curr, macd_signal
+    except Exception as e:
+        logger.debug("MACD calculation error: %s", e)
+        return 0.0, 0.0, "neutral"
+
+
+def calculate_bollinger_bands(close: pd.Series, window: int = 20, std_dev: int = 2) -> tuple[float, float, float, str]:
+    """Calculate Bollinger Bands and determine position.
+
+    Args:
+        close: Close price series
+        window: SMA window (default 20)
+        std_dev: Standard deviation multiplier (default 2)
+
+    Returns:
+        (upper_band, middle_band, lower_band, position_signal)
+    """
+    if len(close) < window:
+        return None, None, None, "unknown"
+
+    try:
+        sma = close.rolling(window=window).mean()
+        std = close.rolling(window=window).std()
+
+        upper = sma + (std_dev * std)
+        lower = sma - (std_dev * std)
+
+        upper_val = float(upper.iloc[-1])
+        middle_val = float(sma.iloc[-1])
+        lower_val = float(lower.iloc[-1])
+        current = float(close.iloc[-1])
+
+        if current > upper_val:
+            position = "above_upper"
+        elif current < lower_val:
+            position = "below_lower"
+        else:
+            # Check for squeeze
+            bandwidth = (upper_val - lower_val) / middle_val if middle_val > 0 else 0
+            position = "squeeze" if bandwidth < 0.04 else "middle"
+
+        return upper_val, middle_val, lower_val, position
+    except Exception as e:
+        logger.debug("Bollinger Bands calculation error: %s", e)
+        return None, None, None, "unknown"
+
+
+def calculate_sma(close: pd.Series, window: int) -> float | None:
+    """Calculate simple moving average.
+
+    Args:
+        close: Close price series
+        window: SMA period
+
+    Returns:
+        SMA value or None if insufficient data
+    """
+    if len(close) < window:
+        return None
+
+    try:
+        sma = close.rolling(window=window).mean()
+        return round(float(sma.iloc[-1]), 2)
+    except Exception:
+        return None
+
+
 def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
     """Compute technical indicators for a single ticker.
 
@@ -119,170 +256,136 @@ def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
         return None
 
     try:
-        import pandas_ta as ta
-    except ImportError:
-        logger.error("pandas-ta not installed, cannot compute technical signals")
+        close = history["Close"]
+        high = history.get("High", close)
+        low = history.get("Low", close)
+        volume = history.get("Volume")
+
+        # RSI(14)
+        rsi_14 = calculate_rsi(close, length=14)
+
+        # MACD(12, 26, 9)
+        macd_histogram, macd_line, macd_signal = calculate_macd(close, fast=12, slow=26, signal=9)
+        macd_hist_prev = 0.0  # Simplified; used for trend detection
+
+        # Bollinger Bands(20, 2)
+        upper_bb, middle_bb, lower_bb, bb_position = calculate_bollinger_bands(close, window=20, std_dev=2)
+
+        # SMA 20/50/200
+        sma_20 = calculate_sma(close, window=20)
+        sma_50 = calculate_sma(close, window=50)
+        sma_200 = calculate_sma(close, window=200)
+
+        current_price = float(close.iloc[-1])
+
+        if sma_50 and sma_200:
+            if sma_50 > sma_200:
+                sma_trend = "golden_cross"
+            else:
+                sma_trend = "death_cross"
+        elif sma_200:
+            sma_trend = "above_200" if current_price > sma_200 else "below_200"
+        else:
+            sma_trend = "unknown"
+
+        # Volume ratio
+        volume_ratio = None
+        if volume is not None and len(volume) >= 20:
+            avg_vol = float(volume.iloc[-20:].mean())
+            current_vol = float(volume.iloc[-1])
+            volume_ratio = round(current_vol / avg_vol, 2) if avg_vol > 0 else None
+
+        # Price change today
+        price_change = float(close.iloc[-1] - close.iloc[-2]) if len(close) >= 2 else 0
+
+        # Composite scoring
+        indicators = []
+
+        # RSI score
+        rsi_score = 0.0
+        if rsi_14 is not None:
+            if rsi_14 < 30:
+                rsi_score = 1.0
+                rsi_signal = "oversold"
+            elif rsi_14 > 70:
+                rsi_score = -1.0
+                rsi_signal = "overbought"
+            else:
+                rsi_signal = "neutral"
+            indicators.append({"name": "RSI", "value": rsi_14, "signal": rsi_signal, "score": rsi_score})
+
+        # MACD score
+        macd_score = 0.0
+        if macd_histogram > 0:
+            macd_score = 1.0
+        elif macd_histogram < 0:
+            macd_score = -1.0
+        indicators.append({"name": "MACD", "value": macd_histogram, "signal": macd_signal, "score": macd_score})
+
+        # Bollinger Bands score
+        bb_score = 0.0
+        if bb_position == "below_lower":
+            bb_score = 1.0
+        elif bb_position == "above_upper":
+            bb_score = -1.0
+        indicators.append({"name": "Bollinger Bands", "value": bb_position, "signal": bb_position, "score": bb_score})
+
+        # SMA score
+        sma_score = 0.0
+        if sma_200 and current_price > sma_200:
+            sma_score += 0.5
+        if sma_trend == "golden_cross":
+            sma_score += 0.5
+        elif sma_trend == "death_cross":
+            sma_score = -1.0
+        indicators.append({"name": "SMA", "value": sma_trend, "signal": sma_trend, "score": sma_score})
+
+        # Volume score
+        vol_score = 0.0
+        if volume_ratio and volume_ratio > 1.5:
+            vol_score = 1.0 if price_change > 0 else -1.0
+        vol_signal = "surge_up" if vol_score > 0 else "surge_down" if vol_score < 0 else "normal"
+        indicators.append({"name": "Volume", "value": volume_ratio, "signal": vol_signal, "score": vol_score})
+
+        # VWAP
+        vwap = calculate_vwap(history)
+        vwap_signal = None
+        vwap_score = 0.0
+        if vwap is not None:
+            if current_price > vwap * 1.01:
+                vwap_signal = "above"
+                vwap_score = 0.5
+            elif current_price < vwap * 0.99:
+                vwap_signal = "below"
+                vwap_score = -0.5
+            else:
+                vwap_signal = "at_vwap"
+            indicators.append({"name": "VWAP", "value": vwap, "signal": vwap_signal, "score": vwap_score})
+
+        # Volume Profile
+        vol_profile = calculate_volume_profile(history)
+
+        # Composite: sum clamped to [-5, +5] (includes VWAP score)
+        raw_composite = sum(ind["score"] for ind in indicators)
+        composite_score = round(max(-5.0, min(5.0, raw_composite)), 2)
+
+        return {
+            "ticker": ticker,
+            "composite_score": composite_score,
+            "rsi_14": rsi_14,
+            "macd_signal": macd_signal,
+            "macd_histogram": macd_histogram,
+            "bb_position": bb_position,
+            "sma_trend": sma_trend,
+            "volume_ratio": volume_ratio,
+            "vwap": vwap,
+            "vwap_signal": vwap_signal,
+            "volume_profile": vol_profile,
+            "indicators": indicators,
+        }
+    except Exception as e:
+        logger.error("%s: analysis error: %s", ticker, e)
         return None
-
-    close = history["Close"]
-    high = history.get("High", close)
-    low = history.get("Low", close)
-    volume = history.get("Volume")
-
-    # RSI(14)
-    rsi_series = ta.rsi(close, length=14)
-    rsi_14 = round(float(rsi_series.iloc[-1]), 2) if rsi_series is not None and not rsi_series.empty else None
-
-    # MACD(12, 26, 9)
-    macd_df = ta.macd(close, fast=12, slow=26, signal=9)
-    if macd_df is not None and not macd_df.empty:
-        macd_hist = float(macd_df.iloc[-1, 2])  # MACDh column
-        macd_hist_prev = float(macd_df.iloc[-2, 2]) if len(macd_df) >= 2 else 0
-        macd_line = float(macd_df.iloc[-1, 0])
-        macd_signal_line = float(macd_df.iloc[-1, 1])
-        if macd_line > macd_signal_line and macd_hist > macd_hist_prev:
-            macd_signal = "bullish_crossover"
-        elif macd_line < macd_signal_line and macd_hist < macd_hist_prev:
-            macd_signal = "bearish_crossover"
-        else:
-            macd_signal = "neutral"
-        macd_histogram = round(macd_hist, 4)
-    else:
-        macd_signal = "neutral"
-        macd_histogram = 0.0
-        macd_hist = 0.0
-        macd_hist_prev = 0.0
-
-    # Bollinger Bands(20, 2)
-    bb = ta.bbands(close, length=20, std=2)
-    if bb is not None and not bb.empty:
-        upper = float(bb.iloc[-1, 2])  # BBU
-        lower = float(bb.iloc[-1, 0])  # BBL
-        current = float(close.iloc[-1])
-        if current > upper:
-            bb_position = "above_upper"
-        elif current < lower:
-            bb_position = "below_lower"
-        else:
-            # Check for squeeze (bandwidth)
-            mid = float(bb.iloc[-1, 1])
-            bandwidth = (upper - lower) / mid if mid > 0 else 0
-            bb_position = "squeeze" if bandwidth < 0.04 else "middle"
-    else:
-        bb_position = "unknown"
-
-    # SMA 20/50/200
-    sma_20 = float(ta.sma(close, length=20).iloc[-1]) if len(close) >= 20 else None
-    sma_50 = float(ta.sma(close, length=50).iloc[-1]) if len(close) >= 50 else None
-    sma_200 = float(ta.sma(close, length=200).iloc[-1]) if len(close) >= 200 else None
-
-    current_price = float(close.iloc[-1])
-
-    if sma_50 and sma_200:
-        if sma_50 > sma_200:
-            sma_trend = "golden_cross"
-        else:
-            sma_trend = "death_cross"
-    elif sma_200:
-        sma_trend = "above_200" if current_price > sma_200 else "below_200"
-    else:
-        sma_trend = "unknown"
-
-    # Volume ratio
-    volume_ratio = None
-    if volume is not None and len(volume) >= 20:
-        avg_vol = float(volume.iloc[-20:].mean())
-        current_vol = float(volume.iloc[-1])
-        volume_ratio = round(current_vol / avg_vol, 2) if avg_vol > 0 else None
-
-    # Price change today
-    price_change = float(close.iloc[-1] - close.iloc[-2]) if len(close) >= 2 else 0
-
-    # Composite scoring
-    indicators = []
-
-    # RSI score
-    rsi_score = 0.0
-    if rsi_14 is not None:
-        if rsi_14 < 30:
-            rsi_score = 1.0
-            rsi_signal = "oversold"
-        elif rsi_14 > 70:
-            rsi_score = -1.0
-            rsi_signal = "overbought"
-        else:
-            rsi_signal = "neutral"
-        indicators.append({"name": "RSI", "value": rsi_14, "signal": rsi_signal, "score": rsi_score})
-
-    # MACD score
-    macd_score = 0.0
-    if macd_hist > 0 and macd_hist > macd_hist_prev:
-        macd_score = 1.0
-    elif macd_hist < 0 and macd_hist < macd_hist_prev:
-        macd_score = -1.0
-    indicators.append({"name": "MACD", "value": macd_histogram, "signal": macd_signal, "score": macd_score})
-
-    # Bollinger Bands score
-    bb_score = 0.0
-    if bb_position == "below_lower":
-        bb_score = 1.0
-    elif bb_position == "above_upper":
-        bb_score = -1.0
-    indicators.append({"name": "Bollinger Bands", "value": bb_position, "signal": bb_position, "score": bb_score})
-
-    # SMA score
-    sma_score = 0.0
-    if sma_200 and current_price > sma_200:
-        sma_score += 0.5
-    if sma_trend == "golden_cross":
-        sma_score += 0.5
-    elif sma_trend == "death_cross":
-        sma_score = -1.0
-    indicators.append({"name": "SMA", "value": sma_trend, "signal": sma_trend, "score": sma_score})
-
-    # Volume score
-    vol_score = 0.0
-    if volume_ratio and volume_ratio > 1.5:
-        vol_score = 1.0 if price_change > 0 else -1.0
-    vol_signal = "surge_up" if vol_score > 0 else "surge_down" if vol_score < 0 else "normal"
-    indicators.append({"name": "Volume", "value": volume_ratio, "signal": vol_signal, "score": vol_score})
-
-    # VWAP
-    vwap = calculate_vwap(history)
-    vwap_signal = None
-    vwap_score = 0.0
-    if vwap is not None:
-        if current_price > vwap * 1.01:
-            vwap_signal = "above"
-            vwap_score = 0.5
-        elif current_price < vwap * 0.99:
-            vwap_signal = "below"
-            vwap_score = -0.5
-        else:
-            vwap_signal = "at_vwap"
-        indicators.append({"name": "VWAP", "value": vwap, "signal": vwap_signal, "score": vwap_score})
-
-    # Volume Profile
-    vol_profile = calculate_volume_profile(history)
-
-    # Composite: sum clamped to [-5, +5] (includes VWAP score)
-    raw_composite = sum(ind["score"] for ind in indicators)
-    composite_score = round(max(-5.0, min(5.0, raw_composite)), 2)
-
-    return {
-        "ticker": ticker,
-        "composite_score": composite_score,
-        "rsi_14": rsi_14,
-        "macd_signal": macd_signal,
-        "macd_histogram": macd_histogram,
-        "bb_position": bb_position,
-        "sma_trend": sma_trend,
-        "volume_ratio": volume_ratio,
-        "vwap": vwap,
-        "vwap_signal": vwap_signal,
-        "volume_profile": vol_profile,
-        "indicators": indicators,
-    }
 
 
 def analyze_technical_signals(tickers: list[str] = None) -> dict:

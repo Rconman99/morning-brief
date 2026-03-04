@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polymarket Deep Dive Research — Trading Intelligence System</title>
+<style>
+:root {
+    --bg: #0d1117; --card: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --dim: #484f58;
+    --green: #3fb950; --red: #f85149; --yellow: #d29922; --blue: #58a6ff; --purple: #bc8cff;
+    --green-bg: rgba(63,185,80,0.12); --red-bg: rgba(248,81,73,0.12);
+    --yellow-bg: rgba(210,153,34,0.12); --blue-bg: rgba(88,166,255,0.12);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6; padding:20px; max-width:1200px; margin:0 auto; }
+h1 { font-size:1.8rem; margin-bottom:8px; }
+h2 { font-size:1.3rem; color:var(--blue); margin:24px 0 12px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+h3 { font-size:1.1rem; color:var(--purple); margin:16px 0 8px; }
+.subtitle { color:var(--muted); font-size:0.9rem; margin-bottom:24px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin:12px 0; }
+.card-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:12px; }
+.stat { display:inline-block; margin-right:20px; margin-bottom:8px; }
+.stat .label { font-size:0.75rem; color:var(--muted); text-transform:uppercase; display:block; }
+.stat .value { font-size:1.4rem; font-weight:700; }
+.green { color:var(--green); } .red { color:var(--red); } .yellow { color:var(--yellow); } .blue { color:var(--blue); } .purple { color:var(--purple); }
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; margin:2px; }
+.tag-green { background:var(--green-bg); color:var(--green); }
+.tag-red { background:var(--red-bg); color:var(--red); }
+.tag-yellow { background:var(--yellow-bg); color:var(--yellow); }
+.tag-blue { background:var(--blue-bg); color:var(--blue); }
+table { width:100%; border-collapse:collapse; margin:8px 0; font-size:0.85rem; }
+th { text-align:left; color:var(--muted); font-size:0.75rem; text-transform:uppercase; padding:8px; border-bottom:1px solid var(--border); }
+td { padding:8px; border-bottom:1px solid var(--border); }
+tr:hover { background:rgba(88,166,255,0.04); }
+.verdict { font-weight:700; padding:2px 8px; border-radius:4px; }
+.tier-s { background:var(--green-bg); color:var(--green); }
+.tier-a { background:var(--blue-bg); color:var(--blue); }
+.tier-b { background:var(--yellow-bg); color:var(--yellow); }
+.tier-c { background:var(--red-bg); color:var(--red); }
+ul, ol { margin:8px 0 8px 20px; }
+li { margin:4px 0; }
+a { color:var(--blue); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.warn { background:var(--red-bg); border:1px solid var(--red); border-radius:8px; padding:12px 16px; margin:12px 0; }
+.info { background:var(--blue-bg); border:1px solid var(--blue); border-radius:8px; padding:12px 16px; margin:12px 0; }
+.highlight { background:var(--yellow-bg); border:1px solid var(--yellow); border-radius:8px; padding:12px 16px; margin:12px 0; }
+code { background:rgba(88,166,255,0.1); padding:2px 6px; border-radius:3px; font-size:0.85rem; }
+pre { background:#0d1117; border:1px solid var(--border); border-radius:6px; padding:12px; overflow-x:auto; font-size:0.8rem; margin:8px 0; }
+.section-nav { position:sticky; top:0; background:var(--bg); padding:10px 0; border-bottom:1px solid var(--border); z-index:10; margin-bottom:16px; display:flex; flex-wrap:wrap; gap:8px; }
+.section-nav a { padding:4px 12px; border-radius:4px; background:var(--card); border:1px solid var(--border); font-size:0.8rem; }
+.section-nav a:hover { background:var(--blue-bg); border-color:var(--blue); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<h1>Polymarket Deep Dive Research</h1>
+<p class="subtitle">Trading Intelligence System — March 4, 2026 | For Ryan's Morning Brief Integration</p>
+
+<div class="section-nav">
+<a href="#reality">Reality Check</a>
+<a href="#strategies">Strategies Tier List</a>
+<a href="#tools">Tools & Bots</a>
+<a href="#api">API Architecture</a>
+<a href="#weather">Weather Edge</a>
+<a href="#whales">Whale Playbook</a>
+<a href="#module">Module Design</a>
+<a href="#action">Action Plan</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="reality">The Brutal Reality</h2>
+
+<div class="card-grid">
+<div class="card">
+<div class="stat"><span class="label">Participants Who Lose Money</span><span class="value red">80%</span></div>
+<div class="stat"><span class="label">Profitable Long-Term</span><span class="value green">&lt;1%</span></div>
+<div class="stat"><span class="label">Arbitrage Captured by Bots</span><span class="value yellow">73%</span></div>
+</div>
+<div class="card">
+<div class="stat"><span class="label">Top Trader (Theo4)</span><span class="value green">$22M</span></div>
+<div class="stat"><span class="label">Win Rate</span><span class="value green">88.9%</span></div>
+<div class="stat"><span class="label">Used 11 Accounts</span><span class="value yellow">$30M bet</span></div>
+</div>
+</div>
+
+<div class="warn">
+<strong>80% of Polymarket participants lose money over time.</strong> The top 1% who profit consistently have: (1) domain expertise, (2) alternative data sources, (3) disciplined position sizing, and (4) sophisticated tooling. This is not a casino — it's an information market. Your edge comes from knowing something the market doesn't.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="strategies">Strategy Tier List (2026)</h2>
+
+<table>
+<thead>
+<tr><th>Tier</th><th>Strategy</th><th>Win Rate</th><th>Capital Needed</th><th>Skill Level</th><th>Edge Source</th><th>Best For You?</th></tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="verdict tier-s">S</span></td>
+<td><strong>Weather Forecast Arbitrage</strong><br><span style="color:var(--muted);font-size:0.8rem">Compare NOAA/NWS forecasts vs Polymarket prices</span></td>
+<td class="green">70-85%</td>
+<td>$100-1,000</td>
+<td><span class="tag tag-green">Beginner</span></td>
+<td>Free weather APIs vs mispriced markets</td>
+<td class="green"><strong>YES — #1 pick</strong></td>
+</tr>
+<tr>
+<td><span class="verdict tier-s">S</span></td>
+<td><strong>AI News Arbitrage</strong><br><span style="color:var(--muted);font-size:0.8rem">Claude/GPT reads news → assigns probability → compares to market price</span></td>
+<td class="green">60-75%</td>
+<td>$500-5,000</td>
+<td><span class="tag tag-yellow">Intermediate</span></td>
+<td>AI processes info faster than markets reprice</td>
+<td class="green"><strong>YES — your AI skill is the edge</strong></td>
+</tr>
+<tr>
+<td><span class="verdict tier-a">A</span></td>
+<td><strong>Domain Specialization</strong><br><span style="color:var(--muted);font-size:0.8rem">Focus on one category (sports, politics, crypto) and go deep</span></td>
+<td class="green">60-70%</td>
+<td>$500-5,000</td>
+<td><span class="tag tag-yellow">Intermediate</span></td>
+<td>Superior analytical framework in your domain</td>
+<td class="yellow">Good if you pick your lane</td>
+</tr>
+<tr>
+<td><span class="verdict tier-a">A</span></td>
+<td><strong>Cross-Market Correlation</strong><br><span style="color:var(--muted);font-size:0.8rem">When related markets diverge, bet on convergence</span></td>
+<td class="yellow">55-65%</td>
+<td>$1,000-10,000</td>
+<td><span class="tag tag-yellow">Intermediate</span></td>
+<td>Correlation detection across 1,500+ markets</td>
+<td class="yellow">Yes with scanning bot</td>
+</tr>
+<tr>
+<td><span class="verdict tier-b">B</span></td>
+<td><strong>Market Making</strong><br><span style="color:var(--muted);font-size:0.8rem">Provide liquidity, earn spread + rewards</span></td>
+<td class="green">78-85%</td>
+<td>$5,000-50,000</td>
+<td><span class="tag tag-red">Advanced</span></td>
+<td>Spread capture, inventory management</td>
+<td class="red">Too capital-intensive to start</td>
+</tr>
+<tr>
+<td><span class="verdict tier-c">C</span></td>
+<td><strong>Pure Arbitrage</strong><br><span style="color:var(--muted);font-size:0.8rem">YES + NO prices not summing to $1.00</span></td>
+<td class="yellow">High but rare</td>
+<td>$10,000+</td>
+<td><span class="tag tag-red">Advanced</span></td>
+<td>Sub-100ms execution (you don't have this)</td>
+<td class="red">Dead for retail in 2026</td>
+</tr>
+</tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="tools">Best Tools & Bots People Have Built</h2>
+
+<div class="card-grid">
+<div class="card">
+<h3>Official: Polymarket/agents</h3>
+<span class="tag tag-green">Open Source</span> <span class="tag tag-blue">Python</span>
+<p style="margin:8px 0;font-size:0.9rem">Official AI agent framework from Polymarket. Modular components for market data, order execution, and LLM-powered decision making.</p>
+<p style="font-size:0.8rem;color:var(--muted)"><a href="https://github.com/Polymarket/agents">github.com/Polymarket/agents</a></p>
+</div>
+
+<div class="card">
+<h3>poly-maker (Market Making)</h3>
+<span class="tag tag-green">Open Source</span> <span class="tag tag-yellow">Reference Only</span>
+<p style="margin:8px 0;font-size:0.9rem">Automated market making via Google Sheets config. Made $181K historically but <strong class="red">NOT profitable in 2026</strong> — use as reference only.</p>
+<p style="font-size:0.8rem;color:var(--muted)"><a href="https://github.com/warproxxx/poly-maker">github.com/warproxxx/poly-maker</a></p>
+</div>
+
+<div class="card">
+<h3>OctoBot Prediction Market</h3>
+<span class="tag tag-green">Open Source</span> <span class="tag tag-blue">Copy Trading</span>
+<p style="margin:8px 0;font-size:0.9rem">Copy trading + arbitrage bot with simple interface. Free, automates following whale traders.</p>
+<p style="font-size:0.8rem;color:var(--muted)"><a href="https://github.com/Drakkar-Software/OctoBot-Prediction-Market">github.com/Drakkar-Software/OctoBot-Prediction-Market</a></p>
+</div>
+
+<div class="card">
+<h3>Weather Bot Template</h3>
+<span class="tag tag-green">Open Source</span> <span class="tag tag-green">$24K Proven</span>
+<p style="margin:8px 0;font-size:0.9rem">Compares NOAA forecast vs Polymarket weather odds. $1K → $24K since April 2025. Low competition niche.</p>
+<p style="font-size:0.8rem;color:var(--muted)"><a href="https://blog.devgenius.io/found-the-weather-trading-bots-quietly-making-24-000-on-polymarket-and-built-one-myself-for-free-120bd34d6f09">Dev Genius Article: Full Step-by-Step</a></p>
+</div>
+
+<div class="card">
+<h3>PolyAlertHub</h3>
+<span class="tag tag-blue">Free Tier</span> <span class="tag tag-blue">Alerts</span>
+<p style="margin:8px 0;font-size:0.9rem">Real-time whale trade alerts, price movements, AI analytics. Telegram notifications. Paper trading mode.</p>
+<p style="font-size:0.8rem;color:var(--muted)"><a href="https://polyalerthub.com/">polyalerthub.com</a></p>
+</div>
+
+<div class="card">
+<h3>Polymarket Analytics</h3>
+<span class="tag tag-green">Free</span> <span class="tag tag-blue">Data</span>
+<p style="margin:8px 0;font-size:0.9rem">Trader leaderboard, market analytics, arbitrage finder, volume tracking. Essential research tool.</p>
+<p style="font-size:0.8rem;color:var(--muted)"><a href="https://polymarketanalytics.com/">polymarketanalytics.com</a></p>
+</div>
+</div>
+
+<h3>Signal & Alert Providers</h3>
+<table>
+<thead><tr><th>Tool</th><th>What It Does</th><th>Cost</th><th>Best For</th></tr></thead>
+<tbody>
+<tr><td><a href="https://polyalerthub.com">PolyAlertHub</a></td><td>Whale alerts, price moves, AI analytics, paper trading</td><td>Free tier</td><td>Getting started</td></tr>
+<tr><td><a href="https://www.polytrackhq.app">PolyTrack</a></td><td>Whale tracker, cluster detection, real-time alerts</td><td>Free/Paid</td><td>Copy trading whales</td></tr>
+<tr><td>PredictEdge</td><td>AI-estimated probabilities, EV calc, sizing guidance</td><td>Paid</td><td>Quantitative edge</td></tr>
+<tr><td><a href="https://polycopy.app">PolyCopy</a></td><td>Copy top traders automatically</td><td>Free/Paid</td><td>Passive following</td></tr>
+<tr><td><a href="https://polymarketanalytics.com">Polymarket Analytics</a></td><td>Leaderboard, volume, P&L tracking</td><td>Free</td><td>Research</td></tr>
+</tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="api">API Architecture (Free, No Key Needed for Read)</h2>
+
+<div class="card">
+<h3>Three APIs — Different Purposes</h3>
+<table>
+<thead><tr><th>API</th><th>Base URL</th><th>Auth Needed?</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td class="blue"><strong>Gamma API</strong></td><td><code>gamma-api.polymarket.com</code></td><td class="green">NO — fully public</td><td>Market metadata, prices, volume, categories</td></tr>
+<tr><td class="yellow"><strong>CLOB API</strong></td><td><code>clob.polymarket.com</code></td><td>Read: NO / Trade: YES</td><td>Order book, midpoints, spreads, place orders</td></tr>
+<tr><td class="purple"><strong>Data API</strong></td><td><code>data-api.polymarket.com</code></td><td class="red">YES — wallet key</td><td>Your positions, trade history, P&L</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="info">
+<strong>For your morning brief module:</strong> The Gamma API is all you need for scanning and analysis. It's free, has no rate limits for reasonable usage, and returns market prices, volume, liquidity, and metadata. You only need CLOB API auth if you want to actually place trades.
+</div>
+
+<h3>Key Gamma API Endpoints</h3>
+<pre>
+# Get top markets by 24h volume (active, not closed)
+GET https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=50
+
+# Search markets by keyword
+GET https://gamma-api.polymarket.com/markets?active=true&closed=false&tag=politics&limit=20
+
+# Get specific market by slug
+GET https://gamma-api.polymarket.com/markets?slug=will-bitcoin-reach-150000-in-march
+
+# CLOB: Get midpoint price (no auth)
+GET https://clob.polymarket.com/midpoint?token_id={TOKEN_ID}
+
+# CLOB: Get order book (no auth)
+GET https://clob.polymarket.com/book?token_id={TOKEN_ID}
+</pre>
+
+<h3>Response Fields That Matter</h3>
+<pre>
+{
+  "question": "Will Iran close the Strait of Hormuz by March 31?",
+  "outcomePrices": "[0.72, 0.28]",     // YES=72¢, NO=28¢
+  "volume24hr": 2720000,                // $2.72M traded today
+  "liquidity": 119540,                  // $119K in order book
+  "bestBid": 0.71,                      // Best buy price
+  "bestAsk": 0.73,                      // Best sell price
+  "spread": 0.02,                       // 2¢ spread
+  "oneDayPriceChange": 0.03,            // +3% today
+  "endDate": "2026-03-31T00:00:00Z"     // Resolution date
+}
+</pre>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="weather">The Weather Edge (Your Best Starting Strategy)</h2>
+
+<div class="highlight">
+<strong>One bot turned $1,000 → $24,000 since April 2025 trading ONLY London weather markets.</strong> Another has $65,000 profit across NYC, London, and Seoul weather. This works because weather markets are low-competition niches where professional forecast data is freely available.
+</div>
+
+<div class="card">
+<h3>How It Works (Step by Step)</h3>
+<ol>
+<li><strong>Get official forecast:</strong> NOAA/NWS API (free, no key) → tells you "NYC high tomorrow: 43°F"</li>
+<li><strong>Check Polymarket price:</strong> "Will NYC high be 40-45°F?" is trading at 15¢ (market says 15% chance)</li>
+<li><strong>Compare:</strong> NOAA says 43°F with high confidence → actual probability is ~70-80%</li>
+<li><strong>The edge:</strong> You're buying a 70%+ probability event for 15¢. Expected value = 0.70 * $1.00 - 0.15 = +$0.55 per share</li>
+<li><strong>Execute:</strong> Buy shares, wait for resolution, collect $1.00 per correct share</li>
+</ol>
+</div>
+
+<h3>Weather Data Sources (All Free)</h3>
+<table>
+<thead><tr><th>Source</th><th>API</th><th>Coverage</th><th>Cost</th></tr></thead>
+<tbody>
+<tr><td>NOAA/NWS</td><td><code>api.weather.gov</code></td><td>US cities</td><td>Free, no key</td></tr>
+<tr><td>Open-Meteo</td><td><code>api.open-meteo.com</code></td><td>Global</td><td>Free, no key</td></tr>
+<tr><td>Visual Crossing</td><td><code>weather.visualcrossing.com</code></td><td>Global</td><td>Free tier (1000/day)</td></tr>
+</tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="whales">How the Whales Win (Theo4/Fredi9999 Playbook)</h2>
+
+<div class="card">
+<h3>Théo's Election Strategy (Made $22M+)</h3>
+<ul>
+<li><strong>Alternative Data:</strong> Commissioned private polls that identified the "shy Trump voter effect" months before mainstream polls adjusted</li>
+<li><strong>Multi-Account Structure:</strong> Used 11 accounts to place $30M in bets without moving the market</li>
+<li><strong>Conviction Sizing:</strong> When his private data showed 65%+ probability but market was at 50%, he went massive</li>
+<li><strong>Domain Expertise:</strong> Focused exclusively on politics — didn't scatter across sports, crypto, weather</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>What You Can Learn (Without $30M)</h3>
+<ul>
+<li><strong>Pick ONE domain</strong> — your edge evaporates when you spread across 10 categories</li>
+<li><strong>Use AI as your "private poll"</strong> — Claude can synthesize information faster than markets reprice</li>
+<li><strong>Size based on edge</strong> — small bets on uncertain markets, larger on high-conviction mispricing</li>
+<li><strong>Track everything</strong> — log every bet, probability estimate, and outcome for continuous improvement</li>
+</ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="module">Morning Brief Module Design: <code>polymarket_scanner.py</code></h2>
+
+<div class="card">
+<h3>What It Would Do (Daily)</h3>
+<ol>
+<li><strong>Scan active markets</strong> via Gamma API (free, no auth) — top 200 by volume</li>
+<li><strong>Categorize</strong> into domains: Politics, Crypto, Sports, Weather, Economics, Tech</li>
+<li><strong>Flag mispricing signals:</strong>
+    <ul>
+    <li>Weather: compare official forecast probability vs market price → flag >20% disagreement</li>
+    <li>Crypto: cross-reference with your technical signals module (BTC price targets vs Polymarket "BTC above X" markets)</li>
+    <li>Economics: Fed rate markets vs CME FedWatch probabilities</li>
+    <li>Any: large 24h price swings (>10%) that may overshoot</li>
+    </ul>
+</li>
+<li><strong>Track whale moves</strong> via volume spikes and price changes</li>
+<li><strong>Generate daily opportunities</strong> with expected value estimates</li>
+<li><strong>Log results</strong> for scorecard tracking (did our signals beat the market?)</li>
+</ol>
+</div>
+
+<div class="card">
+<h3>Data Flow</h3>
+<pre>
+Gamma API (free) ──┐
+NOAA Weather API ──┤
+CME FedWatch ──────┤──→ polymarket_scanner.py ──→ data/processed/polymarket.json
+Your technicals ───┤                                     │
+Your portfolio ────┘                    morning_brief.py / brief_html.py
+</pre>
+</div>
+
+<div class="card">
+<h3>Output Schema</h3>
+<pre>
+{
+  "module": "polymarket_scanner",
+  "status": "success",
+  "data": {
+    "markets_scanned": 200,
+    "opportunities": [
+      {
+        "market": "Will NYC high exceed 50°F on March 5?",
+        "category": "weather",
+        "current_price_yes": 0.15,
+        "estimated_probability": 0.72,
+        "expected_value": 0.57,
+        "edge": "NOAA forecast: 52°F high with 80% confidence",
+        "confidence": "high",
+        "volume_24h": 45000,
+        "liquidity": 12000,
+        "end_date": "2026-03-06"
+      }
+    ],
+    "whale_alerts": [...],
+    "crypto_crossover": [...],
+    "category_summary": {
+      "politics": {"markets": 45, "opportunities": 2},
+      "weather": {"markets": 30, "opportunities": 5},
+      "crypto": {"markets": 25, "opportunities": 1}
+    }
+  }
+}
+</pre>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 id="action">Action Plan: From Research → Daily Bets</h2>
+
+<div class="card">
+<h3>Phase 1: Scanner Module (Build Now)</h3>
+<p>Build <code>modules/polymarket_scanner.py</code> that:</p>
+<ul>
+<li>Pulls markets from Gamma API (free, no auth)</li>
+<li>Cross-references weather markets with NOAA forecasts</li>
+<li>Cross-references crypto markets with your existing technical signals</li>
+<li>Flags opportunities with expected value > 10%</li>
+<li>Integrates into morning brief HTML dashboard</li>
+</ul>
+<p><span class="tag tag-green">No API key needed</span> <span class="tag tag-green">No wallet needed</span> <span class="tag tag-blue">Read-only scanning</span></p>
+</div>
+
+<div class="card">
+<h3>Phase 2: Paper Trading (Test First)</h3>
+<p>Before risking real money:</p>
+<ul>
+<li>Log "virtual bets" in <code>data/processed/polymarket_log.json</code></li>
+<li>Track hit rate over 2-4 weeks</li>
+<li>Score: did our probability estimates beat the market?</li>
+<li>Adjust thresholds based on real performance</li>
+</ul>
+</div>
+
+<div class="card">
+<h3>Phase 3: Live Trading (After Proven Edge)</h3>
+<p>If paper trading shows consistent edge:</p>
+<ul>
+<li>Set up Polymarket wallet (Polygon USDC)</li>
+<li>Start with $100-500 max</li>
+<li>Add <code>py-clob-client</code> for order execution</li>
+<li>Kelly criterion position sizing based on estimated edge</li>
+</ul>
+</div>
+
+<div class="warn">
+<strong>Important:</strong> Polymarket uses USDC on the Polygon blockchain. You'll need a crypto wallet with USDC to trade. Start with paper trading in the morning brief first — prove the edge before risking capital. This is analysis, not financial advice.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Key Resources</h2>
+<table>
+<thead><tr><th>Resource</th><th>URL</th><th>Why It Matters</th></tr></thead>
+<tbody>
+<tr><td>Polymarket Docs</td><td><a href="https://docs.polymarket.com">docs.polymarket.com</a></td><td>API reference</td></tr>
+<tr><td>Gamma API</td><td><a href="https://gamma-api.polymarket.com">gamma-api.polymarket.com</a></td><td>Free market data</td></tr>
+<tr><td>py-clob-client</td><td><a href="https://github.com/Polymarket/py-clob-client">GitHub</a></td><td>Python trading library</td></tr>
+<tr><td>Polymarket/agents</td><td><a href="https://github.com/Polymarket/agents">GitHub</a></td><td>AI agent framework</td></tr>
+<tr><td>Weather Bot Guide</td><td><a href="https://blog.devgenius.io/found-the-weather-trading-bots-quietly-making-24-000-on-polymarket-and-built-one-myself-for-free-120bd34d6f09">Dev Genius</a></td><td>$1K→$24K walkthrough</td></tr>
+<tr><td>PolyAlertHub</td><td><a href="https://polyalerthub.com">polyalerthub.com</a></td><td>Whale alerts + paper trading</td></tr>
+<tr><td>Polymarket Analytics</td><td><a href="https://polymarketanalytics.com">polymarketanalytics.com</a></td><td>Trader leaderboard + data</td></tr>
+<tr><td>170+ Tool Directory</td><td><a href="https://defiprime.com/definitive-guide-to-the-polymarket-ecosystem">DeFi Prime</a></td><td>Full ecosystem map</td></tr>
+<tr><td>NOAA Weather API</td><td><a href="https://api.weather.gov">api.weather.gov</a></td><td>Free forecasts (weather edge)</td></tr>
+</tbody>
+</table>
+
+<p style="margin-top:24px;padding-top:12px;border-top:1px solid var(--border);color:var(--muted);font-size:0.8rem">
+<em>This is research analysis, not financial advice. All betting/trading decisions are yours. 80% of Polymarket participants lose money.</em>
+</p>
+
+</body>
+</html>

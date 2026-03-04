@@ -142,6 +142,68 @@ def mock_envelopes(tmp_path):
             },
             "details": [],
         },
+        "economic_calendar": {
+            "signal": "high_impact",
+            "signal_detail": "Non-Farm Payroll (NFP) 2026-03-06",
+            "upcoming_events": [
+                {"name": "Non-Farm Payroll", "date": "2026-03-06", "impact": "high", "description": "Monthly US employment data"},
+                {"name": "CPI Release", "date": "2026-03-13", "impact": "medium", "description": "Consumer Price Index"},
+            ],
+            "recent_indicators": {
+                "fed_funds_rate": {"value": 4.50, "date": "2026-02-01", "series": "FEDFUNDS"},
+                "cpi_yoy": {"value": 2.8, "date": "2026-01-01", "series": "CPIAUCSL"},
+            },
+            "fomc_next": {"date": "2026-03-18", "days_until": 14},
+            "data_source": "sample_data",
+            "analyzed_at": "2026-03-04T08:00:00-05:00",
+        },
+        "macro_dashboard": {
+            "signal": "mixed",
+            "signal_detail": "VIX elevated at 22.5 with stable yields",
+            "regime_summary": "Mixed signals: moderate volatility with stable bond market",
+            "indicators": {
+                "VIX": {"value": 22.50, "change_1d": 1.2, "change_5d": 3.5, "change_20d": -2.1, "high_20d": 24.0, "low_20d": 18.5, "percentile_1y": 0.65, "trend": "rising", "interpretation": "Elevated — above normal range"},
+                "DXY": {"value": 104.2, "change_1d": -0.1, "change_5d": -0.5, "change_20d": 0.8, "high_20d": 105.0, "low_20d": 103.0, "percentile_1y": 0.55, "trend": "flat", "interpretation": "Stable — neutral for equities"},
+                "US10Y": {"value": 4.25, "change_1d": 0.02, "change_5d": -0.05, "change_20d": 0.10, "high_20d": 4.35, "low_20d": 4.10, "percentile_1y": 0.70, "trend": "flat", "interpretation": "Elevated — tightening conditions"},
+                "OIL": {"value": 72.50, "change_1d": 0.8, "change_5d": 2.1, "change_20d": -3.0, "high_20d": 78.0, "low_20d": 68.0, "percentile_1y": 0.40, "trend": "rising", "interpretation": "Below average — energy costs contained"},
+                "GOLD": {"value": 2050.0, "change_1d": 0.3, "change_5d": 1.0, "change_20d": 2.5, "high_20d": 2060.0, "low_20d": 1980.0, "percentile_1y": 0.80, "trend": "rising", "interpretation": "Near highs — safe haven demand"},
+            },
+            "data_source": "yfinance",
+            "analyzed_at": "2026-03-04T08:00:00-05:00",
+        },
+        "sector_rotation": {
+            "signal": "growth_momentum",
+            "signal_detail": "Growth and discretionary sectors gaining leadership — risk-on environment",
+            "leaders_21d": [
+                {"etf": "XLK", "sector": "Technology", "return_21d": 5.2, "relative_strength": 3.1, "trend": "uptrend"},
+                {"etf": "XLY", "sector": "Consumer Discretionary", "return_21d": 4.8, "relative_strength": 2.7, "trend": "uptrend"},
+                {"etf": "XLC", "sector": "Communication Services", "return_21d": 4.1, "relative_strength": 1.9, "trend": "uptrend"},
+            ],
+            "laggards_21d": [
+                {"etf": "XLE", "sector": "Energy", "return_21d": -2.3, "relative_strength": -4.4, "trend": "downtrend"},
+                {"etf": "XLU", "sector": "Utilities", "return_21d": 0.1, "relative_strength": -2.0, "trend": "downtrend"},
+                {"etf": "XLB", "sector": "Materials", "return_21d": 0.5, "relative_strength": -1.6, "trend": "downtrend"},
+            ],
+            "leaders_5d": [
+                {"etf": "XLK", "sector": "Technology", "return_5d": 2.1, "relative_strength": 2.3, "trend": "uptrend"},
+                {"etf": "XLY", "sector": "Consumer Discretionary", "return_5d": 1.8, "relative_strength": 2.0, "trend": "uptrend"},
+                {"etf": "XLV", "sector": "Health Care", "return_5d": 0.8, "relative_strength": 1.0, "trend": "uptrend"},
+            ],
+            "laggards_5d": [
+                {"etf": "XLE", "sector": "Energy", "return_5d": -1.2, "relative_strength": -1.4, "trend": "downtrend"},
+                {"etf": "XLU", "sector": "Utilities", "return_5d": -0.8, "relative_strength": -1.0, "trend": "downtrend"},
+                {"etf": "XLP", "sector": "Consumer Staples", "return_5d": -0.3, "relative_strength": -0.5, "trend": "downtrend"},
+            ],
+            "rotation_type": "growth_rotation",
+            "breadth": {"positive_sectors": 8, "negative_sectors": 3, "total_sectors": 11, "label": "broad_rally"},
+            "all_sectors": {
+                "XLK": {"sector": "Technology", "price": 220.50, "return_1d": 0.3, "return_5d": 2.1, "return_21d": 5.2, "return_63d": 12.8, "relative_strength_1d": 0.2, "relative_strength_5d": 2.3, "relative_strength_21d": 3.1, "relative_strength_63d": 7.5, "trend": "uptrend", "volume_ratio": 1.15},
+                "XLE": {"sector": "Energy", "price": 65.20, "return_1d": -0.4, "return_5d": -1.2, "return_21d": -2.3, "return_63d": -5.1, "relative_strength_1d": -0.5, "relative_strength_5d": -1.4, "relative_strength_21d": -4.4, "relative_strength_63d": -10.8, "trend": "downtrend", "volume_ratio": 1.08},
+            },
+            "spy_returns": {"return_1d": 0.1, "return_5d": -0.2, "return_21d": 2.1, "return_63d": 5.3},
+            "data_source": "yfinance",
+            "analyzed_at": "2026-02-26T08:00:00-07:00",
+        },
     }
     for name, data in modules.items():
         envelope = {

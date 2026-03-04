@@ -16,6 +16,9 @@ from modules.earnings import (
     _validate_ai_response,
     main,
 )
+import modules.earnings
+
+HAS_ANTHROPIC = getattr(modules.earnings, 'HAS_ANTHROPIC', False)
 
 
 SAMPLE_TRANSCRIPT = """
@@ -92,6 +95,7 @@ def test_main_creates_output(tmp_path):
 
 # --- AI analysis tests ---
 
+@pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
 def test_analyze_transcript_ai_mock():
     """Mock Anthropic API and verify JSON parsing + output schema."""
     mock_message = MagicMock()
@@ -114,6 +118,7 @@ def test_analyze_transcript_ai_mock():
     assert isinstance(result["summary"], str)
 
 
+@pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
 def test_analyze_transcript_ai_handles_code_fences():
     """Verify that markdown code fences around JSON are stripped."""
     fenced_response = f"```json\n{MOCK_AI_RESPONSE}\n```"
@@ -132,6 +137,7 @@ def test_analyze_transcript_ai_handles_code_fences():
     assert result["tone_score"] == 1.5
 
 
+@pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
 def test_analyze_transcript_ai_fallback_on_api_error():
     """API exception triggers fallback to regex analysis."""
     with patch("modules.earnings.anthropic") as mock_anthropic, \
@@ -146,6 +152,7 @@ def test_analyze_transcript_ai_fallback_on_api_error():
     assert result["tone_score"] == regex_result["tone_score"]
 
 
+@pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
 def test_analyze_transcript_ai_fallback_on_bad_json():
     """Invalid JSON from API triggers fallback to regex."""
     mock_message = MagicMock()
@@ -163,6 +170,7 @@ def test_analyze_transcript_ai_fallback_on_bad_json():
     assert result["tone_score"] == regex_result["tone_score"]
 
 
+@pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
 def test_analyze_transcript_dispatches_with_key():
     """With API key set, dispatches to AI path."""
     with patch("modules.earnings.analyze_transcript_ai") as mock_ai, \

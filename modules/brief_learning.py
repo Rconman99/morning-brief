@@ -371,6 +371,61 @@ KNOWLEDGE_BASE = {
         "connects_to": ["verdict_framework", "what_moves_prices"],
         "resources": [{"label": "Insider Trading Signals", "url": "https://www.investopedia.com/terms/i/insider-buying.asp"}]
     },
+    "congressional_trading": {
+        "title": "Congressional Trading (STOCK Act)",
+        "category": "strategy",
+        "tier": 2,
+        "eli5": "Members of Congress trade stocks too, and they have to report it publicly within 45 days. Some politicians (like Nancy Pelosi) have beaten the market consistently. When several politicians buy the same stock at once, that's like insider info going mainstream. It's not a guarantee, but it's a signal worth watching.",
+        "detailed": "The STOCK Act (2012) requires all members of Congress to disclose stock trades within 45 days. This module tracks House and Senate disclosures and cross-references against your watchlist. Key signals: (1) Cluster buys — 3+ politicians buying the same stock suggests shared intelligence from committee briefings. (2) Big trades ($500k+) — large positions indicate high conviction. (3) Notable traders — historically accurate politicians (e.g., Pelosi's tech trades) carry more signal weight. Limitations: 45-day delay means trades are backward-looking, and politicians may have diversification or tax reasons unrelated to market outlook.",
+        "quiz": [{"q": "Three politicians from the Intelligence Committee all bought the same defense stock last month. How should you interpret this?", "choices": ["Ignore it — politicians don't know more than the market", "Strong signal — committee members may have non-public briefing context, worth investigating the stock further", "Buy immediately — they have insider info"], "answer": 1, "explanation": "Congressional cluster buys from committee members are notable because they may have access to policy briefings before public announcements. However, the 45-day disclosure delay means this is backward-looking. The right approach: use it as a research catalyst, not a blind buy signal. Investigate the stock using the brief's other signals (technicals, valuation, sentiment) before acting."}],
+        "connects_narrative": "The Congressional Trading section shows STOCK Act disclosures filtered to your watchlist. Cluster signals indicate multiple politicians trading the same ticker, which can confirm or add conviction to other brief signals.",
+        "connects_to": ["insider_activity", "verdict_framework", "what_moves_prices"],
+        "resources": [{"label": "STOCK Act Overview", "url": "https://www.investopedia.com/terms/s/stop-trading-on-congressional-knowledge-act.asp"}, {"label": "Capitol Trades", "url": "https://www.capitoltrades.com/"}]
+    },
+    "economic_calendar": {
+        "title": "Economic Calendar",
+        "category": "market_basics",
+        "tier": 2,
+        "eli5": "The economic calendar tells you when the government releases big reports about the economy — like the jobs report, inflation numbers, and Fed meetings. These reports move the ENTIRE market, not just individual stocks. Knowing what's coming this week helps you avoid getting blindsided.",
+        "detailed": "Key events ranked by market impact: (1) FOMC meetings — the Federal Reserve sets interest rates, affecting every asset class. (2) Non-Farm Payrolls (NFP) — first Friday of each month, shows how many jobs were added. Strong jobs = hawkish Fed = stocks may dip. (3) CPI/PPI — inflation data that directly influences Fed policy. (4) GDP — quarterly economic growth. The calendar module tracks all of these plus FRED data for current readings on fed funds rate, unemployment, inflation, and yields. Pro tip: don't open new positions the day before a high-impact release — the move after the number can be violent in either direction.",
+        "quiz": [{"q": "It's Thursday and NFP comes out tomorrow morning. You have a BUY signal on NVDA. What should you do?", "choices": ["Buy now — the signal is the signal", "Wait until after the NFP release to see the market reaction, then decide", "Sell everything before the report"], "answer": 1, "explanation": "High-impact events like NFP can move the entire market 1-2% in minutes. Even a strong BUY signal on a single stock can be overwhelmed by a macro shock. The smart move is to wait for the dust to settle after the release, then re-evaluate. The BUY signal will still be valid if the macro doesn't change."}],
+        "connects_narrative": "The Economic Calendar section shows upcoming events and their impact level. Red = high impact (be cautious), Yellow = moderate, Green = low.",
+        "connects_to": ["risk_management", "what_moves_prices", "macro_indicators"],
+        "resources": [{"label": "FRED Economic Data", "url": "https://fred.stlouisfed.org"}, {"label": "Economic Calendar Guide", "url": "https://www.investopedia.com/terms/e/economic-calendar.asp"}]
+    },
+    "macro_indicators": {
+        "title": "Macro Indicators (VIX, DXY, Yields, Oil, Gold)",
+        "category": "market_basics",
+        "tier": 2,
+        "eli5": "Think of macro indicators as the weather report for the whole market. VIX = fear level (high = stormy). Dollar strength = headwind for big companies that sell overseas. Bond yields = the price of borrowing money. Oil = energy costs. Gold = panic buying. Together they tell you if it's a good day to be aggressive or defensive.",
+        "detailed": "The 5 key macro indicators: (1) VIX — CBOE Volatility Index. Below 15 = calm/complacent, 15-20 = normal, 20-30 = elevated fear, 30+ = panic. High VIX often means opportunity (buy when others are fearful). (2) DXY (US Dollar Index) — strong dollar hurts multinationals (AAPL, MSFT) and commodities. (3) 10Y Treasury Yield — rising yields compete with stocks for capital. (4) Crude Oil — inflation proxy, rising oil = inflation concern. (5) Gold — safe haven, rising gold + rising VIX = risk-off. Signal logic: VIX > 25 with rising gold and falling yields = risk-off. VIX < 15 with stable yields = risk-on.",
+        "quiz": [{"q": "VIX is at 28, gold is rising, and 10Y yields are falling. What's the regime?", "choices": ["Risk-on — great time to buy growth stocks", "Risk-off — money is flowing to safety (gold, bonds)", "Mixed — no clear signal"], "answer": 1, "explanation": "This is a classic risk-off pattern: elevated fear (VIX 28), money flowing into gold (safe haven), and bonds rallying (yields fall when bond prices rise). In this environment, defensive sectors outperform and growth stocks underperform. Consider reducing exposure or tightening stops on aggressive positions."}],
+        "connects_narrative": "The Macro Dashboard shows all 5 indicators with trend arrows, change percentages, and a regime interpretation. Red = crisis, Yellow = risk-off, Green = risk-on, Blue = mixed.",
+        "connects_to": ["risk_management", "sector_rotation", "economic_calendar"],
+        "resources": [{"label": "VIX Explained", "url": "https://www.investopedia.com/terms/v/vix.asp"}, {"label": "Macro Trading Basics", "url": "https://www.investopedia.com/terms/m/macro-environment.asp"}]
+    },
+    "sector_rotation": {
+        "title": "Sector Rotation",
+        "category": "strategy",
+        "tier": 2,
+        "eli5": "Sector rotation is when big money moves from one part of the market to another. Like musical chairs — when Tech is losing its seat, Energy might be gaining one. If you see money rotating INTO defensive sectors (utilities, staples), it usually means smart money is getting nervous. If money is rotating INTO growth (tech, discretionary), the mood is optimistic.",
+        "detailed": "The 11 S&P 500 sectors cycle through leadership based on the economic cycle: Early Recovery → Tech & Discretionary lead. Mid-Expansion → Industrials & Financials lead. Late Cycle → Energy & Materials lead. Recession → Utilities, Staples & Health Care lead. The Sector Rotation module tracks all 11 Select Sector SPDRs against SPY. Relative strength = sector return minus SPY return. If a sector beats SPY, money is flowing in. If it lags, money is flowing out. Breadth measures how many sectors are positive — 8+ = broad rally (bullish), 3 or fewer = broad selloff (bearish). Key insight: when leadership changes between timeframes (5d vs 21d leaders differ), rotation is happening NOW.",
+        "quiz": [{"q": "Tech (XLK) led over 21 days, but Utilities (XLU) and Staples (XLP) are leading over 5 days. What does this mean?", "choices": ["Buy more tech — it's still the 21-day leader", "Rotation alert — defensive sectors taking over suggests risk-off is starting", "Nothing — short-term noise"], "answer": 1, "explanation": "When 5-day leaders shift from growth to defensives while 21-day leaders are still growth, it's an early warning. Smart money is rotating to safety. This doesn't mean sell everything, but it means tighten stops and reduce size on aggressive positions. The Sector Rotation module flags this as a 'defensive_rotation' alert."}],
+        "connects_narrative": "The Sector Rotation section shows leaders, laggards, rotation type, and breadth. Watch for defensive rotation as a leading risk indicator.",
+        "connects_to": ["macro_indicators", "risk_management", "momentum"],
+        "resources": [{"label": "Sector Rotation Strategy", "url": "https://www.investopedia.com/terms/s/sectorrotation.asp"}, {"label": "SPDR Sector ETFs", "url": "https://www.sectorspdrs.com"}]
+    },
+    "prediction_markets": {
+        "title": "Prediction Markets (Polymarket)",
+        "category": "strategy",
+        "tier": 2,
+        "eli5": "Prediction markets are like betting markets for real-world events. People buy 'shares' that pay $1 if something happens and $0 if it doesn't. If a share costs 72 cents, the crowd thinks there's a 72% chance it happens. When you know something the crowd doesn't — like checking a weather forecast — you can find shares that are too cheap or too expensive.",
+        "detailed": "Polymarket is the largest prediction market, running on the Polygon blockchain with USDC. Markets cover politics, crypto, weather, economics, sports, and more. The key concept is Expected Value (EV): if you estimate a 70% probability event is priced at 50 cents, your EV is 0.70 * $1.00 - $0.50 = +$0.20 per share. The scanner cross-references market prices against external data sources (weather forecasts, technical signals) to identify mispricing. Important: 80% of participants lose money — edge comes from domain expertise and alternative data, not luck.",
+        "quiz": [{"q": "A weather market prices 'NYC high above 50°F tomorrow' at 15 cents (YES). NOAA forecasts 52°F with high confidence (~70% probability). What's the expected value per share?", "choices": ["$0.15 — you pay 15 cents so that's the value", "$0.55 — the 70% probability times $1.00 minus the 15 cent cost", "$0.70 — that's the probability"], "answer": 1, "explanation": "EV = (probability * payout) - cost = (0.70 * $1.00) - $0.15 = $0.55 per share. This is a massive edge — you're buying a 70% probability for just 15 cents. Weather markets are where bots have made the most consistent profits because free forecast data gives you a genuine information advantage."}],
+        "connects_narrative": "The Polymarket section shows opportunities where external data (weather forecasts, technical signals) disagrees with market pricing, creating potential expected value.",
+        "connects_to": ["risk_management", "what_moves_prices", "congressional_trading"],
+        "resources": [{"label": "Polymarket", "url": "https://polymarket.com"}, {"label": "Prediction Market Strategy Guide", "url": "https://defiprime.com/definitive-guide-to-the-polymarket-ecosystem"}]
+    },
     "decision_when_conflict": {
         "title": "What to Do When Signals Conflict",
         "category": "strategy",
@@ -587,6 +642,7 @@ SECTION_CONCEPT_MAP = {
     "Opportunity Scanner": "momentum",
     "Trade Memory": "verdict_framework",
     "Insider Activity (SEC Form 4)": "insider_activity",
+    "Congressional Trading (STOCK Act)": "congressional_trading",
     "Scenario Valuations (Bull / Base / Bear)": "scenario_valuation",
     "Verdict Scorecard": "verdict_framework",
     "Portfolio Holdings": "trailing_stop",
@@ -596,6 +652,10 @@ SECTION_CONCEPT_MAP = {
     "Technical Signals": "composite_score",
     "News Sentiment": "tone_score",
     "Options Analysis": "max_pain",
+    "Polymarket Prediction Markets": "prediction_markets",
+    "Economic Calendar": "economic_calendar",
+    "Macro Dashboard": "macro_indicators",
+    "Sector Rotation": "sector_rotation",
 }
 
 LEARNING_PATH = [

@@ -1,5 +1,6 @@
 .env
 .venv/
+.venv_fresh/
 data/raw/
 data/processed/
 data/processed/stop_tracker.json

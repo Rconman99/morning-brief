@@ -345,6 +345,11 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     trade_memory = load_envelope("trade_memory.json")
     insider = load_envelope("insider_tracker.json")
     position_sizer = load_envelope("position_sizer.json")
+    congress = load_envelope("congress_tracker.json")
+    polymarket = load_envelope("polymarket.json")
+    econ_calendar = load_envelope("economic_calendar.json")
+    macro = load_envelope("macro_dashboard.json")
+    sector_rot = load_envelope("sector_rotation.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
@@ -353,7 +358,9 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                "Portfolio": portfolio, "Technical": technical, "Sentiment": sentiment,
                "Options": options, "Scanner": opportunities,
                "Risk": risk_dashboard, "Scorecard": scorecard,
-               "Memory": trade_memory, "Insider": insider, "Sizer": position_sizer}
+               "Memory": trade_memory, "Insider": insider, "Sizer": position_sizer,
+               "Congress": congress, "Polymarket": polymarket,
+               "EconCalendar": econ_calendar, "Macro": macro, "SectorRotation": sector_rot}
 
     lines = [
         f"# Morning Brief — {date_str}",
@@ -369,8 +376,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     risk_data = risk_dashboard["data"]
     regime = risk_data.get("regime", "UNKNOWN")
     regime_note = risk_data.get("regime_note", "")
+    lines.append(f"## Risk Dashboard — {regime}")
     if risk_dashboard["status"] in ("success", "partial"):
-        lines.append(f"## Risk Dashboard — {regime}")
         lines.append(regime_note)
         lines.append("")
 
@@ -399,6 +406,92 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 icon = risk_icons.get(r["level"], "⚪")
                 lines.append(f"- {icon} {r['detail']}")
             lines.append("")
+    else:
+        lines.append("*Data unavailable*")
+        lines.append("")
+
+    # Economic Calendar
+    if econ_calendar["status"] in ("success", "partial"):
+        ec = econ_calendar["data"]
+        ec_signal = ec.get("signal", "calm").upper()
+        lines.append(f"## Economic Calendar — {ec_signal}")
+        lines.append(f"*{ec.get('signal_detail', 'No significant events')}*")
+        lines.append("")
+        events = ec.get("upcoming_events", [])
+        if events:
+            lines.append("### This Week")
+            for ev in events:
+                impact_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(ev.get("impact", "low"), "⚪")
+                lines.append(f"- {impact_icon} **{ev['name']}** ({ev.get('date', 'TBD')}) — {ev.get('description', '')}")
+            lines.append("")
+        fomc = ec.get("fomc_next", {})
+        if fomc:
+            lines.append(f"*Next FOMC: {fomc.get('date', '?')} ({fomc.get('days_until', '?')} days)*")
+            lines.append("")
+        indicators = ec.get("recent_indicators", {})
+        if indicators:
+            lines.append("### Key Indicators")
+            for name, info in indicators.items():
+                val = info.get("value", "N/A")
+                dt = info.get("date", "")
+                lines.append(f"- **{name}**: {val} ({dt})")
+            lines.append("")
+    else:
+        lines.append("## Economic Calendar")
+        lines.append("*Data unavailable*")
+        lines.append("")
+
+    # Macro Dashboard
+    if macro["status"] in ("success", "partial"):
+        md = macro["data"]
+        macro_signal = md.get("signal", "mixed").upper()
+        lines.append(f"## Macro Dashboard — {macro_signal}")
+        lines.append(f"*{md.get('regime_summary', md.get('signal_detail', ''))}*")
+        lines.append("")
+        for key, ind in md.get("indicators", {}).items():
+            val = ind.get("value", "N/A")
+            c1d = ind.get("change_1d", 0)
+            c5d = ind.get("change_5d", 0)
+            trend = ind.get("trend", "flat")
+            interp = ind.get("interpretation", "")
+            trend_icon = "📈" if trend == "rising" else "📉" if trend == "falling" else "➡️"
+            lines.append(f"- {trend_icon} **{key}**: {val} ({c1d:+.1f}% 1d, {c5d:+.1f}% 5d) — {interp}")
+        lines.append("")
+    else:
+        lines.append("## Macro Dashboard")
+        lines.append("*Data unavailable*")
+        lines.append("")
+
+    # Sector Rotation
+    if sector_rot["status"] in ("success", "partial"):
+        sr = sector_rot["data"]
+        sr_signal = sr.get("signal", "stable").upper()
+        rot_type = sr.get("rotation_type", "stable")
+        lines.append(f"## Sector Rotation — {sr_signal}")
+        lines.append(f"*{sr.get('signal_detail', 'No notable rotation')}*")
+        lines.append("")
+        leaders = sr.get("leaders_21d", [])
+        if leaders:
+            lines.append("### Leaders (21d)")
+            for l in leaders[:3]:
+                lines.append(f"- 🟢 **{l.get('etf', '?')}** ({l.get('sector', '')}) — {l.get('return_21d', 0):+.1f}% (RS: {l.get('relative_strength', 0):+.1f}%)")
+            lines.append("")
+        laggards = sr.get("laggards_21d", [])
+        if laggards:
+            lines.append("### Laggards (21d)")
+            for l in laggards[:3]:
+                lines.append(f"- 🔴 **{l.get('etf', '?')}** ({l.get('sector', '')}) — {l.get('return_21d', 0):+.1f}% (RS: {l.get('relative_strength', 0):+.1f}%)")
+            lines.append("")
+        breadth = sr.get("breadth", {})
+        if breadth:
+            pos = breadth.get("positive_sectors", 0)
+            neg = breadth.get("negative_sectors", 0)
+            lines.append(f"*Breadth: {pos} sectors positive, {neg} negative — {breadth.get('label', 'mixed')}*")
+            lines.append("")
+    else:
+        lines.append("## Sector Rotation")
+        lines.append("*Data unavailable*")
+        lines.append("")
 
     # Trading Windows
     windows = get_trading_windows()
@@ -624,11 +717,11 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             lines.append("")
 
     # Trade Memory — Pattern Matching
+    lines.append("## Trade Memory — Pattern Matching")
     if trade_memory["status"] in ("success", "partial"):
         mem_results = trade_memory["data"].get("results", [])
         notable = [r for r in mem_results if r.get("match_result", {}).get("matches", 0) > 0]
         if notable:
-            lines.append("## Trade Memory — Pattern Matching")
             for r in notable:
                 match = r["match_result"]
                 confidence = match.get("confidence", "")
@@ -639,20 +732,66 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 else:
                     icon = "🟡"
                 lines.append(f"- {icon} **{r['ticker']}**: {r['signal']}")
-            lines.append("")
+        else:
+            lines.append("*No matching patterns found in trade history*")
+    else:
+        lines.append("*Data unavailable*")
+    lines.append("")
 
     # Insider Activity (SEC Form 4)
+    lines.append("## Insider Activity (SEC Form 4)")
     if insider["status"] in ("success", "partial"):
         insider_results = insider["data"].get("results", [])
         active = [r for r in insider_results if r.get("transaction_count", 0) > 0]
         if active:
-            lines.append("## Insider Activity (SEC Form 4)")
             for r in active:
                 icon = "🟢" if r.get("cluster_buy") else "⚪"
                 lines.append(f"- {icon} **{r['ticker']}**: {r['detail']}")
                 if r.get("cluster_buy"):
                     lines.append(f"  - **CLUSTER BUY detected** — {r['transaction_count']} filings in period")
+        else:
+            lines.append("*No recent insider activity detected*")
+    else:
+        lines.append("*Data unavailable*")
+    lines.append("")
+
+    # Congressional Trading (STOCK Act / Pelosi Tracker)
+    if congress["status"] in ("success", "partial"):
+        cdata = congress["data"]
+        signal = cdata.get("signal", "no_data")
+        signal_detail = cdata.get("signal_detail", "")
+        stats = cdata.get("summary_stats", {})
+
+        lines.append("## Congressional Trading (STOCK Act)")
+        lines.append(f"*Signal: {signal.upper()} — {signal_detail}*")
+        lines.append(f"- **Trades**: {stats.get('total_trades', 0)} ({stats.get('buy_count', 0)} buys, {stats.get('sell_count', 0)} sells)")
+        lines.append(f"- **Watchlist Matches**: {stats.get('watchlist_matches', 0)}")
+        lines.append("")
+
+        clusters = cdata.get("cluster_signals", [])
+        if clusters:
+            lines.append("### Cluster Signals")
+            for c in clusters:
+                icon = "🟢" if c["direction"] == "buy" else "🔴"
+                wl = " ⭐ WATCHLIST" if c.get("in_watchlist") else ""
+                est = c.get("estimated_total", 0)
+                est_str = f" (~${est:,.0f})" if est else ""
+                lines.append(f"- {icon} **{c['ticker']}**: {c['politician_count']} politicians {c['direction']}ing{est_str}{wl}")
+                lines.append(f"  - Politicians: {', '.join(c.get('politicians', []))}")
             lines.append("")
+
+        wl_trades = cdata.get("watchlist_trades", [])
+        if wl_trades:
+            lines.append("### Watchlist Trades")
+            for t in wl_trades[:10]:
+                tx_type = t.get("transaction_type", "")
+                icon = "🟢" if "purchase" in tx_type.lower() else "🔴"
+                lines.append(f"- {icon} **{t.get('politician', 'Unknown')}** ({t.get('party', '')}) — {tx_type} {t['ticker']} — {t.get('amount_range', '')} — {t.get('transaction_date', '')}")
+            lines.append("")
+
+        source = cdata.get("data_source", "unknown")
+        lines.append(f"*Source: {source} | STOCK Act requires disclosure within 45 days*")
+        lines.append("")
 
     # Scenario Valuations (Bull / Base / Bear)
     scenarios = valuation["data"].get("scenarios", [])
@@ -702,6 +841,47 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     else:
         lines.append("*Data unavailable*")
     lines.append("")
+
+    # Polymarket Prediction Markets
+    lines.append("## Polymarket Prediction Markets")
+    if polymarket["status"] in ("success", "partial"):
+        pm = polymarket["data"]
+        signal = pm.get("signal", "no_data")
+        lines.append(f"*{pm.get('markets_scanned', 0)} markets scanned — Signal: {signal.upper()}*")
+        lines.append("")
+
+        opps = pm.get("opportunities", [])
+        if opps:
+            lines.append("### Opportunities (by Expected Value)")
+            for o in opps[:8]:
+                conf_icon = {"high": "🟢", "medium": "🟡", "low": "⚪"}.get(o.get("confidence"), "⚪")
+                side = o.get("recommended_side", "?")
+                edge = o.get("edge_pct", 0)
+                lines.append(f"- {conf_icon} **{o['question'][:80]}**")
+                lines.append(f"  - {side} @ {o.get('market_price', 0):.0%} | Edge: {edge:.1f}% | Type: {o.get('opportunity_type', '')} | {o.get('confidence', '').upper()}")
+            lines.append("")
+
+        movers = pm.get("big_movers", [])
+        if movers:
+            lines.append("### Big Movers (24h)")
+            for m in movers[:5]:
+                icon = "📈" if m.get("move_direction") == "up" else "📉"
+                lines.append(f"- {icon} **{m['question'][:70]}** — {m.get('move_pct', 0):+.1f}% (Vol: ${m.get('volume_24h', 0):,.0f})")
+            lines.append("")
+
+        # Category summary
+        cats = pm.get("category_summary", {})
+        if cats:
+            cat_line = " | ".join(f"{k}: {v['markets']}" for k, v in sorted(cats.items(), key=lambda x: x[1]['markets'], reverse=True)[:6])
+            lines.append(f"*Categories: {cat_line}*")
+            lines.append("")
+
+        source = pm.get("data_source", "unknown")
+        lines.append(f"*Source: {source} | Prediction markets are not financial advice — 80% of participants lose money*")
+        lines.append("")
+    else:
+        lines.append("*Data unavailable*")
+        lines.append("")
 
     # Disclaimer
     lines.append("---")

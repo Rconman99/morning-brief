@@ -10,13 +10,35 @@ import time
 
 
 def get_venv_python() -> str:
-    """Get the venv Python path."""
-    venv_python = str(PROJECT_ROOT / ".venv" / "bin" / "python")
-    if not Path(venv_python).exists():
-        venv_python = str(PROJECT_ROOT / ".venv" / "Scripts" / "python")
-    if not Path(venv_python).exists():
-        venv_python = sys.executable
-    return venv_python
+    """Get the venv Python path.
+
+    Search order:
+    1. .venv/bin/python (Linux/Mac standard)
+    2. .venv/Scripts/python (Windows)
+    3. ../trading-venv/bin/python (VM fallback — session-level venv)
+    4. sys.executable (last resort)
+
+    Also verifies the found Python is actually executable (not a broken symlink).
+    """
+    candidates = [
+        PROJECT_ROOT / ".venv" / "bin" / "python",
+        PROJECT_ROOT / ".venv" / "Scripts" / "python",
+        PROJECT_ROOT.parent / "trading-venv" / "bin" / "python",
+    ]
+    for candidate in candidates:
+        candidate_str = str(candidate)
+        if Path(candidate_str).exists():
+            # Verify it's not a broken symlink
+            try:
+                result = subprocess.run(
+                    [candidate_str, "--version"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                if result.returncode == 0:
+                    return candidate_str
+            except Exception:
+                continue
+    return sys.executable
 
 
 MODULES = [
@@ -28,6 +50,11 @@ MODULES = [
     ("news_sentiment", "modules/news_sentiment.py"),
     ("options", "modules/options.py"),
     ("insider_tracker", "modules/insider_tracker.py"),
+    ("congress_tracker", "modules/congress_tracker.py"),
+    ("polymarket_scanner", "modules/polymarket_scanner.py"),
+    ("economic_calendar", "modules/economic_calendar.py"),
+    ("macro_dashboard", "modules/macro_dashboard.py"),
+    ("sector_rotation", "modules/sector_rotation.py"),
     ("opportunity_scanner", "modules/opportunity_scanner.py"),
     ("risk_dashboard", "modules/risk_dashboard.py"),
     ("trade_memory", "modules/trade_memory.py"),

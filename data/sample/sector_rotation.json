@@ -1,0 +1,273 @@
+{
+  "module": "sector_rotation",
+  "generated_at": "2026-03-04T10:30:00-07:00",
+  "status": "success",
+  "error_message": null,
+  "data": {
+    "signal": "growth_momentum",
+    "signal_detail": "Growth and discretionary sectors gaining leadership — risk-on environment",
+    "leaders_21d": [
+      {
+        "etf": "XLK",
+        "sector": "Technology",
+        "return_21d": 5.2,
+        "relative_strength": 3.1,
+        "trend": "uptrend"
+      },
+      {
+        "etf": "XLY",
+        "sector": "Consumer Discretionary",
+        "return_21d": 4.8,
+        "relative_strength": 2.7,
+        "trend": "uptrend"
+      },
+      {
+        "etf": "XLC",
+        "sector": "Communication Services",
+        "return_21d": 4.1,
+        "relative_strength": 1.9,
+        "trend": "uptrend"
+      }
+    ],
+    "laggards_21d": [
+      {
+        "etf": "XLE",
+        "sector": "Energy",
+        "return_21d": -2.3,
+        "relative_strength": -4.4,
+        "trend": "downtrend"
+      },
+      {
+        "etf": "XLU",
+        "sector": "Utilities",
+        "return_21d": 0.1,
+        "relative_strength": -2.0,
+        "trend": "downtrend"
+      },
+      {
+        "etf": "XLB",
+        "sector": "Materials",
+        "return_21d": 0.5,
+        "relative_strength": -1.6,
+        "trend": "downtrend"
+      }
+    ],
+    "leaders_5d": [
+      {
+        "etf": "XLK",
+        "sector": "Technology",
+        "return_5d": 2.1,
+        "relative_strength": 2.3,
+        "trend": "uptrend"
+      },
+      {
+        "etf": "XLY",
+        "sector": "Consumer Discretionary",
+        "return_5d": 1.8,
+        "relative_strength": 2.0,
+        "trend": "uptrend"
+      },
+      {
+        "etf": "XLV",
+        "sector": "Health Care",
+        "return_5d": 0.8,
+        "relative_strength": 1.0,
+        "trend": "uptrend"
+      }
+    ],
+    "laggards_5d": [
+      {
+        "etf": "XLE",
+        "sector": "Energy",
+        "return_5d": -1.2,
+        "relative_strength": -1.4,
+        "trend": "downtrend"
+      },
+      {
+        "etf": "XLU",
+        "sector": "Utilities",
+        "return_5d": -0.8,
+        "relative_strength": -1.0,
+        "trend": "downtrend"
+      },
+      {
+        "etf": "XLP",
+        "sector": "Consumer Staples",
+        "return_5d": -0.3,
+        "relative_strength": -0.5,
+        "trend": "downtrend"
+      }
+    ],
+    "rotation_type": "growth_rotation",
+    "breadth": {
+      "positive_sectors": 8,
+      "negative_sectors": 3,
+      "total_sectors": 11,
+      "label": "broad_rally"
+    },
+    "all_sectors": {
+      "XLK": {
+        "sector": "Technology",
+        "price": 220.50,
+        "return_1d": 0.3,
+        "return_5d": 2.1,
+        "return_21d": 5.2,
+        "return_63d": 12.8,
+        "relative_strength_1d": 0.2,
+        "relative_strength_5d": 2.3,
+        "relative_strength_21d": 3.1,
+        "relative_strength_63d": 7.5,
+        "trend": "uptrend",
+        "volume_ratio": 1.15
+      },
+      "XLF": {
+        "sector": "Financials",
+        "price": 42.75,
+        "return_1d": 0.2,
+        "return_5d": 1.2,
+        "return_21d": 2.8,
+        "return_63d": 8.2,
+        "relative_strength_1d": 0.1,
+        "relative_strength_5d": 1.4,
+        "relative_strength_21d": 0.7,
+        "relative_strength_63d": 2.9,
+        "trend": "uptrend",
+        "volume_ratio": 0.95
+      },
+      "XLE": {
+        "sector": "Energy",
+        "price": 65.20,
+        "return_1d": -0.4,
+        "return_5d": -1.2,
+        "return_21d": -2.3,
+        "return_63d": -5.1,
+        "relative_strength_1d": -0.5,
+        "relative_strength_5d": -1.4,
+        "relative_strength_21d": -4.4,
+        "relative_strength_63d": -10.8,
+        "trend": "downtrend",
+        "volume_ratio": 1.08
+      },
+      "XLV": {
+        "sector": "Health Care",
+        "price": 189.30,
+        "return_1d": 0.1,
+        "return_5d": 0.8,
+        "return_21d": 1.5,
+        "return_63d": 6.2,
+        "relative_strength_1d": 0.0,
+        "relative_strength_5d": 1.0,
+        "relative_strength_21d": -0.6,
+        "relative_strength_63d": 0.9,
+        "trend": "uptrend",
+        "volume_ratio": 0.92
+      },
+      "XLI": {
+        "sector": "Industrials",
+        "price": 105.10,
+        "return_1d": 0.0,
+        "return_5d": 1.1,
+        "return_21d": 2.5,
+        "return_63d": 9.1,
+        "relative_strength_1d": -0.1,
+        "relative_strength_5d": 1.3,
+        "relative_strength_21d": 0.4,
+        "relative_strength_63d": 3.8,
+        "trend": "uptrend",
+        "volume_ratio": 1.02
+      },
+      "XLY": {
+        "sector": "Consumer Discretionary",
+        "price": 198.45,
+        "return_1d": 0.2,
+        "return_5d": 1.8,
+        "return_21d": 4.8,
+        "return_63d": 11.2,
+        "relative_strength_1d": 0.1,
+        "relative_strength_5d": 2.0,
+        "relative_strength_21d": 2.7,
+        "relative_strength_63d": 5.9,
+        "trend": "uptrend",
+        "volume_ratio": 1.22
+      },
+      "XLP": {
+        "sector": "Consumer Staples",
+        "price": 72.60,
+        "return_1d": 0.0,
+        "return_5d": -0.3,
+        "return_21d": 0.8,
+        "return_63d": 3.5,
+        "relative_strength_1d": -0.1,
+        "relative_strength_5d": -0.5,
+        "relative_strength_21d": -1.3,
+        "relative_strength_63d": -2.2,
+        "trend": "downtrend",
+        "volume_ratio": 0.88
+      },
+      "XLU": {
+        "sector": "Utilities",
+        "price": 68.40,
+        "return_1d": -0.1,
+        "return_5d": -0.8,
+        "return_21d": 0.1,
+        "return_63d": 2.1,
+        "relative_strength_1d": -0.2,
+        "relative_strength_5d": -1.0,
+        "relative_strength_21d": -2.0,
+        "relative_strength_63d": -3.6,
+        "trend": "downtrend",
+        "volume_ratio": 0.85
+      },
+      "XLB": {
+        "sector": "Materials",
+        "price": 81.90,
+        "return_1d": -0.2,
+        "return_5d": 0.6,
+        "return_21d": 0.5,
+        "return_63d": 4.2,
+        "relative_strength_1d": -0.3,
+        "relative_strength_5d": 0.8,
+        "relative_strength_21d": -1.6,
+        "relative_strength_63d": -1.5,
+        "trend": "downtrend",
+        "volume_ratio": 0.98
+      },
+      "XLRE": {
+        "sector": "Real Estate",
+        "price": 33.25,
+        "return_1d": 0.1,
+        "return_5d": 0.4,
+        "return_21d": 1.2,
+        "return_63d": 5.0,
+        "relative_strength_1d": 0.0,
+        "relative_strength_5d": 0.6,
+        "relative_strength_21d": -0.9,
+        "relative_strength_63d": -0.7,
+        "trend": "uptrend",
+        "volume_ratio": 1.05
+      },
+      "XLC": {
+        "sector": "Communication Services",
+        "price": 152.70,
+        "return_1d": 0.3,
+        "return_5d": 1.5,
+        "return_21d": 4.1,
+        "return_63d": 10.5,
+        "relative_strength_1d": 0.2,
+        "relative_strength_5d": 1.7,
+        "relative_strength_21d": 1.9,
+        "relative_strength_63d": 5.0,
+        "trend": "uptrend",
+        "volume_ratio": 1.18
+      }
+    },
+    "spy_returns": {
+      "return_1d": 0.1,
+      "return_5d": -0.2,
+      "return_21d": 2.1,
+      "return_63d": 5.3
+    },
+    "data_source": "yfinance",
+    "analyzed_at": "2026-03-04T10:30:00-07:00"
+  }
+}

@@ -15,6 +15,11 @@
 - ✅ **Memory**: success
 - ⚠️ **Insider**: partial
 - ✅ **Sizer**: success
+- ⚠️ **Congress**: partial
+- ✅ **Polymarket**: success
+- ✅ **EconCalendar**: success
+- ⚠️ **Macro**: partial
+- ✅ **SectorRotation**: success
 
 ## Risk Dashboard — CAUTION
 Elevated risk — be selective, smaller positions
@@ -33,6 +38,37 @@ Elevated risk — be selective, smaller positions
 - 🔴 META 50-day SMA crossed below 200-day — bearish trend
 - 🔴 MSFT 50-day SMA crossed below 200-day — bearish trend
 - 🟡 SAMPLE_AAPL earnings tone -1.8 — management hedging
+
+## Economic Calendar — HIGH_IMPACT
+*Non-Farm Payroll (NFP) 2026-03-06*
+
+### This Week
+- 🔴 **Non-Farm Payroll (NFP)** (2026-03-06) — US employment data release
+
+*Next FOMC: 2026-03-18 (15 days)*
+
+## Macro Dashboard — MIXED
+*Inflation concerns — cautious market watching energy costs and Fed policy. Rising oil and elevated yields suggest hawkish expectations.*
+
+- 📈 **VIX**: 22.8 (+12.0% 1d, +11.0% 5d) — Heightened vigilance — moderately elevated
+- ➡️ **DXY**: 94.63 (+1.6% 1d, +0.6% 5d) — Weak dollar — favorable for commodities
+- ➡️ **US10Y**: 4.06 (+0.2% 1d, +0.2% 5d) — Elevated yields — tightening signals
+- 📈 **OIL**: 75.14 (+5.5% 1d, +14.9% 5d) — Elevated oil — watch for inflation
+
+## Sector Rotation — GROWTH_MOMENTUM
+*Growth and discretionary sectors gaining leadership — risk-on environment*
+
+### Leaders (21d)
+- 🟢 **XLE** (Energy) — +10.7% (RS: +12.4%)
+- 🟢 **XLU** (Utilities) — +8.8% (RS: +10.5%)
+- 🟢 **XLK** (Technology) — +7.0% (RS: +8.7%)
+
+### Laggards (21d)
+- 🔴 **XLC** (Communication Services) — -1.8% (RS: -0.1%)
+- 🔴 **XLF** (Financials) — -4.2% (RS: -2.5%)
+- 🔴 **XLY** (Consumer Discretionary) — -5.6% (RS: -3.9%)
+
+*Breadth: 4 sectors positive, 7 negative — mixed*
 
 ## Trade Journal Summary
 - **Total Trades**: 30
@@ -103,24 +139,24 @@ Elevated risk — be selective, smaller positions
 ### NVDA
 - **Max Pain**: $180.00
 - **Front Month Expiry**: 2026-03-27
-- **PMCC Long**: $155.0 @ $40.07 (Δ None)
-- **PMCC Short**: $190.0 @ $4.16 (Δ None)
+- **PMCC Long**: $155.0 @ $40.07 (Δ 0.7619)
+- **PMCC Short**: $190.0 @ $4.16 (Δ 0.336)
 - **Net Debit**: $35.91
 - **Top Strikes by OI**: $200.0 (28,110), $195.0 (16,077), $150.0 (15,144)
 
 ### AAPL
 - **Max Pain**: $265.00
 - **Front Month Expiry**: 2026-03-27
-- **PMCC Long**: $225.0 @ $52.83 (Δ None)
-- **PMCC Short**: $275.0 @ $3.0 (Δ None)
+- **PMCC Long**: $225.0 @ $52.83 (Δ 0.8208)
+- **PMCC Short**: $275.0 @ $3.0 (Δ 0.3219)
 - **Net Debit**: $49.83
 - **Top Strikes by OI**: $285.0 (6,136), $290.0 (3,785), $280.0 (3,301)
 
 ### VOO
 - **Max Pain**: $612.50
 - **Front Month Expiry**: 2026-03-27
-- **PMCC Long**: $550.0 @ $100.37 (Δ None)
-- **PMCC Short**: $657.5 @ $0.34 (Δ None)
+- **PMCC Long**: $550.0 @ $100.37 (Δ 0.9484)
+- **PMCC Short**: $657.5 @ $0.34 (Δ 0.0814)
 - **Net Debit**: $100.03
 - **Top Strikes by OI**: $642.5 (851), $612.5 (182), $620.0 (116)
 
@@ -173,6 +209,32 @@ Elevated risk — be selective, smaller positions
 - 🟡 **NVDA**: Mixed history: 4W/2L in 6 similar setups
 - 🟡 **TSLA**: Mixed history: 2W/4L in 6 similar setups
 
+## Insider Activity (SEC Form 4)
+*No recent insider activity detected*
+
+## Congressional Trading (STOCK Act)
+*Signal: CLUSTER_DETECTED — 1 cluster signal(s) detected, 1 in your watchlist*
+- **Trades**: 12 (8 buys, 4 sells)
+- **Watchlist Matches**: 12
+
+### Cluster Signals
+- 🟢 **NVDA**: 3 politicians buying (~$3,450,000) ⭐ WATCHLIST
+  - Politicians: Mark Green, Markwayne Mullin, Nancy Pelosi
+
+### Watchlist Trades
+- 🔴 **Katie Porter** (D) — Sale (Full) AAPL — $50,001 - $100,000 — 2026-02-25
+- 🟢 **Josh Gottheimer** (D) — Purchase META — $15,001 - $50,000 — 2026-02-24
+- 🟢 **Mark Green** (R) — Purchase NVDA — $50,001 - $100,000 — 2026-02-22
+- 🔴 **Tommy Tuberville** (R) — Sale (Full) TSLA — $250,001 - $500,000 — 2026-02-20
+- 🟢 **Tommy Tuberville** (R) — Purchase AMD — $100,001 - $250,000 — 2026-02-20
+- 🟢 **Markwayne Mullin** (R) — Purchase NVDA — $250,001 - $500,000 — 2026-02-19
+- 🟢 **Dan Crenshaw** (R) — Purchase MSFT — $100,001 - $250,000 — 2026-02-18
+- 🟢 **Nancy Pelosi** (D) — Purchase NVDA — $1,000,001 - $5,000,000 — 2026-02-15
+- 🔴 **Ro Khanna** (D) — Sale (Partial) GOOGL — $100,001 - $250,000 — 2026-02-14
+- 🔴 **Michael McCaul** (R) — Sale (Partial) MSFT — $500,001 - $1,000,000 — 2026-02-12
+
+*Source: sample_data | STOCK Act requires disclosure within 45 days*
+
 ## Scenario Valuations (Bull / Base / Bear)
 ### AAPL (current: $263.75)
 - 🟢 Bull: $350.0 (+32.7%)
@@ -205,81 +267,81 @@ Elevated risk — be selective, smaller positions
 - 🔴 Bear: $140.0 (-22.2%) | R/R: 5.0x
 
 ## Technical Signals
-### AAPL (Composite: +1.5)
+### AAPL (Composite: +0.5)
 - **RSI(14)**: 47.31
-- **MACD**: neutral (histogram: 0.9084)
+- **MACD**: bearish_crossover (histogram: -0.3532)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.76
+- **Volume Ratio**: 0.77
 - **VWAP**: $232.5 (above)
 - **Point of Control**: $203.09 (strongest support/resistance)
 
 ### AMD (Composite: +0.5)
 - **RSI(14)**: 37.5
-- **MACD**: bearish_crossover (histogram: -6.088)
+- **MACD**: bearish_crossover (histogram: -0.9559)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.85
+- **Volume Ratio**: 0.88
 - **VWAP**: $172.52 (above)
 - **Point of Control**: $157.31 (strongest support/resistance)
 
-### AMZN (Composite: +0.0)
+### AMZN (Composite: +1.0)
 - **RSI(14)**: 41.59
-- **MACD**: neutral (histogram: -6.6543)
+- **MACD**: bullish_crossover (histogram: 1.077)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.65
+- **Volume Ratio**: 0.66
 - **VWAP**: $215.66 (below)
 - **Point of Control**: $221.5 (strongest support/resistance)
 
 ### GOOGL (Composite: +0.5)
 - **RSI(14)**: 38.7
-- **MACD**: bearish_crossover (histogram: -3.9431)
+- **MACD**: bearish_crossover (histogram: -0.6419)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.83
+- **Volume Ratio**: 0.84
 - **VWAP**: $230.05 (above)
 - **Point of Control**: $169.23 (strongest support/resistance)
 
 ### META (Composite: -2.0)
 - **RSI(14)**: 49.92
-- **MACD**: bearish_crossover (histogram: -2.5107)
+- **MACD**: neutral (histogram: -0.2008)
 - **Bollinger**: middle
 - **SMA Trend**: death_cross
-- **Volume Ratio**: 0.82
+- **Volume Ratio**: 0.93
 - **VWAP**: $655.29 (at_vwap)
 - **Point of Control**: $643.83 (strongest support/resistance)
 
-### MSFT (Composite: -1.5)
+### MSFT (Composite: -0.5)
 - **RSI(14)**: 44.22
-- **MACD**: neutral (histogram: -15.2919)
+- **MACD**: bullish_crossover (histogram: 2.8774)
 - **Bollinger**: middle
 - **SMA Trend**: death_cross
-- **Volume Ratio**: 0.91
-- **VWAP**: $456.7 (below)
+- **Volume Ratio**: 0.92
+- **VWAP**: $456.69 (below)
 - **Point of Control**: $506.93 (strongest support/resistance)
 
-### NVDA (Composite: +1.5)
+### NVDA (Composite: +0.5)
 - **RSI(14)**: 44.08
-- **MACD**: neutral (histogram: 0.4374)
+- **MACD**: bearish_crossover (histogram: -0.9464)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.86
+- **Volume Ratio**: 0.9
 - **VWAP**: $156.34 (above)
 - **Point of Control**: $181.66 (strongest support/resistance)
 
 ### TSLA (Composite: +1.5)
 - **RSI(14)**: 37.09
-- **MACD**: bearish_crossover (histogram: -7.3265)
+- **MACD**: bearish_crossover (histogram: -0.6658)
 - **Bollinger**: below_lower
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 1.05
+- **Volume Ratio**: 1.06
 - **VWAP**: $350.57 (above)
 - **Point of Control**: $429.58 (strongest support/resistance)
 
 ### VOO (Composite: -0.5)
 - **RSI(14)**: 43.57
-- **MACD**: bearish_crossover (histogram: -0.269)
+- **MACD**: bearish_crossover (histogram: -0.4029)
 - **Bollinger**: squeeze
 - **SMA Trend**: golden_cross
 - **Volume Ratio**: 1.84
@@ -294,27 +356,41 @@ Elevated risk — be selective, smaller positions
 - 🟢 **AMD**: +0.56 (10 articles)
   - Why AMD (AMD) Stock Is Trading Lower Today
   - Keyword analysis: 7 bullish, 2 bearish signals.
-- 🟢 **AMZN**: +0.27 (10 articles)
+- 🟡 **AMZN**: +0.20 (10 articles)
   - Tech stocks today: OpenAI makes changes to military contract, Amazon data centers struck in Middle East warfare
-  - Keyword analysis: 7 bullish, 4 bearish signals.
-- 🟢 **GOOGL**: +1.00 (10 articles)
-  - Gary Black Thinks Waymo's Ojai, Ioniq 5 Robotaxis Can Compete With Tesla Despite Heftier Price Tag: 'Better Marketing And…'
-  - Keyword analysis: 7 bullish, 0 bearish signals.
-- 🟢 **META**: +0.67 (10 articles)
-  - Advanced Micro Devices, Inc. (AMD) Partners With Meta for AI Infrastructure Expansion
-  - Keyword analysis: 5 bullish, 1 bearish signals.
-- 🟡 **MSFT**: +0.20 (10 articles)
-  - Bill Gates, Leon Black Testimony Sought for House Epstein Probe
   - Keyword analysis: 6 bullish, 4 bearish signals.
-- 🟢 **NVDA**: +0.23 (10 articles)
+- 🟡 **GOOGL**: +0.11 (10 articles)
+  - Europe should focus on industrial AI, SAP says
+  - Keyword analysis: 5 bullish, 4 bearish signals.
+- 🟢 **META**: +0.67 (10 articles)
+  - Prediction: Nvidia (NVDA) Will Be Worth More Than Alphabet, Apple, Amazon, Tesla, Meta, and Microsoft Combined by 2030
+  - Keyword analysis: 5 bullish, 1 bearish signals.
+- 🟡 **MSFT**: +0.09 (10 articles)
+  - Bill Gates, Leon Black Testimony Sought for Epstein Probe
+  - Keyword analysis: 6 bullish, 5 bearish signals.
+- 🟢 **NVDA**: +0.53 (10 articles)
   - Tech stocks today: OpenAI makes changes to military contract, Amazon data centers struck in Middle East warfare
-  - Keyword analysis: 8 bullish, 5 bearish signals.
-- 🟢 **TSLA**: +0.33 (10 articles)
+  - Keyword analysis: 13 bullish, 4 bearish signals.
+- 🟢 **TSLA**: +0.75 (10 articles)
   - EVgo surges to profitability by putting chargers 'where people are,' CEO says
-  - Keyword analysis: 6 bullish, 3 bearish signals.
+  - Keyword analysis: 7 bullish, 1 bearish signals.
 - 🟢 **VOO**: +0.60 (10 articles)
   - Better S&P 500 ETF: State Street's SPY vs. Vanguard's VOO
   - Keyword analysis: 4 bullish, 1 bearish signals.
+
+## Polymarket Prediction Markets
+*200 markets scanned — Signal: VOLATILE*
+
+### Big Movers (24h)
+- 📉 **Will Trump say "Waste" this week? (March 1)** — -12.0% (Vol: $285,362)
+- 📉 **Will the price of Bitcoin be above $68,000 on March 4?** — -12.0% (Vol: $177,743)
+- 📉 **Will the price of Bitcoin be above $72,000 on March 4?** — -12.0% (Vol: $157,310)
+- 📉 **GPT-5.3 released by March 8, 2026?** — -11.5% (Vol: $608,256)
+- 📉 **Will the price of Bitcoin be above $66,000 on March 4?** — -8.5% (Vol: $168,524)
+
+*Categories: other: 50 | geopolitics: 48 | politics: 42 | sports: 34 | crypto: 13 | culture: 6*
+
+*Source: gamma_api | Prediction markets are not financial advice — 80% of participants lose money*
 
 ---
 *This is analysis, not financial advice. All trading decisions are yours.*

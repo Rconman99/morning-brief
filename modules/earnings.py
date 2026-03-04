@@ -17,7 +17,12 @@ import logging
 import os
 import re
 
-import anthropic
+try:
+    import anthropic
+    HAS_ANTHROPIC = True
+except ImportError:
+    HAS_ANTHROPIC = False
+
 from dotenv import load_dotenv
 
 from lib.data_envelope import create_envelope, save_envelope
@@ -189,7 +194,7 @@ def analyze_transcript(text: str, ticker: str) -> dict:
     Uses Claude AI when ANTHROPIC_API_KEY is available, otherwise falls back
     to regex phrase counting.
     """
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if HAS_ANTHROPIC and os.environ.get("ANTHROPIC_API_KEY"):
         try:
             result = analyze_transcript_ai(text, ticker)
             logger.info("AI analysis succeeded for %s", ticker)

@@ -1,0 +1,70 @@
+{
+  "module": "macro_dashboard",
+  "generated_at": "2026-03-04T09:30:00-07:00",
+  "status": "success",
+  "error_message": null,
+  "data": {
+    "signal": "mixed",
+    "signal_detail": "VIX elevated (22.5) with rising oil — inflation watch.",
+    "regime_summary": "Mixed macro regime with moderate volatility and elevated yields. Rising energy prices signal inflation concerns while elevated VIX suggests caution.",
+    "indicators": {
+      "VIX": {
+        "value": 22.50,
+        "change_1d": 1.20,
+        "change_5d": 3.50,
+        "change_20d": -2.10,
+        "high_20d": 24.00,
+        "low_20d": 18.50,
+        "percentile_1y": 0.65,
+        "trend": "rising",
+        "interpretation": "Elevated fear — above normal range"
+      },
+      "DXY": {
+        "value": 103.45,
+        "change_1d": 0.30,
+        "change_5d": -0.85,
+        "change_20d": 1.20,
+        "high_20d": 104.50,
+        "low_20d": 101.80,
+        "percentile_1y": 0.58,
+        "trend": "flat",
+        "interpretation": "Normal trading range"
+      },
+      "US10Y": {
+        "value": 4.25,
+        "change_1d": 0.05,
+        "change_5d": -0.15,
+        "change_20d": 0.35,
+        "high_20d": 4.45,
+        "low_20d": 3.95,
+        "percentile_1y": 0.62,
+        "trend": "flat",
+        "interpretation": "Elevated yields — tightening signals"
+      },
+      "OIL": {
+        "value": 82.50,
+        "change_1d": 2.15,
+        "change_5d": 3.80,
+        "change_20d": -1.50,
+        "high_20d": 85.00,
+        "low_20d": 76.50,
+        "percentile_1y": 0.55,
+        "trend": "rising",
+        "interpretation": "Elevated oil — watch for inflation"
+      },
+      "GOLD": {
+        "value": 2285.50,
+        "change_1d": -0.35,
+        "change_5d": 0.45,
+        "change_20d": 2.10,
+        "high_20d": 2310.00,
+        "low_20d": 2215.00,
+        "percentile_1y": 0.72,
+        "trend": "rising",
+        "interpretation": "Gold elevated — risk-off positioning"
+      }
+    },
+    "data_source": "yfinance",
+    "analyzed_at": "2026-03-04T09:30:00-07:00"
+  }
+}

@@ -16,6 +16,9 @@ from scripts.setup_portfolio import (
     generate_watchlist,
     write_configs,
 )
+import scripts.setup_portfolio
+
+HAS_ANTHROPIC = getattr(scripts.setup_portfolio, 'HAS_ANTHROPIC', False)
 
 SAMPLE_HOLDINGS = [
     {"ticker": "AAPL", "shares": 100, "cost_basis": 178.50},
@@ -133,6 +136,7 @@ class TestDisplayHoldings:
 
 
 class TestExtractPortfolioMock:
+    @pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
     def test_parses_valid_response(self):
         mock_response = MagicMock()
         mock_response.content = [
@@ -163,6 +167,7 @@ class TestExtractPortfolioMock:
         finally:
             Path(tmp_image).unlink(missing_ok=True)
 
+    @pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
     def test_handles_markdown_code_block(self):
         mock_response = MagicMock()
         mock_response.content = [
@@ -188,6 +193,7 @@ class TestExtractPortfolioMock:
         finally:
             Path(tmp_image).unlink(missing_ok=True)
 
+    @pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
     def test_normalizes_ticker_case(self):
         mock_response = MagicMock()
         mock_response.content = [
