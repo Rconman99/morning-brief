@@ -6,7 +6,7 @@
 - ⚠️ **Earnings**: partial
 - ✅ **Valuation**: success
 - ✅ **Portfolio**: success
-- ✅ **Technical**: success
+- ⚠️ **Technical**: partial
 - ✅ **Sentiment**: success
 - ✅ **Options**: success
 - ✅ **Scanner**: success
@@ -20,15 +20,21 @@
 - ✅ **EconCalendar**: success
 - ⚠️ **Macro**: partial
 - ✅ **SectorRotation**: success
+- ✅ **UnusualOpts**: success
+- ✅ **SocialSent**: success
+- ✅ **Dividends**: success
+- ✅ **CorrHeatmap**: success
+- ✅ **Backtester**: success
+- ✅ **Alerts**: success
 
 ## Risk Dashboard — CAUTION
 Elevated risk — be selective, smaller positions
 
 ### NOW (Today)
-- 🟡 VIX at 20.8 — elevated volatility
+- 🟡 VIX at 20.7 — elevated volatility
 - 🔴 AAPL is 51% of portfolio
 - 🟡 NVDA 6.8% above trailing stop
-- 🟡 AAPL 5.4% above trailing stop
+- 🟡 AAPL 5.1% above trailing stop
 - 🔴 VOO only 2.7% above trailing stop
 
 ### SHORT (This Week)
@@ -110,64 +116,64 @@ Elevated risk — be selective, smaller positions
 
 ## Portfolio Overview
 ### NVDA
-- **Price**: $182.97
-- **P&L**: $-15,101.50
-- **Trailing Stop**: $170.57
+- **Price**: $184.61
+- **P&L**: $-15,019.50
+- **Trailing Stop**: $172.06
 - **Locked Profit**: $+0.00
 
 ### AAPL
-- **Price**: $263.95
-- **P&L**: $+8,545.00
-- **Trailing Stop**: $249.81
-- **Locked Profit**: $+7,131.00
+- **Price**: $263.39
+- **P&L**: $+8,489.00
+- **Trailing Stop**: $250.03
+- **Locked Profit**: $+7,153.00
 
 ### VOO
-- **Price**: $630.92
-- **P&L**: $+5,273.00
-- **Trailing Stop**: $614.18
-- **Locked Profit**: $+4,854.50
+- **Price**: $631.59
+- **P&L**: $+5,289.75
+- **Trailing Stop**: $614.81
+- **Locked Profit**: $+4,870.25
 
 ### Correlations
 - NVDA_AAPL: 0.35
 - NVDA_VOO: 0.68
 - AAPL_VOO: 0.67
 
-**Total Portfolio P&L: $-1,283.50**
+**Total Portfolio P&L: $-1,240.75**
 
 
 ## Options Analysis
 ### NVDA
 - **Max Pain**: $180.00
 - **Front Month Expiry**: 2026-03-27
-- **PMCC Long**: $155.0 @ $42.25 (Δ 0.7832)
-- **PMCC Short**: $190.0 @ $5.0 (Δ 0.386)
-- **Net Debit**: $37.25
+- **PMCC Long**: $155.0 @ $42.53 (Δ None)
+- **PMCC Short**: $195.0 @ $3.42 (Δ None)
+- **Net Debit**: $39.11
 - **Top Strikes by OI**: $200.0 (29,525), $195.0 (17,169), $150.0 (15,517)
 
 ### AAPL
 - **Max Pain**: $265.00
 - **Front Month Expiry**: 2026-03-27
-- **PMCC Long**: $225.0 @ $52.83 (Δ 0.8333)
-- **PMCC Short**: $275.0 @ $2.88 (Δ 0.3122)
-- **Net Debit**: $49.95
+- **PMCC Long**: $225.0 @ $52.83 (Δ None)
+- **PMCC Short**: $275.0 @ $2.7 (Δ None)
+- **Net Debit**: $50.13
 - **Top Strikes by OI**: $285.0 (6,123), $290.0 (3,824), $280.0 (3,480)
 
 ### VOO
 - **Max Pain**: $612.50
 - **Front Month Expiry**: 2026-03-27
-- **PMCC Long**: $550.0 @ $100.37 (Δ 0.9695)
-- **PMCC Short**: $660.0 @ $0.62 (Δ 0.0821)
-- **Net Debit**: $99.75
+- **PMCC Long**: $550.0 @ $100.37 (Δ None)
+- **PMCC Short**: $665.0 @ $0.25 (Δ None)
+- **Net Debit**: $100.12
 - **Top Strikes by OI**: $642.5 (840), $612.5 (184), $620.0 (119)
 
 
 ## Verdict Scorecard
 - **Verdicts Evaluated**: 30
 - **Total Scored**: 65
-- **Win Rate**: 61.5%
-- **Wins / Losses**: 40 / 25
+- **Win Rate**: 63.1%
+- **Wins / Losses**: 41 / 24
 - **By Verdict**:
-  - SELL: 9/15 (60.0%)
+  - SELL: 10/15 (66.7%)
   - HOLD: 21/40 (52.5%)
   - AVOID: 3/3 (100.0%)
   - BUY: 7/7 (100.0%)
@@ -178,42 +184,40 @@ Elevated risk — be selective, smaller positions
 - ⚪ **AMZN**: HOLD — Default — no strong signal in either direction
 - ⚪ **GOOGL**: HOLD — Default — no strong signal in either direction
 - ⚪ **META**: HOLD — Default — no strong signal in either direction
-- 🟡 **MSFT**: AVOID — News sentiment is -0.67 (< -0.5)
+- ⚪ **MSFT**: HOLD — Default — no strong signal in either direction
 - ⚪ **NVDA**: HOLD — Default — no strong signal in either direction
 - ⚪ **TSLA**: HOLD — Default — no strong signal in either direction
-- 🔴 **VOO**: SELL — Trailing stop $614.18 is within 5% of current price $630.92
+- 🔴 **VOO**: SELL — Trailing stop $614.81 is within 5% of current price $631.59
 
 ## Position Sizing Recommendations
-*Portfolio value: $66,316 | Risk per trade: 2%*
+*Portfolio value: $66,359 | Risk per trade: 2%*
 
-- **AAPL**: 37 shares ($9,766) — stop at $249.81 | Based on 2% risk with $14.14 ATR stop | capped at 15% max position
-- **NVDA**: 54 shares ($9,880) — stop at $170.57 | Based on 2% risk with $12.40 ATR stop | capped at 15% max position
-- **VOO**: 15 shares ($9,464) — stop at $614.18 | Based on 2% risk with $16.74 ATR stop | capped at 15% max position
+- **AAPL**: 37 shares ($9,745) — stop at $249.25 | Based on 2% risk with $14.14 ATR stop | capped at 15% max position
+- **NVDA**: 53 shares ($9,784) — stop at $172.06 | Based on 2% risk with $12.55 ATR stop | capped at 15% max position
+- **VOO**: 15 shares ($9,474) — stop at $614.81 | Based on 2% risk with $16.78 ATR stop | capped at 15% max position
 
 ## Opportunity Scanner
 *Scanned 22 tickers outside your watchlist*
 
 ### Top Opportunities (sorted by composite score)
 - 🟢 **RKLB** (composite +2.4) — Strong technicals (composite +2.4), bullish MACD crossover, 0.7x volume, golden cross active | Risk: Standard risk
-- 🟢 **MRVL** (composite +2.4) — Strong technicals (composite +2.4), 0.5x volume, golden cross active | PE: 27.6 | Risk: Standard risk
-- 🟢 **LRCX** (composite +1.2) — Strong technicals (composite +1.2), 0.4x volume, golden cross active | PE: 45.6 | Risk: elevated PE
-- 🟢 **ASML** (composite +0.9) — Strong technicals (composite +0.9), 0.6x volume, golden cross active | PE: 48.1 | Risk: elevated PE
-- 🟢 **AVGO** (composite +0.7) — Strong technicals (composite +0.7), 0.5x volume, golden cross active | PE: 67.2 | Risk: elevated PE
+- 🟢 **MRVL** (composite +2.3) — Strong technicals (composite +2.3), 0.5x volume, golden cross active | PE: 27.7 | Risk: Standard risk
+- 🟢 **LRCX** (composite +1.1) — Strong technicals (composite +1.1), 0.4x volume, golden cross active | PE: 45.9 | Risk: elevated PE
+- 🟢 **ASML** (composite +0.9) — Strong technicals (composite +0.9), 0.7x volume, golden cross active | PE: 48.3 | Risk: elevated PE
+- 🟢 **AVGO** (composite +0.6) — Strong technicals (composite +0.6), 0.6x volume, golden cross active | PE: 67.4 | Risk: elevated PE
 
 ### Sector Pulse
-- XLK (Tech): +2.0% today, -2.0% this week — mixed
-- XLF (Financials): +0.5% today, -0.8% this week — mixed
-- XLE (Energy): -0.9% today, +2.1% this week — mixed
+- XLK (Tech): +2.2% today, -1.7% this week — mixed
+- XLF (Financials): +0.6% today, -0.7% this week — mixed
+- XLE (Energy): -1.1% today, +1.8% this week — mixed
 - XLV (Health Care): +0.2% today, -0.5% this week — mixed
-- XLI (Industrials): +0.2% today, +0.1% this week — bullish
-- ARKK (Innovation): +3.5% today, +1.8% this week — bullish
+- XLI (Industrials): +0.3% today, +0.2% this week — bullish
+- ARKK (Innovation): +3.9% today, +2.0% this week — bullish
 
 ## Trade Memory — Pattern Matching
 - 🟡 **AAPL**: Mixed history: 3W/2L in 5 similar setups
-- 🟡 **AMD**: Mixed history: 3W/2L in 5 similar setups
 - 🟢 **META**: HIGH CONFIDENCE: Setup matches 4/4 winning patterns (100%)
 - 🟡 **NVDA**: Mixed history: 4W/2L in 6 similar setups
-- 🟡 **TSLA**: Mixed history: 2W/4L in 6 similar setups
 
 ## Insider Activity (SEC Form 4)
 *No recent insider activity detected*
@@ -242,144 +246,135 @@ Elevated risk — be selective, smaller positions
 *Source: sample_data | STOCK Act requires disclosure within 45 days*
 
 ## Scenario Valuations (Bull / Base / Bear)
-### AAPL (current: $263.94)
-- 🟢 Bull: $350.0 (+32.6%)
-- ⚪ Base: $293.29 (+11.1%)
-- 🔴 Bear: $205.0 (-22.3%) | R/R: 1.5x
+### AAPL (current: $263.45)
+- 🟢 Bull: $350.0 (+32.9%)
+- ⚪ Base: $293.29 (+11.3%)
+- 🔴 Bear: $205.0 (-22.2%) | R/R: 1.5x
 
-### AMD (current: $201.12)
-- 🟢 Bull: $365.0 (+81.5%)
-- ⚪ Base: $289.72 (+44.0%)
-- 🔴 Bear: $220.0 (+9.4%) | R/R: 8.7x
+### AMD (current: $201.81)
+- 🟢 Bull: $365.0 (+80.9%)
+- ⚪ Base: $289.72 (+43.6%)
+- 🔴 Bear: $220.0 (+9.0%) | R/R: 9.0x
 
-### GOOGL (current: $303.56)
-- 🟢 Bull: $443.0 (+45.9%)
-- ⚪ Base: $376.86 (+24.1%)
-- 🔴 Bear: $185.0 (-39.1%) | R/R: 1.2x
+### GOOGL (current: $303.21)
+- 🟢 Bull: $443.0 (+46.1%)
+- ⚪ Base: $376.86 (+24.3%)
+- 🔴 Bear: $185.0 (-39.0%) | R/R: 1.2x
 
-### META (current: $667.04)
-- 🟢 Bull: $1144.0 (+71.5%)
-- ⚪ Base: $863.2 (+29.4%)
-- 🔴 Bear: $700.0 (+4.9%) | R/R: 14.5x
+### META (current: $667.67)
+- 🟢 Bull: $1144.0 (+71.3%)
+- ⚪ Base: $863.2 (+29.3%)
+- 🔴 Bear: $700.0 (+4.8%) | R/R: 14.7x
 
-### MSFT (current: $410.0)
-- 🟢 Bull: $730.0 (+78.0%)
-- ⚪ Base: $596.0 (+45.4%)
-- 🔴 Bear: $392.0 (-4.4%) | R/R: 17.8x
+### MSFT (current: $409.53)
+- 🟢 Bull: $730.0 (+78.2%)
+- ⚪ Base: $596.0 (+45.5%)
+- 🔴 Bear: $392.0 (-4.3%) | R/R: 18.3x
 
-### NVDA (current: $182.97)
-- 🟢 Bull: $380.0 (+107.7%)
-- ⚪ Base: $264.25 (+44.4%)
-- 🔴 Bear: $140.0 (-23.5%) | R/R: 4.6x
+### NVDA (current: $184.58)
+- 🟢 Bull: $380.0 (+105.9%)
+- ⚪ Base: $264.25 (+43.2%)
+- 🔴 Bear: $140.0 (-24.1%) | R/R: 4.4x
 
 ## Technical Signals
 ### AAPL (Composite: +0.9)
-- **RSI(14)**: 47.56
-- **MACD**: bearish_crossover (histogram: -0.4902)
+- **RSI(14)**: 46.95
+- **MACD**: bearish_crossover (histogram: -0.525)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.34
+- **Volume Ratio**: 0.38
 - **VWAP**: $232.54 (above)
 - **Point of Control**: $203.09 (strongest support/resistance)
 
-### AMD (Composite: +0.8)
-- **RSI(14)**: 44.62
-- **MACD**: neutral (histogram: -0.4898)
-- **Bollinger**: middle
-- **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.54
-- **VWAP**: $172.57 (above)
-- **Point of Control**: $157.31 (strongest support/resistance)
-
 ### AMZN (Composite: +0.9)
-- **RSI(14)**: 50.49
-- **MACD**: bullish_crossover (histogram: 1.5998)
+- **RSI(14)**: 51.65
+- **MACD**: bullish_crossover (histogram: 1.67)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.45
-- **VWAP**: $215.65 (at_vwap)
+- **Volume Ratio**: 0.51
+- **VWAP**: $215.65 (above)
 - **Point of Control**: $221.5 (strongest support/resistance)
 
-### GOOGL (Composite: +1.5)
-- **RSI(14)**: 38.68
-- **MACD**: bearish_crossover (histogram: -0.6609)
+### GOOGL (Composite: +1.6)
+- **RSI(14)**: 38.41
+- **MACD**: bearish_crossover (histogram: -0.6833)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.35
-- **VWAP**: $230.16 (above)
+- **Volume Ratio**: 0.38
+- **VWAP**: $230.17 (above)
 - **Point of Control**: $169.23 (strongest support/resistance)
 
 ### META (Composite: -0.0)
-- **RSI(14)**: 54.49
-- **MACD**: bullish_crossover (histogram: 0.9254)
+- **RSI(14)**: 54.74
+- **MACD**: bullish_crossover (histogram: 0.9717)
 - **Bollinger**: middle
 - **SMA Trend**: death_cross
-- **Volume Ratio**: 0.42
+- **Volume Ratio**: 0.46
 - **VWAP**: $655.31 (above)
 - **Point of Control**: $643.83 (strongest support/resistance)
 
 ### MSFT (Composite: -1.0)
-- **RSI(14)**: 47.96
-- **MACD**: bullish_crossover (histogram: 3.6578)
+- **RSI(14)**: 47.7
+- **MACD**: bullish_crossover (histogram: 3.6286)
 - **Bollinger**: middle
 - **SMA Trend**: death_cross
-- **Volume Ratio**: 0.47
-- **VWAP**: $456.54 (below)
+- **Volume Ratio**: 0.54
+- **VWAP**: $456.52 (below)
 - **Point of Control**: $506.93 (strongest support/resistance)
 
-### NVDA (Composite: +0.6)
-- **RSI(14)**: 47.26
-- **MACD**: neutral (histogram: -0.8741)
+### NVDA (Composite: +0.4)
+- **RSI(14)**: 48.9
+- **MACD**: neutral (histogram: -0.7691)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.5
-- **VWAP**: $156.39 (above)
+- **Volume Ratio**: 0.59
+- **VWAP**: $156.4 (above)
 - **Point of Control**: $181.66 (strongest support/resistance)
 
-### TSLA (Composite: +1.1)
-- **RSI(14)**: 44.25
-- **MACD**: neutral (histogram: -0.2688)
+### TSLA (Composite: +1.3)
+- **RSI(14)**: 45.45
+- **MACD**: neutral (histogram: -0.1252)
 - **Bollinger**: middle
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.74
-- **VWAP**: $350.66 (above)
+- **Volume Ratio**: 0.82
+- **VWAP**: $350.68 (above)
 - **Point of Control**: $429.58 (strongest support/resistance)
 
-### VOO (Composite: +0.9)
-- **RSI(14)**: 49.06
-- **MACD**: neutral (histogram: -0.3031)
+### VOO (Composite: +0.8)
+- **RSI(14)**: 49.82
+- **MACD**: neutral (histogram: -0.2518)
 - **Bollinger**: squeeze
 - **SMA Trend**: golden_cross
-- **Volume Ratio**: 0.5
-- **VWAP**: $579.66 (above)
+- **Volume Ratio**: 0.54
+- **VWAP**: $579.67 (above)
 - **Point of Control**: $635.03 (strongest support/resistance)
 
 
 ## News Sentiment
-- 🟢 **AAPL**: +0.75 (10 articles)
+- 🟡 **AAPL**: +0.20 (10 articles)
   - Tech stocks today: Apple unveils low-cost MacBook Neo, CoreWeave inks deal with Perplexity
-  - Keyword analysis: 7 bullish, 1 bearish signals.
+  - Keyword analysis: 3 bullish, 2 bearish signals.
 - 🟢 **AMD**: +0.47 (10 articles)
-  - Deal between AMD and Meta could bring greater innovation to GenAI market
+  - CPUs are back en vogue in the data center
   - Keyword analysis: 11 bullish, 4 bearish signals.
 - 🟢 **AMZN**: +0.23 (10 articles)
-  - Exclusive-Anthropic investors push to de-escalate Pentagon clash over AI safeguards, sources say
+  - Sector Update: Tech Stocks Advance Wednesday Afternoon
   - Keyword analysis: 8 bullish, 5 bearish signals.
-- 🟡 **GOOGL**: +0.11 (10 articles)
-  - Can Take-Two Interactive Stock Beat the Market?
-  - Keyword analysis: 5 bullish, 4 bearish signals.
-- 🟡 **META**: -0.14 (10 articles)
-  - Deal between AMD and Meta could bring greater innovation to GenAI market
-  - Keyword analysis: 3 bullish, 4 bearish signals.
-- 🔴 **MSFT**: -0.67 (10 articles)
-  - Forget Nvidia: This Networking Giant Just Landed $2.1 Billion in AI Orders, and Nobody’s Talking About It
-  - Keyword analysis: 1 bullish, 5 bearish signals.
-- 🟢 **NVDA**: +0.33 (10 articles)
-  - Tech stocks today: Apple unveils low-cost MacBook Neo, CoreWeave inks deal with Perplexity
-  - Keyword analysis: 6 bullish, 3 bearish signals.
-- 🟢 **TSLA**: +0.64 (10 articles)
+- 🟢 **GOOGL**: +0.43 (10 articles)
+  - Soaring Power Prices Send US on Search for Solutions
+  - Keyword analysis: 5 bullish, 2 bearish signals.
+- 🟡 **META**: -0.20 (10 articles)
+  - CPUs are back en vogue in the data center
+  - Keyword analysis: 2 bullish, 3 bearish signals.
+- 🔴 **MSFT**: -0.43 (10 articles)
+  - Sector Update: Tech Stocks Advance Wednesday Afternoon
+  - Keyword analysis: 2 bullish, 5 bearish signals.
+- 🟢 **NVDA**: +0.60 (10 articles)
+  - CPUs are back en vogue in the data center
+  - Keyword analysis: 4 bullish, 1 bearish signals.
+- 🟢 **TSLA**: +0.80 (10 articles)
   - BofA bullish on Tesla, calls it the 'current leader' in autonomy and soon robotaxis
-  - Keyword analysis: 9 bullish, 2 bearish signals.
+  - Keyword analysis: 9 bullish, 1 bearish signals.
 - 🟢 **VOO**: +0.50 (10 articles)
   - We Told You So — These IBD 50 Stocks Dominate This Year
   - Keyword analysis: 3 bullish, 1 bearish signals.
@@ -397,6 +392,58 @@ Elevated risk — be selective, smaller positions
 *Categories: sports: 38 | geopolitics: 38 | politics: 36 | other: 34 | crypto: 33 | culture: 13*
 
 *Source: gamma_api | Prediction markets are not financial advice — 80% of participants lose money*
+
+## ⚠️ Active Alerts
+- 🔴 **HIGH**: VOO stop $614.81 is within 3% of price $631.59 — prepare exit
+
+## Unusual Options Activity
+- 🟡 **AAPL**: 6 call sweeps, 5 put sweeps — mixed
+  - Largest: $262.5 call — $33,839 notional
+- 🟢 **AMD**: 5 call sweeps, 2 put sweeps — bullish
+  - Largest: $260.0 put — $292,531 notional
+- 🔴 **AMZN**: 8 call sweeps, 11 put sweeps — bearish
+  - Largest: $212.5 call — $101,926 notional
+- 🟢 **GOOGL**: 7 call sweeps, 1 put sweeps — bullish
+  - Largest: $302.5 call — $13,846 notional
+- 🔴 **META**: 11 call sweeps, 15 put sweeps — bearish
+  - Largest: $660.0 call — $46,691 notional
+- 🟡 **MSFT**: 8 call sweeps, 9 put sweeps — mixed
+  - Largest: $407.5 call — $103,551 notional
+- 🟡 **NVDA**: 2 call sweeps, 2 put sweeps — mixed
+  - Largest: $182.5 call — $152,633 notional
+- 🟡 **TSLA**: 23 call sweeps, 22 put sweeps — mixed
+  - Largest: $390.0 call — $783,016 notional
+- 🟡 **VOO**: 0 call sweeps, 1 put sweeps — mixed
+  - Largest: $650.0 put — $16,869 notional
+
+## Social Sentiment
+*Market mood: slightly_bullish | Most discussed: AAPL*
+
+- 🟡 **AAPL** (buzz: 10) — sentiment +0.10 (declining)
+- 🟢 **AMD** (buzz: 10) — sentiment +0.50 (declining)
+- 🟡 **AMZN** (buzz: 10) — sentiment +0.00 (declining)
+- 🟡 **GOOGL** (buzz: 10) — sentiment +0.20 (improving)
+- 🟡 **META** (buzz: 10) — sentiment -0.20 (stable)
+- 🟡 **MSFT** (buzz: 10) — sentiment -0.10 (improving)
+- 🟡 **NVDA** (buzz: 10) — sentiment +0.10 (improving)
+- 🟢 **TSLA** (buzz: 10) — sentiment +0.60 (stable)
+- 🟡 **VOO** (buzz: 10) — sentiment +0.20 (declining)
+
+## Dividend Tracker
+*Annual dividend income: $106.00 | Avg yield: 50.33%*
+
+### Upcoming Ex-Dates
+- **GOOGL**: 2026-03-09 (4 days)
+- **NVDA**: 2026-03-11 (6 days)
+
+## Strategy Backtest
+*Simulated P&L: $+373.90 | Win rate: 57.1% | Alpha: +0.000 | Sharpe: 0.13*
+
+- **BUY**: 3/3 wins ($+987)
+- **SELL**: 4/9 wins ($-340)
+- **AVOID**: 1/2 wins ($-274)
+- Best: MSFT BUY +4.3%
+- Worst: AAPL SELL -3.5%
 
 ---
 *This is analysis, not financial advice. All trading decisions are yours.*

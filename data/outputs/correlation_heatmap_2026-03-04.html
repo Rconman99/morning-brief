@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Correlation Heatmap - 2026-03-04</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .legend {
+            background: #2d2d44;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+        }
+        
+        .legend h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .legend-items {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            border: 1px solid #555;
+        }
+        
+        .heatmap-section {
+            background: #2d2d44;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #444;
+            overflow-x: auto;
+        }
+        
+        .heatmap-section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        .heatmap-table {
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 100%;
+        }
+        
+        .heatmap-table th,
+        .heatmap-table td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: center;
+            width: 50px;
+            height: 50px;
+            position: relative;
+        }
+        
+        .heatmap-table th {
+            background: #3d3d54;
+            font-weight: 600;
+            color: #667eea;
+            padding: 12px 8px;
+        }
+        
+        .heatmap-table td {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .heatmap-table td:hover {
+            transform: scale(1.1);
+            box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+            z-index: 10;
+        }
+        
+        .cell-diagonal {
+            background-color: #555;
+            color: #999;
+        }
+        
+        .cell-high-positive {
+            background-color: #dc2626;
+            color: #fff;
+        }
+        
+        .cell-positive {
+            background-color: #f97316;
+            color: #fff;
+        }
+        
+        .cell-neutral {
+            background-color: #fff;
+            color: #333;
+        }
+        
+        .cell-negative {
+            background-color: #3b82f6;
+            color: #fff;
+        }
+        
+        .cell-high-negative {
+            background-color: #1e40af;
+            color: #fff;
+        }
+        
+        .ticker-label {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .ticker-label.portfolio {
+            color: #10b981;
+            font-weight: 700;
+        }
+        
+        .tooltip {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+        }
+        
+        .heatmap-table td:hover .tooltip {
+            display: block;
+        }
+        
+        .stats-section {
+            background: #2d2d44;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #444;
+        }
+        
+        .stats-section h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .stat-box {
+            background: #1e1e2e;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-box h3 {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-box p {
+            font-size: 18px;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .high-corr-item {
+            background: #1e1e2e;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 4px solid #f97316;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .high-corr-pair {
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+        
+        .high-corr-value {
+            color: #f97316;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .risk-cluster-item {
+            background: #1e1e2e;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .cluster-tickers {
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 5px;
+        }
+        
+        .cluster-avg {
+            font-size: 13px;
+            color: #999;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        @media (max-width: 768px) {
+            .heatmap-table th,
+            .heatmap-table td {
+                width: 40px;
+                height: 40px;
+                padding: 4px;
+                font-size: 11px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Portfolio Correlation Heatmap</h1>
+            <p>Generated 2026-03-04 19:03:12 UTC | 6-Month Daily Returns</p>
+        </div>
+        
+        <div class="legend">
+            <h3>Color Legend (Pearson Correlation)</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #dc2626;"></div>
+                    <span>Strong Positive (0.80–1.00)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #f97316;"></div>
+                    <span>Moderate Positive (0.50–0.79)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #fff;"></div>
+                    <span>Neutral (-0.30–0.49)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #3b82f6;"></div>
+                    <span>Moderate Negative (-0.79–-0.31)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #1e40af;"></div>
+                    <span>Strong Negative (-1.00–-0.80)</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="heatmap-section">
+            <h2>Correlation Matrix</h2>
+            <table class="heatmap-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th><span class="ticker-label portfolio">AAPL</span></th>
+                        <th><span class="ticker-label">AMD</span></th>
+                        <th><span class="ticker-label">AMZN</span></th>
+                        <th><span class="ticker-label">GOOGL</span></th>
+                        <th><span class="ticker-label">META</span></th>
+                        <th><span class="ticker-label">MSFT</span></th>
+                        <th><span class="ticker-label portfolio">NVDA</span></th>
+                        <th><span class="ticker-label">TSLA</span></th>
+                        <th><span class="ticker-label portfolio">VOO</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><th><span class="ticker-label portfolio">AAPL</span></th>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-neutral">0.10<div class="tooltip">0.10</div></td>
+                        <td class="cell-neutral">0.20<div class="tooltip">0.20</div></td>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-neutral">0.15<div class="tooltip">0.15</div></td>
+                        <td class="cell-neutral">0.08<div class="tooltip">0.08</div></td>
+                        <td class="cell-neutral">0.19<div class="tooltip">0.19</div></td>
+                        <td class="cell-neutral">0.18<div class="tooltip">0.18</div></td>
+                        <td class="cell-neutral">0.46<div class="tooltip">0.46</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label">AMD</span></th>
+                        <td class="cell-neutral">0.10<div class="tooltip">0.10</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-neutral">0.26<div class="tooltip">0.26</div></td>
+                        <td class="cell-neutral">0.21<div class="tooltip">0.21</div></td>
+                        <td class="cell-neutral">0.24<div class="tooltip">0.24</div></td>
+                        <td class="cell-neutral">0.45<div class="tooltip">0.45</div></td>
+                        <td class="cell-neutral">0.35<div class="tooltip">0.35</div></td>
+                        <td class="cell-neutral">0.50<div class="tooltip">0.50</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label">AMZN</span></th>
+                        <td class="cell-neutral">0.20<div class="tooltip">0.20</div></td>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-neutral">0.36<div class="tooltip">0.36</div></td>
+                        <td class="cell-neutral">0.36<div class="tooltip">0.36</div></td>
+                        <td class="cell-neutral">0.29<div class="tooltip">0.29</div></td>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-neutral">0.35<div class="tooltip">0.35</div></td>
+                        <td class="cell-positive">0.54<div class="tooltip">0.54</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label">GOOGL</span></th>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-neutral">0.26<div class="tooltip">0.26</div></td>
+                        <td class="cell-neutral">0.36<div class="tooltip">0.36</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-neutral">0.21<div class="tooltip">0.21</div></td>
+                        <td class="cell-neutral">0.03<div class="tooltip">0.03</div></td>
+                        <td class="cell-neutral">0.23<div class="tooltip">0.23</div></td>
+                        <td class="cell-neutral">0.40<div class="tooltip">0.40</div></td>
+                        <td class="cell-neutral">0.50<div class="tooltip">0.50</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label">META</span></th>
+                        <td class="cell-neutral">0.15<div class="tooltip">0.15</div></td>
+                        <td class="cell-neutral">0.21<div class="tooltip">0.21</div></td>
+                        <td class="cell-neutral">0.36<div class="tooltip">0.36</div></td>
+                        <td class="cell-neutral">0.21<div class="tooltip">0.21</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-neutral">0.09<div class="tooltip">0.09</div></td>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-neutral">0.29<div class="tooltip">0.29</div></td>
+                        <td class="cell-neutral">0.43<div class="tooltip">0.43</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label">MSFT</span></th>
+                        <td class="cell-neutral">0.08<div class="tooltip">0.08</div></td>
+                        <td class="cell-neutral">0.24<div class="tooltip">0.24</div></td>
+                        <td class="cell-neutral">0.29<div class="tooltip">0.29</div></td>
+                        <td class="cell-neutral">0.03<div class="tooltip">0.03</div></td>
+                        <td class="cell-neutral">0.09<div class="tooltip">0.09</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-neutral">0.34<div class="tooltip">0.34</div></td>
+                        <td class="cell-neutral">0.31<div class="tooltip">0.31</div></td>
+                        <td class="cell-neutral">0.42<div class="tooltip">0.42</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label portfolio">NVDA</span></th>
+                        <td class="cell-neutral">0.19<div class="tooltip">0.19</div></td>
+                        <td class="cell-neutral">0.45<div class="tooltip">0.45</div></td>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-neutral">0.23<div class="tooltip">0.23</div></td>
+                        <td class="cell-neutral">0.25<div class="tooltip">0.25</div></td>
+                        <td class="cell-neutral">0.34<div class="tooltip">0.34</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-neutral">0.37<div class="tooltip">0.37</div></td>
+                        <td class="cell-positive">0.64<div class="tooltip">0.64</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label">TSLA</span></th>
+                        <td class="cell-neutral">0.18<div class="tooltip">0.18</div></td>
+                        <td class="cell-neutral">0.35<div class="tooltip">0.35</div></td>
+                        <td class="cell-neutral">0.35<div class="tooltip">0.35</div></td>
+                        <td class="cell-neutral">0.40<div class="tooltip">0.40</div></td>
+                        <td class="cell-neutral">0.29<div class="tooltip">0.29</div></td>
+                        <td class="cell-neutral">0.31<div class="tooltip">0.31</div></td>
+                        <td class="cell-neutral">0.37<div class="tooltip">0.37</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                        <td class="cell-positive">0.58<div class="tooltip">0.58</div></td>
+                    </tr>
+                    <tr><th><span class="ticker-label portfolio">VOO</span></th>
+                        <td class="cell-neutral">0.46<div class="tooltip">0.46</div></td>
+                        <td class="cell-neutral">0.50<div class="tooltip">0.50</div></td>
+                        <td class="cell-positive">0.54<div class="tooltip">0.54</div></td>
+                        <td class="cell-neutral">0.50<div class="tooltip">0.50</div></td>
+                        <td class="cell-neutral">0.43<div class="tooltip">0.43</div></td>
+                        <td class="cell-neutral">0.42<div class="tooltip">0.42</div></td>
+                        <td class="cell-positive">0.64<div class="tooltip">0.64</div></td>
+                        <td class="cell-positive">0.58<div class="tooltip">0.58</div></td>
+                        <td class="cell-diagonal">1.0<div class="tooltip">1.0</div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="stats-section">
+            <h2>Summary Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h3>Tickers Analyzed</h3>
+                    <p>9</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Portfolio Holdings</h3>
+                    <p>3</p>
+                </div>
+                <div class="stat-box">
+                    <h3>High Correlations</h3>
+                    <p>0</p>
+                </div>
+                <div class="stat-box">
+                    <h3>Risk Clusters</h3>
+                    <p>0</p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+            <p>Green labels = Portfolio holdings | Data: Last 6 months of daily closes</p>
+        </div>
+    </div>
+</body>
+</html>

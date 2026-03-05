@@ -56,11 +56,18 @@ MODULES = [
     ("macro_dashboard", "modules/macro_dashboard.py"),
     ("sector_rotation", "modules/sector_rotation.py"),
     ("opportunity_scanner", "modules/opportunity_scanner.py"),
+    ("unusual_options", "modules/unusual_options.py"),
+    ("social_sentiment", "modules/social_sentiment.py"),
+    ("dividend_tracker", "modules/dividend_tracker.py"),
     ("risk_dashboard", "modules/risk_dashboard.py"),
     ("trade_memory", "modules/trade_memory.py"),
     ("position_sizer", "modules/position_sizer.py"),
+    ("correlation_heatmap", "modules/correlation_heatmap.py"),
+    ("backtester", "modules/backtester.py"),
+    ("alert_system", "modules/alert_system.py"),
     ("scorecard", "modules/scorecard.py"),
     ("morning_brief", "modules/morning_brief.py"),
+    ("weekly_digest", "modules/weekly_digest.py"),
     ("brief_html", "modules/brief_html.py"),
 ]
 

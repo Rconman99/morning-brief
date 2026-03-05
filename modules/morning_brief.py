@@ -355,6 +355,12 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     econ_calendar = load_envelope("economic_calendar.json")
     macro = load_envelope("macro_dashboard.json")
     sector_rot = load_envelope("sector_rotation.json")
+    unusual_opts = load_envelope("unusual_options.json")
+    social_sent = load_envelope("social_sentiment.json")
+    dividends = load_envelope("dividend_tracker.json")
+    corr_heatmap = load_envelope("correlation_heatmap.json")
+    backtester = load_envelope("backtester.json")
+    alerts = load_envelope("alert_system.json")
 
     data_envelope.PROCESSED_DIR = original_dir
 
@@ -365,7 +371,10 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                "Risk": risk_dashboard, "Scorecard": scorecard,
                "Memory": trade_memory, "Insider": insider, "Sizer": position_sizer,
                "Congress": congress, "Polymarket": polymarket,
-               "EconCalendar": econ_calendar, "Macro": macro, "SectorRotation": sector_rot}
+               "EconCalendar": econ_calendar, "Macro": macro, "SectorRotation": sector_rot,
+               "UnusualOpts": unusual_opts, "SocialSent": social_sent,
+               "Dividends": dividends, "CorrHeatmap": corr_heatmap,
+               "Backtester": backtester, "Alerts": alerts}
 
     lines = [
         f"# Morning Brief — {date_str}",
@@ -887,6 +896,123 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     else:
         lines.append("*Data unavailable*")
         lines.append("")
+
+    # Alerts
+    if alerts["status"] in ("success", "partial"):
+        alert_data = alerts["data"]
+        alert_list = alert_data.get("alerts", [])
+        critical_alerts = [a for a in alert_list if a.get("level") == "critical"]
+        high_alerts = [a for a in alert_list if a.get("level") == "high"]
+        if critical_alerts or high_alerts:
+            lines.append("## ⚠️ Active Alerts")
+            for a in critical_alerts:
+                lines.append(f"- 🚨 **CRITICAL**: {a.get('message', '')}")
+            for a in high_alerts:
+                lines.append(f"- 🔴 **HIGH**: {a.get('message', '')}")
+            summary = alert_data.get("summary", {})
+            med = summary.get("medium", 0)
+            low = summary.get("low", 0)
+            if med or low:
+                lines.append(f"- *{med} medium, {low} low alerts (see alert_system.json)*")
+            lines.append("")
+
+    # Unusual Options Activity
+    lines.append("## Unusual Options Activity")
+    if unusual_opts["status"] in ("success", "partial"):
+        uo_results = unusual_opts["data"].get("results", [])
+        active = [r for r in uo_results if r.get("unusual_strikes")]
+        if active:
+            for r in active:
+                sentiment_icon = "🟢" if r.get("net_sentiment") == "bullish" else "🔴" if r.get("net_sentiment") == "bearish" else "🟡"
+                lines.append(f"- {sentiment_icon} **{r['ticker']}**: {r.get('call_sweep_count', 0)} call sweeps, {r.get('put_sweep_count', 0)} put sweeps — {r.get('net_sentiment', 'mixed')}")
+                largest = r.get("largest_trade", {})
+                if largest:
+                    lines.append(f"  - Largest: ${largest.get('strike', '?')} {largest.get('type', '?')} — ${largest.get('notional', 0):,.0f} notional")
+        else:
+            lines.append("*No unusual activity detected*")
+    else:
+        lines.append("*Data unavailable*")
+    lines.append("")
+
+    # Social Sentiment
+    lines.append("## Social Sentiment")
+    if social_sent["status"] in ("success", "partial"):
+        ss_results = social_sent["data"].get("results", [])
+        market_summary = social_sent["data"].get("market_summary", {})
+        if market_summary:
+            mood = market_summary.get("mood_label", "neutral")
+            lines.append(f"*Market mood: {mood} | Most discussed: {market_summary.get('most_discussed', 'N/A')}*")
+            lines.append("")
+        trending = [r for r in ss_results if r.get("trending")]
+        if trending:
+            for r in trending:
+                score = r.get("sentiment_score", 0)
+                icon = "🟢" if score > 0.2 else "🔴" if score < -0.2 else "🟡"
+                lines.append(f"- {icon} **{r['ticker']}** (buzz: {r.get('buzz_score', 0)}) — sentiment {score:+.2f} ({r.get('sentiment_trend', 'stable')})")
+        else:
+            lines.append("*No trending tickers*")
+    else:
+        lines.append("*Data unavailable*")
+    lines.append("")
+
+    # Dividend Tracker
+    if dividends["status"] in ("success", "partial"):
+        div_results = dividends["data"].get("results", [])
+        div_summary = dividends["data"].get("portfolio_summary", {})
+        upcoming = div_summary.get("upcoming_ex_dates", [])
+        if upcoming or div_summary.get("total_annual_income", 0) > 0:
+            lines.append("## Dividend Tracker")
+            income = div_summary.get("total_annual_income", 0)
+            if income > 0:
+                lines.append(f"*Annual dividend income: ${income:,.2f} | Avg yield: {div_summary.get('avg_yield', 0):.2%}*")
+                lines.append("")
+            if upcoming:
+                lines.append("### Upcoming Ex-Dates")
+                for u in upcoming:
+                    lines.append(f"- **{u['ticker']}**: {u['ex_date']} ({u['days']} days)")
+                lines.append("")
+            cuts = [r for r in div_results if r.get("dividend_cut")]
+            if cuts:
+                lines.append("### ⚠️ Dividend Cuts Detected")
+                for c in cuts:
+                    lines.append(f"- 🔴 **{c['ticker']}**: dividend cut detected")
+                lines.append("")
+
+    # Backtester
+    if backtester["status"] in ("success", "partial"):
+        bt_data = backtester["data"]
+        bt_summary = bt_data.get("summary", {})
+        if bt_summary.get("total_pnl") is not None:
+            lines.append("## Strategy Backtest")
+            lines.append(f"*Simulated P&L: ${bt_summary['total_pnl']:+,.2f} | Win rate: {bt_summary.get('win_rate', 0):.1%} | Alpha: {bt_summary.get('alpha_vs_spy', 0):+.3f} | Sharpe: {bt_summary.get('sharpe_5d', 0):.2f}*")
+            lines.append("")
+            by_verdict = bt_data.get("by_verdict", {})
+            for v, stats in by_verdict.items():
+                if stats.get("count", 0) > 0 and v != "HOLD":
+                    lines.append(f"- **{v}**: {stats.get('wins', 0)}/{stats['count']} wins (${stats.get('total_pnl', 0):+,.0f})")
+            best = bt_summary.get("best_trade", {})
+            worst = bt_summary.get("worst_trade", {})
+            if best:
+                lines.append(f"- Best: {best.get('ticker', '?')} {best.get('verdict', '?')} +{best.get('return_5d', 0):.1%}")
+            if worst:
+                lines.append(f"- Worst: {worst.get('ticker', '?')} {worst.get('verdict', '?')} {worst.get('return_5d', 0):.1%}")
+            lines.append("")
+
+    # Correlation Heatmap link
+    if corr_heatmap["status"] in ("success", "partial"):
+        ch_data = corr_heatmap["data"]
+        high_corrs = ch_data.get("high_correlations", [])
+        clusters = ch_data.get("risk_clusters", [])
+        if high_corrs or clusters:
+            lines.append("## Correlation Risk")
+            if clusters:
+                for cl in clusters:
+                    lines.append(f"- ⚠️ **Risk cluster**: {', '.join(cl.get('tickers', []))} (avg corr: {cl.get('avg_corr', 0):.2f})")
+            if high_corrs:
+                for hc in high_corrs[:5]:
+                    lines.append(f"- {hc.get('pair', '?')}: {hc.get('corr', 0):.2f}")
+            lines.append(f"*Full heatmap: data/outputs/correlation_heatmap_{date_str}.html*")
+            lines.append("")
 
     # Disclaimer
     lines.append("---")

@@ -1992,3 +1992,511 @@
 2026-03-04 18:15:59,035 [__main__] INFO: Logged 0 new verdicts to /sessions/zen-laughing-curie/mnt/morning-brief/data/scorecard/verdict_log.json
 2026-03-04 18:15:59,276 [__main__] INFO: === Brief HTML Module ===
 2026-03-04 18:15:59,300 [__main__] INFO: HTML brief written to /sessions/zen-laughing-curie/mnt/morning-brief/data/outputs/morning_brief_2026-03-04.html
+2026-03-04 18:32:29,467 [__main__] INFO: === Unusual Options Module ===
+2026-03-04 18:32:29,469 [__main__] INFO: Scanning unusual options for AAPL
+2026-03-04 18:32:30,641 [__main__] INFO: Scanning unusual options for AMD
+2026-03-04 18:32:31,521 [__main__] INFO: Scanning unusual options for AMZN
+2026-03-04 11:32:35,009 [__main__] INFO: API sync unavailable: ETRADE_CONSUMER_KEY not configured
+2026-03-04 11:32:35,077 [__main__] INFO: === Journal Module ===
+2026-03-04 11:32:35,077 [__main__] INFO: Loading trades from /Users/rconwell/morning-brief/data/sample/trades.csv
+2026-03-04 11:32:35,081 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/journal.json
+2026-03-04 11:32:35,081 [__main__] INFO: Journal analysis complete: 30 trades, 63.3% win rate
+2026-03-04 11:32:35,504 [__main__] INFO: === Earnings Module ===
+2026-03-04 11:32:35,505 [__main__] INFO: No transcript for AAPL
+2026-03-04 11:32:35,505 [__main__] INFO: No transcript for NVDA
+2026-03-04 11:32:35,505 [__main__] INFO: No transcript for MSFT
+2026-03-04 11:32:35,505 [__main__] INFO: Used sample transcript as fallback
+2026-03-04 11:32:35,506 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/earnings_tone.json
+2026-03-04 11:32:35,506 [__main__] INFO: Earnings analysis complete: 1 transcripts analyzed
+2026-03-04 11:32:36,459 [__main__] INFO: === Valuation Module ===
+2026-03-04 11:32:36,459 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 18:32:37,091 [__main__] INFO: Scanning unusual options for GOOGL
+2026-03-04 18:32:37,848 [__main__] INFO: Scanning unusual options for META
+ng live call for OVERVIEW
+2026-03-04 11:32:37,456 [__main__] INFO: Compared NVDA vs AMD: cheaper=inconclusive
+2026-03-04 11:32:37,457 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 11:32:37,677 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 11:32:37,886 [__main__] INFO: Compared AAPL vs MSFT: cheaper=MSFT
+2026-03-04 11:32:37,887 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 11:32:38,114 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 11:32:38,328 [__main__] INFO: Compared GOOGL vs META: cheaper=META
+2026-03-04 11:32:38,379 [__main__] INFO: AAPL: bull=$350 (+32.5%), bear=$205 (-22.4%), R/R=1.4x
+2026-03-04 11:32:38,432 [__main__] INFO: AMD: bull=$365 (+81.0%), bear=$220 (+9.1%), R/R=8.9x
+2026-03-04 11:32:38,482 [__main__] INFO: GOOGL: bull=$443 (+45.8%), bear=$185 (-39.1%), R/R=1.2x
+2026-03-04 11:32:38,532 [__main__] INFO: META: bull=$1144 (+71.1%), bear=$700 (+4.7%), R/R=15.1x
+2026-03-04 11:32:38,582 [__main__] INFO: MSFT: bull=$730 (+77.8%), bear=$392 (-4.5%), R/R=17.2x
+2026-03-04 18:32:38,697 [__main__] INFO: Scanning unusual options for MSFT
+2026-03-04 18:32:39,520 [__main__] INFO: Scanning unusual options for NVDA
+40 (-23.7%), R/R=4.5x
+2026-03-04 11:32:38,912 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/valuation.json
+2026-03-04 11:32:38,912 [__main__] INFO: Valuation analysis complete: 3 pairs compared, 6 scenarios
+2026-03-04 11:32:39,330 [__main__] INFO: === Portfolio Module ===
+2026-03-04 11:32:39,858 [__main__] INFO: NVDA: price=183.40 pnl=-15080.00 atr=6.1986 stop=488.83 max=501.23
+2026-03-04 11:32:40,186 [__main__] INFO: AAPL: price=264.17 pnl=8567.00 atr=7.0693 stop=250.03 max=264.17
+2026-03-04 18:32:40,394 [__main__] INFO: Scanning unusual options for TSLA
+2026-03-04 18:32:41,183 [__main__] INFO: Scanning unusual options for VOO
+=8.3779 stop=614.76 max=631.52
+2026-03-04 11:32:40,444 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/portfolio.json
+2026-03-04 11:32:40,445 [__main__] INFO: Portfolio analysis complete: total P&L = $-1225.00
+2026-03-04 11:32:40,875 [__main__] INFO: === Technical Signals Module ===
+2026-03-04 11:32:41,357 [__main__] INFO: AAPL: composite=0.9 rsi=47.84 macd=bearish_crossover
+2026-03-04 11:32:41,520 [__main__] INFO: AMD: composite=0.8 rsi=44.94 macd=neutral
+2026-03-04 11:32:41,715 [__main__] INFO: AMZN: composite=0.8 rsi=50.81 macd=bullish_crossover
+2026-03-04 11:32:41,915 [__main__] INFO: GOOGL: composite=1.5 rsi=38.92 macd=bearish_crossover
+2026-03-04 18:32:42,004 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/unusual_options.json
+2026-03-04 18:32:42,005 [__main__] INFO: Unusual options scan complete: 9 tickers with unusual activity
+2026-03-04 11:32:42,145 [__main__] INFO: META: composite=-0.0 rsi=54.99 macd=bullish_crossover
+2026-03-04 11:32:42,376 [__main__] INFO: MSFT: composite=-1.1 rsi=48.32 macd=bullish_crossover
+2026-03-04 11:32:42,604 [__main__] INFO: NVDA: composite=0.5 rsi=47.71 macd=neutral
+2026-03-04 11:32:42,756 [__main__] INFO: TSLA: composite=1.2 rsi=44.62 macd=neutral
+2026-03-04 11:32:42,975 [__main__] INFO: VOO: composite=0.8 rsi=49.7 macd=neutral
+2026-03-04 11:32:42,976 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/technical_signals.json
+2026-03-04 11:32:42,976 [__main__] INFO: Technical signals complete: 9 tickers analyzed
+2026-03-04 11:32:43,098 [__main__] INFO: === News Sentiment Module ===
+2026-03-04 11:32:43,853 [__main__] INFO: AAPL: sentiment=0.71 (keyword) articles=10
+2026-03-04 11:32:43,975 [__main__] INFO: AMD: sentiment=0.47 (keyword) articles=10
+2026-03-04 11:32:44,210 [__main__] INFO: AMZN: sentiment=0.23 (keyword) articles=10
+2026-03-04 11:32:44,374 [__main__] INFO: GOOGL: sentiment=0.11 (keyword) articles=10
+2026-03-04 11:32:44,504 [__main__] INFO: META: sentiment=-0.14 (keyword) articles=10
+2026-03-04 11:32:44,718 [__main__] INFO: MSFT: sentiment=-0.67 (keyword) articles=10
+2026-03-04 11:32:44,851 [__main__] INFO: NVDA: sentiment=0.25 (keyword) articles=10
+2026-03-04 11:32:44,976 [__main__] INFO: TSLA: sentiment=0.80 (keyword) articles=10
+2026-03-04 11:32:45,122 [__main__] INFO: VOO: sentiment=0.50 (keyword) articles=10
+2026-03-04 11:32:45,126 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/news_sentiment.json
+2026-03-04 11:32:45,127 [__main__] INFO: News sentiment complete: 9 tickers analyzed
+2026-03-04 11:32:45,521 [__main__] INFO: === Options Module ===
+2026-03-04 11:32:45,521 [__main__] INFO: Analyzing options for NVDA
+2026-03-04 11:32:46,758 [__main__] INFO: Analyzing options for AAPL
+2026-03-04 11:32:48,043 [__main__] INFO: Analyzing options for VOO
+2026-03-04 11:32:49,373 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/options.json
+2026-03-04 11:32:49,373 [__main__] INFO: Options analysis complete: 3 tickers processed
+2026-03-04 11:32:49,504 [__main__] INFO: === Insider Tracker Module ===
+2026-03-04 11:32:49,504 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/insider_tracker.json
+2026-03-04 11:32:49,505 [__main__] INFO: Insider tracker complete: 9 tickers, 0 with activity
+2026-03-04 11:32:49,612 [__main__] INFO: === Congressional Trading Tracker ===
+2026-03-04 11:32:49,955 [__main__] WARNING: Failed to fetch House trades: 403 Client Error: Forbidden for url: https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
+2026-03-04 11:32:50,243 [__main__] WARNING: Failed to fetch Senate trades: 403 Client Error: Forbidden for url: https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json
+2026-03-04 11:32:50,246 [__main__] INFO: Loaded 12 sample congressional trades
+2026-03-04 11:32:50,246 [__main__] INFO: Congressional trades: 12 total from sample_data, checking against 9 watchlist tickers
+2026-03-04 11:32:50,253 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/congress_tracker.json
+2026-03-04 11:32:50,253 [__main__] INFO: Congress tracker complete: 12 trades, 12 watchlist matches, signal=cluster_detected
+2026-03-04 11:32:50,392 [__main__] INFO: === Polymarket Scanner ===
+2026-03-04 11:32:50,398 [__main__] INFO: Polymarket scanner: 200 markets from gamma_api
+2026-03-04 11:32:50,413 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/polymarket.json
+2026-03-04 11:32:50,413 [__main__] INFO: Polymarket scanner complete: 200 markets, 0 opportunities, signal=volatile
+2026-03-04 11:32:50,526 [__main__] INFO: === Economic Calendar Module ===
+2026-03-04 11:32:50,527 [__main__] INFO: Running for date: 2026-03-04
+2026-03-04 11:32:50,527 [__main__] INFO: Detected 1 events this week
+2026-03-04 11:32:50,527 [__main__] INFO: Signal: high_impact - Non-Farm Payroll (NFP) 2026-03-06
+2026-03-04 11:32:50,527 [__main__] INFO: FRED API key not configured, skipping FRED data
+2026-03-04 11:32:50,528 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/economic_calendar.json
+2026-03-04 11:32:50,528 [__main__] INFO: Economic calendar module complete
+2026-03-04 11:32:50,811 [__main__] INFO: === Building Macro Dashboard ===
+2026-03-04 11:32:50,811 [__main__] INFO: Fetching VIX (^VIX)
+2026-03-04 11:32:50,811 [__main__] INFO: Using cached data for VIX
+2026-03-04 11:32:50,813 [__main__] INFO:   ✓ VIX: 22.80
+2026-03-04 11:32:50,813 [__main__] INFO: Fetching DXY (DX-Y.NYB)
+2026-03-04 11:32:50,813 [__main__] INFO: Using cached data for DXY
+2026-03-04 11:32:50,814 [__main__] INFO:   ✓ DXY: 94.63
+2026-03-04 11:32:50,814 [__main__] INFO: Fetching US10Y (^TNX)
+2026-03-04 11:32:50,814 [__main__] INFO: Using cached data for US10Y
+2026-03-04 11:32:50,816 [__main__] INFO:   ✓ US10Y: 4.06
+2026-03-04 11:32:50,816 [__main__] INFO: Fetching OIL (CL=F)
+2026-03-04 11:32:50,816 [__main__] INFO: Using cached data for OIL
+2026-03-04 11:32:50,817 [__main__] INFO:   ✓ OIL: 75.14
+2026-03-04 11:32:50,817 [__main__] INFO: Fetching GOLD (GC=F)
+2026-03-04 11:32:50,817 [__main__] INFO: Using cached data for GOLD
+2026-03-04 11:32:50,817 [__main__] WARNING: Invalid value for GOLD: 5177.40 is outside valid range [500.00, 5000.00]
+2026-03-04 11:32:50,817 [__main__] WARNING:   ✗ GOLD failed
+2026-03-04 11:32:50,817 [__main__] WARNING: Partial success: 4/5 indicators fetched
+2026-03-04 11:32:50,818 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/macro_dashboard.json
+2026-03-04 11:32:50,818 [__main__] INFO: Macro Dashboard complete. Output: /Users/rconwell/morning-brief/data/processed/macro_dashboard.json
+2026-03-04 11:32:51,343 [__main__] INFO: === Sector Rotation Tracker ===
+2026-03-04 11:32:51,345 [__main__] INFO: Loaded SPY from cache
+2026-03-04 11:32:51,346 [__main__] INFO: SPY returns: {'return_1d': np.float64(-0.88), 'return_5d': np.float64(-1.02), 'return_21d': np.float64(-1.68), 'return_63d': np.float64(-0.15)}
+2026-03-04 11:32:51,346 [__main__] INFO: Loaded XLK from cache
+2026-03-04 11:32:51,347 [__main__] INFO: XLK (Technology): price=160.50, ret_21d=7.00, rel_str_21d=8.68, trend=uptrend
+2026-03-04 11:32:51,347 [__main__] INFO: Loaded XLF from cache
+2026-03-04 11:32:51,348 [__main__] INFO: XLF (Financials): price=51.21, ret_21d=-4.17, rel_str_21d=-2.49, trend=downtrend
+2026-03-04 11:32:51,348 [__main__] INFO: Loaded XLE from cache
+2026-03-04 11:32:51,349 [__main__] INFO: XLE (Energy): price=56.52, ret_21d=10.71, rel_str_21d=12.39, trend=uptrend
+2026-03-04 11:32:51,349 [__main__] INFO: Loaded XLV from cache
+2026-03-04 11:32:51,350 [__main__] INFO: XLV (Health Care): price=156.74, ret_21d=1.29, rel_str_21d=2.97, trend=downtrend
+2026-03-04 11:32:51,350 [__main__] INFO: Loaded XLI from cache
+2026-03-04 11:32:51,350 [__main__] INFO: XLI (Industrials): price=175.44, ret_21d=6.04, rel_str_21d=7.72, trend=uptrend
+2026-03-04 11:32:51,351 [__main__] INFO: Loaded XLY from cache
+2026-03-04 11:32:51,351 [__main__] INFO: XLY (Consumer Discretionary): price=114.36, ret_21d=-5.62, rel_str_21d=-3.94, trend=downtrend
+2026-03-04 11:32:51,352 [__main__] INFO: Loaded XLP from cache
+2026-03-04 11:32:51,352 [__main__] INFO: XLP (Consumer Staples): price=87.74, ret_21d=5.07, rel_str_21d=6.75, trend=downtrend
+2026-03-04 11:32:51,353 [__main__] INFO: Loaded XLU from cache
+2026-03-04 11:32:51,353 [__main__] INFO: XLU (Utilities): price=47.07, ret_21d=8.83, rel_str_21d=10.51, trend=uptrend
+2026-03-04 11:32:51,353 [__main__] INFO: Loaded XLB from cache
+2026-03-04 11:32:51,353 [__main__] INFO: XLB (Materials): price=51.94, ret_21d=5.42, rel_str_21d=7.10, trend=downtrend
+2026-03-04 11:32:51,354 [__main__] INFO: Loaded XLRE from cache
+2026-03-04 11:32:51,354 [__main__] INFO: XLRE (Real Estate): price=43.70, ret_21d=5.48, rel_str_21d=7.16, trend=uptrend
+2026-03-04 11:32:51,355 [__main__] INFO: Loaded XLC from cache
+2026-03-04 11:32:51,355 [__main__] INFO: XLC (Communication Services): price=117.96, ret_21d=-1.77, rel_str_21d=-0.09, trend=uptrend
+2026-03-04 11:32:51,355 [__main__] INFO: Rotation type: growth_rotation
+2026-03-04 11:32:51,355 [__main__] INFO: Breadth: 4 positive, 7 negative (mixed)
+2026-03-04 11:32:51,355 [__main__] INFO: Signal: growth_momentum — Growth and discretionary sectors gaining leadership — risk-on environment
+2026-03-04 11:32:51,355 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/sector_rotation.json
+2026-03-04 11:32:51,355 [__main__] INFO: Sector rotation analysis complete
+2026-03-04 11:32:51,725 [__main__] INFO: === Opportunity Scanner Module ===
+2026-03-04 11:32:52,284 [__main__] INFO: XLK: 1d=+2.11% 5d=-1.83% trend=mixed
+2026-03-04 11:32:52,568 [__main__] INFO: XLF: 1d=+0.52% 5d=-0.76% trend=mixed
+2026-03-04 11:32:52,801 [__main__] INFO: XLE: 1d=-0.78% 5d=+2.21% trend=mixed
+2026-03-04 11:32:52,988 [__main__] INFO: XLV: 1d=+0.33% 5d=-0.36% trend=mixed
+2026-03-04 11:32:53,267 [__main__] INFO: XLI: 1d=+0.26% 5d=+0.17% trend=bullish
+2026-03-04 11:32:53,498 [__main__] INFO: ARKK: 1d=+3.61% 5d=+1.81% trend=bullish
+2026-03-04 11:32:53,761 [__main__] INFO: AVGO: PASSED filter (opp_score=4.2, composite=0.7, rsi=44.23, vol=0.54, sma=golden_cross)
+2026-03-04 11:32:54,934 [__main__] INFO: SHOP: PASSED filter (opp_score=4.1, composite=0.6, rsi=52.48, vol=0.36, sma=golden_cross)
+2026-03-04 11:32:55,865 [yfinance] ERROR: $SQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "No data found, symbol may be delisted")
+2026-03-04 11:32:55,866 [yfinance] ERROR: 
+1 Failed download:
+2026-03-04 11:32:55,866 [yfinance] ERROR: ['SQ']: possibly delisted; no price data found  (period=1y) (Yahoo error = "No data found, symbol may be delisted")
+2026-03-04 11:32:55,870 [lib.api] WARNING: No price data for SQ
+2026-03-04 11:32:55,870 [modules.technical_signals] WARNING: SQ: insufficient history (0 rows, need 200+)
+2026-03-04 11:32:56,723 [__main__] INFO: MRVL: PASSED filter (opp_score=5.8, composite=2.3, rsi=46.82, vol=0.5, sma=golden_cross)
+2026-03-04 11:32:57,220 [__main__] INFO: MU: PASSED filter (opp_score=4.0, composite=0.5, rsi=51.7, vol=0.66, sma=golden_cross)
+2026-03-04 11:32:57,432 [__main__] INFO: ASML: PASSED filter (opp_score=4.3, composite=0.8, rsi=49.12, vol=0.65, sma=golden_cross)
+2026-03-04 11:32:57,641 [__main__] INFO: KLAC: PASSED filter (opp_score=4.0, composite=0.5, rsi=49.73, vol=0.31, sma=golden_cross)
+2026-03-04 11:32:57,805 [__main__] INFO: LRCX: PASSED filter (opp_score=4.6, composite=1.1, rsi=46.36, vol=0.4, sma=golden_cross)
+2026-03-04 11:32:58,015 [__main__] INFO: AMAT: PASSED filter (opp_score=3.7, composite=0.2, rsi=54.16, vol=0.29, sma=golden_cross)
+2026-03-04 11:32:59,171 [__main__] INFO: RKLB: PASSED filter (opp_score=5.7, composite=2.2, rsi=46.97, vol=0.69, sma=golden_cross)
+2026-03-04 11:33:00,611 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/opportunities.json
+2026-03-04 11:33:00,612 [__main__] INFO: Opportunity scan complete: 9/22 passed filter, 5 surfaced
+2026-03-04 11:33:01,008 [__main__] INFO: === Risk Dashboard Module ===
+2026-03-04 11:33:02,854 [yfinance] ERROR: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: VOO"}}}
+2026-03-04 11:33:02,926 [__main__] INFO: Risk regime: CAUTION (total=14.5, now=11.0, short=1.0, long=7.0)
+2026-03-04 11:33:02,928 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/risk_dashboard.json
+2026-03-04 11:33:02,928 [__main__] INFO: Risk dashboard complete: regime=CAUTION, total_risk=14.5
+2026-03-04 11:33:03,064 [__main__] INFO: === Trade Memory Module ===
+2026-03-04 11:33:03,064 [__main__] INFO: AAPL: Mixed history: 3W/2L in 5 similar setups
+2026-03-04 11:33:03,064 [__main__] INFO: AMD: Mixed history: 3W/2L in 5 similar setups
+2026-03-04 11:33:03,065 [__main__] INFO: META: HIGH CONFIDENCE: Setup matches 4/4 winning patterns (100%)
+2026-03-04 11:33:03,065 [__main__] INFO: NVDA: Mixed history: 4W/2L in 6 similar setups
+2026-03-04 11:33:03,065 [__main__] INFO: TSLA: Mixed history: 2W/4L in 6 similar setups
+2026-03-04 11:33:03,065 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/trade_memory.json
+2026-03-04 11:33:03,065 [__main__] INFO: Trade memory complete: 9 tickers analyzed
+2026-03-04 11:33:03,128 [__main__] INFO: === Position Sizer Module ===
+2026-03-04 11:33:03,138 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/position_sizer.json
+2026-03-04 11:33:03,453 [__main__] INFO: === Scorecard Module ===
+2026-03-04 11:33:05,818 [lib.data_envelope] INFO: Saved envelope to /Users/rconwell/morning-brief/data/processed/scorecard.json
+2026-03-04 11:33:05,819 [__main__] INFO: Scorecard: 30 verdicts evaluated, 62% win rate
+2026-03-04 11:33:06,210 [__main__] INFO: === Morning Brief Module ===
+2026-03-04 11:33:06,212 [__main__] INFO: Morning brief written to /Users/rconwell/morning-brief/data/outputs/morning_brief_2026-03-04.md
+2026-03-04 11:33:06,683 [__main__] INFO: Logged 0 new verdicts to /Users/rconwell/morning-brief/data/scorecard/verdict_log.json
+2026-03-04 11:33:07,143 [__main__] INFO: === Brief HTML Module ===
+2026-03-04 11:33:07,146 [__main__] INFO: HTML brief written to /Users/rconwell/morning-brief/data/outputs/morning_brief_2026-03-04.html
+2026-03-04 18:37:08,690 [__main__] INFO: === Backtester Module ===
+2026-03-04 18:37:08,691 [__main__] INFO: Backtesting 39 verdict entries
+2026-03-04 18:37:34,171 [__main__] INFO: Backtest complete: 39 verdicts tested, 50.0% win rate, $393.37 total P&L
+2026-03-04 18:37:34,175 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/backtester.json
+2026-03-04 18:37:34,176 [__main__] INFO: Backtester module complete
+2026-03-04 18:40:07,725 [__main__] INFO: === Alert System Module ===
+2026-03-04 18:40:09,461 [yfinance] ERROR: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: VOO"}}}
+2026-03-04 18:40:09,462 [__main__] INFO: Detected 1 critical, 1 high, 0 medium, 0 low alerts
+2026-03-04 18:40:09,465 [__main__] INFO: Saved alert history to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/alert_history.json
+2026-03-04 18:40:09,467 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/alert_system.json
+2026-03-04 18:40:09,467 [__main__] INFO: Alert system analysis complete
+2026-03-04 18:43:22,123 [__main__] INFO: === Building module: dividend_tracker ===
+2026-03-04 18:43:27,928 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/dividend_tracker.json
+2026-03-04 18:43:27,928 [__main__] INFO: Dividend tracker complete: 9 tickers processed
+2026-03-04 18:43:56,099 [__main__] INFO: === Building module: dividend_tracker ===
+2026-03-04 18:44:02,345 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/dividend_tracker.json
+2026-03-04 18:44:02,345 [__main__] INFO: Dividend tracker complete: 9 tickers processed
+2026-03-04 18:48:13,820 [__main__] INFO: === Social Sentiment Module ===
+2026-03-04 18:48:15,148 [__main__] INFO: AAPL: buzz=10, sentiment=0.20, trend=declining, interest=high
+2026-03-04 18:48:15,311 [__main__] INFO: AMD: buzz=10, sentiment=0.50, trend=declining, interest=high
+2026-03-04 18:48:15,434 [__main__] INFO: AMZN: buzz=10, sentiment=0.00, trend=declining, interest=high
+2026-03-04 18:48:15,562 [__main__] INFO: GOOGL: buzz=10, sentiment=0.20, trend=improving, interest=high
+2026-03-04 18:48:15,698 [__main__] INFO: META: buzz=10, sentiment=-0.20, trend=stable, interest=high
+2026-03-04 18:48:15,825 [__main__] INFO: MSFT: buzz=10, sentiment=-0.10, trend=improving, interest=high
+2026-03-04 18:48:15,960 [__main__] INFO: NVDA: buzz=10, sentiment=0.00, trend=declining, interest=high
+2026-03-04 18:48:16,080 [__main__] INFO: TSLA: buzz=10, sentiment=0.60, trend=stable, interest=high
+2026-03-04 18:48:16,229 [__main__] INFO: VOO: buzz=10, sentiment=0.20, trend=declining, interest=high
+2026-03-04 18:48:16,235 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/social_sentiment.json
+2026-03-04 18:48:16,236 [__main__] INFO: Social sentiment complete: 9 tickers analyzed, 9 with news
+2026-03-04 18:49:17,747 [__main__] INFO: === Social Sentiment Module ===
+2026-03-04 18:49:23,625 [__main__] INFO: AAPL: buzz=10, sentiment=0.20, trend=declining, interest=high
+2026-03-04 18:49:23,775 [__main__] INFO: AMD: buzz=10, sentiment=0.50, trend=declining, interest=high
+2026-03-04 18:49:23,896 [__main__] INFO: AMZN: buzz=10, sentiment=0.00, trend=declining, interest=high
+2026-03-04 18:49:24,018 [__main__] INFO: GOOGL: buzz=10, sentiment=0.20, trend=improving, interest=high
+2026-03-04 18:49:24,199 [__main__] INFO: META: buzz=10, sentiment=-0.20, trend=stable, interest=high
+2026-03-04 18:49:24,319 [__main__] INFO: MSFT: buzz=10, sentiment=-0.10, trend=improving, interest=high
+2026-03-04 18:49:24,452 [__main__] INFO: NVDA: buzz=10, sentiment=0.00, trend=declining, interest=high
+2026-03-04 18:49:24,595 [__main__] INFO: TSLA: buzz=10, sentiment=0.60, trend=stable, interest=high
+2026-03-04 18:49:24,826 [__main__] INFO: VOO: buzz=10, sentiment=0.20, trend=declining, interest=high
+2026-03-04 18:49:24,829 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/social_sentiment.json
+2026-03-04 18:49:24,830 [__main__] INFO: Social sentiment complete: 9 tickers analyzed, 9 with news
+2026-03-04 18:53:32,470 [__main__] INFO: === Starting correlation_heatmap module ===
+2026-03-04 18:53:32,471 [__main__] INFO: Analyzing 9 tickers: ['AAPL', 'AMD', 'AMZN', 'GOOGL', 'META', 'MSFT', 'NVDA', 'TSLA', 'VOO']
+2026-03-04 18:53:32,472 [__main__] INFO: Downloading price history for AAPL
+2026-03-04 18:53:33,345 [__main__] INFO: Downloading price history for AMD
+2026-03-04 18:53:33,563 [__main__] INFO: Downloading price history for AMZN
+2026-03-04 18:53:33,713 [__main__] INFO: Downloading price history for GOOGL
+2026-03-04 18:53:33,937 [__main__] INFO: Downloading price history for META
+2026-03-04 18:53:34,117 [__main__] INFO: Downloading price history for MSFT
+2026-03-04 18:53:34,310 [__main__] INFO: Downloading price history for NVDA
+2026-03-04 18:53:34,556 [__main__] INFO: Downloading price history for TSLA
+2026-03-04 18:53:34,779 [__main__] INFO: Downloading price history for VOO
+2026-03-04 18:53:34,980 [__main__] INFO: Price data shape: (125, 9)
+2026-03-04 18:53:34,982 [__main__] INFO: Correlation matrix shape: (9, 9)
+2026-03-04 18:53:34,983 [__main__] INFO: Found 0 high correlations (> 0.70)
+2026-03-04 18:53:34,984 [__main__] INFO: Found 0 risk clusters (corr > 0.75)
+2026-03-04 18:53:34,987 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/correlation_heatmap.json
+2026-03-04 18:53:34,988 [__main__] INFO: Saved JSON envelope
+2026-03-04 18:53:34,991 [__main__] INFO: Generated HTML heatmap to /sessions/zen-laughing-curie/mnt/morning-brief/data/outputs/correlation_heatmap_2026-03-04.html
+2026-03-04 18:53:34,992 [__main__] INFO: Saved HTML heatmap
+2026-03-04 18:53:34,992 [__main__] INFO: === correlation_heatmap module complete ===
+2026-03-04 18:58:32,568 [__main__] INFO: === Weekly Digest Module ===
+2026-03-04 18:58:34,042 [__main__] INFO: Calculated portfolio performance
+2026-03-04 18:58:34,044 [__main__] INFO: Calculated verdict scorecard
+2026-03-04 18:58:34,049 [__main__] INFO: Extracted key events
+2026-03-04 18:58:34,050 [__main__] INFO: Extracted upcoming catalysts
+2026-03-04 18:58:34,060 [__main__] INFO: Wrote markdown to /sessions/zen-laughing-curie/mnt/morning-brief/data/outputs/weekly_digest_2026-03-04.md
+2026-03-04 18:58:34,063 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/weekly_digest.json
+2026-03-04 18:58:34,063 [__main__] INFO: Weekly digest complete
+2026-03-04 19:01:59,510 [__main__] INFO: API sync unavailable: No module named 'pyetrade'
+2026-03-04 19:01:59,548 [__main__] INFO: === Journal Module ===
+2026-03-04 19:01:59,548 [__main__] INFO: Loading trades from /sessions/zen-laughing-curie/mnt/morning-brief/data/sample/trades.csv
+2026-03-04 19:01:59,552 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/journal.json
+2026-03-04 19:01:59,553 [__main__] INFO: Journal analysis complete: 30 trades, 63.3% win rate
+2026-03-04 19:01:59,753 [__main__] INFO: === Earnings Module ===
+2026-03-04 19:01:59,755 [__main__] INFO: No transcript for AAPL
+2026-03-04 19:01:59,755 [__main__] INFO: No transcript for NVDA
+2026-03-04 19:01:59,755 [__main__] INFO: No transcript for MSFT
+2026-03-04 19:01:59,758 [__main__] INFO: Used sample transcript as fallback
+2026-03-04 19:01:59,759 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/earnings_tone.json
+2026-03-04 19:01:59,760 [__main__] INFO: Earnings analysis complete: 1 transcripts analyzed
+2026-03-04 19:02:00,365 [__main__] INFO: === Valuation Module ===
+2026-03-04 19:02:00,366 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 19:02:01,105 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 19:02:01,362 [__main__] INFO: Compared NVDA vs AMD: cheaper=inconclusive
+2026-03-04 19:02:01,364 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 19:02:01,612 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 19:02:01,852 [__main__] INFO: Compared AAPL vs MSFT: cheaper=MSFT
+2026-03-04 19:02:01,853 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 19:02:02,093 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-03-04 19:02:02,346 [__main__] INFO: Compared GOOGL vs META: cheaper=META
+2026-03-04 19:02:02,396 [__main__] INFO: AAPL: bull=$350 (+32.9%), bear=$205 (-22.2%), R/R=1.5x
+2026-03-04 19:02:02,496 [__main__] INFO: AMD: bull=$365 (+80.9%), bear=$220 (+9.0%), R/R=9.0x
+2026-03-04 19:02:02,568 [__main__] INFO: GOOGL: bull=$443 (+46.1%), bear=$185 (-39.0%), R/R=1.2x
+2026-03-04 19:02:02,619 [__main__] INFO: META: bull=$1144 (+71.3%), bear=$700 (+4.8%), R/R=14.7x
+2026-03-04 19:02:02,669 [__main__] INFO: MSFT: bull=$730 (+78.2%), bear=$392 (-4.3%), R/R=18.3x
+2026-03-04 19:02:02,830 [__main__] INFO: NVDA: bull=$380 (+105.9%), bear=$140 (-24.1%), R/R=4.4x
+2026-03-04 19:02:03,072 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/valuation.json
+2026-03-04 19:02:03,073 [__main__] INFO: Valuation analysis complete: 3 pairs compared, 6 scenarios
+2026-03-04 19:02:03,769 [__main__] INFO: === Portfolio Module ===
+2026-03-04 19:02:05,504 [__main__] WARNING: NVDA: price $184.61 breached previous stop $488.83 — resetting stop to $172.06
+2026-03-04 19:02:05,506 [__main__] INFO: NVDA: price=184.61 pnl=-15019.50 atr=6.2743 stop=172.06 max=501.23
+2026-03-04 19:02:06,040 [__main__] INFO: AAPL: price=263.39 pnl=8489.00 atr=7.0693 stop=250.03 max=264.17
+2026-03-04 19:02:06,567 [__main__] INFO: VOO: price=631.59 pnl=5289.75 atr=8.3886 stop=614.81 max=631.59
+2026-03-04 19:02:06,576 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/portfolio.json
+2026-03-04 19:02:06,577 [__main__] INFO: Portfolio analysis complete: total P&L = $-1240.75
+2026-03-04 19:02:07,268 [__main__] INFO: === Technical Signals Module ===
+2026-03-04 19:02:09,113 [__main__] INFO: AAPL: composite=0.9 rsi=46.95 macd=bearish_crossover
+2026-03-04 19:02:19,126 [yfinance] ERROR: 
+1 Failed download:
+2026-03-04 19:02:19,128 [yfinance] ERROR: ['AMD']: TypeError("'NoneType' object is not subscriptable")
+2026-03-04 19:02:19,131 [lib.api] WARNING: No price data for AMD
+2026-03-04 19:02:19,133 [__main__] WARNING: AMD: insufficient history (0 rows, need 200+)
+2026-03-04 19:02:19,134 [__main__] WARNING: AMD: skipped (insufficient data)
+2026-03-04 19:02:19,360 [__main__] INFO: AMZN: composite=0.9 rsi=51.65 macd=bullish_crossover
+2026-03-04 19:02:19,631 [__main__] INFO: GOOGL: composite=1.6 rsi=38.41 macd=bearish_crossover
+2026-03-04 19:02:19,870 [__main__] INFO: META: composite=-0.0 rsi=54.74 macd=bullish_crossover
+2026-03-04 19:02:20,178 [__main__] INFO: MSFT: composite=-1.0 rsi=47.7 macd=bullish_crossover
+2026-03-04 19:02:20,377 [__main__] INFO: NVDA: composite=0.4 rsi=48.9 macd=neutral
+2026-03-04 19:02:20,675 [__main__] INFO: TSLA: composite=1.3 rsi=45.45 macd=neutral
+2026-03-04 19:02:20,908 [__main__] INFO: VOO: composite=0.8 rsi=49.82 macd=neutral
+2026-03-04 19:02:20,914 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/technical_signals.json
+2026-03-04 19:02:20,914 [__main__] INFO: Technical signals complete: 8 tickers analyzed
+2026-03-04 19:02:20,998 [__main__] INFO: === News Sentiment Module ===
+2026-03-04 19:02:22,317 [__main__] INFO: AAPL: sentiment=0.20 (keyword) articles=10
+2026-03-04 19:02:22,588 [__main__] INFO: AMD: sentiment=0.47 (keyword) articles=10
+2026-03-04 19:02:22,811 [__main__] INFO: AMZN: sentiment=0.23 (keyword) articles=10
+2026-03-04 19:02:22,939 [__main__] INFO: GOOGL: sentiment=0.43 (keyword) articles=10
+2026-03-04 19:02:23,113 [__main__] INFO: META: sentiment=-0.20 (keyword) articles=10
+2026-03-04 19:02:23,235 [__main__] INFO: MSFT: sentiment=-0.43 (keyword) articles=10
+2026-03-04 19:02:23,357 [__main__] INFO: NVDA: sentiment=0.60 (keyword) articles=10
+2026-03-04 19:02:23,636 [__main__] INFO: TSLA: sentiment=0.80 (keyword) articles=10
+2026-03-04 19:02:23,810 [__main__] INFO: VOO: sentiment=0.50 (keyword) articles=10
+2026-03-04 19:02:23,817 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/news_sentiment.json
+2026-03-04 19:02:23,818 [__main__] INFO: News sentiment complete: 9 tickers analyzed
+2026-03-04 19:02:24,451 [__main__] INFO: === Options Module ===
+2026-03-04 19:02:24,452 [__main__] INFO: Analyzing options for NVDA
+2026-03-04 19:02:25,976 [__main__] INFO: Analyzing options for AAPL
+2026-03-04 19:02:27,399 [__main__] INFO: Analyzing options for VOO
+2026-03-04 19:02:28,701 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/options.json
+2026-03-04 19:02:28,701 [__main__] INFO: Options analysis complete: 3 tickers processed
+2026-03-04 19:02:28,787 [__main__] INFO: === Insider Tracker Module ===
+2026-03-04 19:02:28,791 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/insider_tracker.json
+2026-03-04 19:02:28,791 [__main__] INFO: Insider tracker complete: 9 tickers, 0 with activity
+2026-03-04 19:02:28,902 [__main__] INFO: === Congressional Trading Tracker ===
+2026-03-04 19:02:29,270 [__main__] WARNING: Failed to fetch House trades: 403 Client Error: Forbidden for url: https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
+2026-03-04 19:02:29,683 [__main__] WARNING: Failed to fetch Senate trades: 403 Client Error: Forbidden for url: https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json
+2026-03-04 19:02:29,686 [__main__] INFO: Loaded 12 sample congressional trades
+2026-03-04 19:02:29,686 [__main__] INFO: Congressional trades: 12 total from sample_data, checking against 9 watchlist tickers
+2026-03-04 19:02:29,690 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/congress_tracker.json
+2026-03-04 19:02:29,690 [__main__] INFO: Congress tracker complete: 12 trades, 12 watchlist matches, signal=cluster_detected
+2026-03-04 19:02:29,813 [__main__] INFO: === Polymarket Scanner ===
+2026-03-04 19:02:29,825 [__main__] INFO: Polymarket scanner: 200 markets from gamma_api
+2026-03-04 19:02:29,857 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/polymarket.json
+2026-03-04 19:02:29,858 [__main__] INFO: Polymarket scanner complete: 200 markets, 0 opportunities, signal=volatile
+2026-03-04 19:02:29,986 [__main__] INFO: === Economic Calendar Module ===
+2026-03-04 19:02:29,987 [__main__] INFO: Running for date: 2026-03-04
+2026-03-04 19:02:29,987 [__main__] INFO: Detected 1 events this week
+2026-03-04 19:02:29,987 [__main__] INFO: Signal: high_impact - Non-Farm Payroll (NFP) 2026-03-06
+2026-03-04 19:02:29,988 [__main__] INFO: FRED API key not configured, skipping FRED data
+2026-03-04 19:02:29,989 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/economic_calendar.json
+2026-03-04 19:02:29,990 [__main__] INFO: Economic calendar module complete
+2026-03-04 19:02:30,571 [__main__] INFO: === Building Macro Dashboard ===
+2026-03-04 19:02:30,571 [__main__] INFO: Fetching VIX (^VIX)
+2026-03-04 19:02:30,573 [__main__] INFO: Using cached data for VIX
+2026-03-04 19:02:30,578 [__main__] INFO:   ✓ VIX: 22.80
+2026-03-04 19:02:30,578 [__main__] INFO: Fetching DXY (DX-Y.NYB)
+2026-03-04 19:02:30,579 [__main__] INFO: Using cached data for DXY
+2026-03-04 19:02:30,581 [__main__] INFO:   ✓ DXY: 94.63
+2026-03-04 19:02:30,581 [__main__] INFO: Fetching US10Y (^TNX)
+2026-03-04 19:02:30,582 [__main__] INFO: Using cached data for US10Y
+2026-03-04 19:02:30,585 [__main__] INFO:   ✓ US10Y: 4.06
+2026-03-04 19:02:30,586 [__main__] INFO: Fetching OIL (CL=F)
+2026-03-04 19:02:30,587 [__main__] INFO: Using cached data for OIL
+2026-03-04 19:02:30,589 [__main__] INFO:   ✓ OIL: 75.14
+2026-03-04 19:02:30,589 [__main__] INFO: Fetching GOLD (GC=F)
+2026-03-04 19:02:30,590 [__main__] INFO: Using cached data for GOLD
+2026-03-04 19:02:30,591 [__main__] WARNING: Invalid value for GOLD: 5177.40 is outside valid range [500.00, 5000.00]
+2026-03-04 19:02:30,592 [__main__] WARNING:   ✗ GOLD failed
+2026-03-04 19:02:30,592 [__main__] WARNING: Partial success: 4/5 indicators fetched
+2026-03-04 19:02:30,594 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/macro_dashboard.json
+2026-03-04 19:02:30,594 [__main__] INFO: Macro Dashboard complete. Output: /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/macro_dashboard.json
+2026-03-04 19:02:31,324 [__main__] INFO: === Sector Rotation Tracker ===
+2026-03-04 19:02:31,327 [__main__] INFO: Loaded SPY from cache
+2026-03-04 19:02:31,328 [__main__] INFO: SPY returns: {'return_1d': np.float64(-0.88), 'return_5d': np.float64(-1.02), 'return_21d': np.float64(-1.68), 'return_63d': np.float64(-0.15)}
+2026-03-04 19:02:31,330 [__main__] INFO: Loaded XLK from cache
+2026-03-04 19:02:31,332 [__main__] INFO: XLK (Technology): price=160.50, ret_21d=7.00, rel_str_21d=8.68, trend=uptrend
+2026-03-04 19:02:31,334 [__main__] INFO: Loaded XLF from cache
+2026-03-04 19:02:31,335 [__main__] INFO: XLF (Financials): price=51.21, ret_21d=-4.17, rel_str_21d=-2.49, trend=downtrend
+2026-03-04 19:02:31,337 [__main__] INFO: Loaded XLE from cache
+2026-03-04 19:02:31,338 [__main__] INFO: XLE (Energy): price=56.52, ret_21d=10.71, rel_str_21d=12.39, trend=uptrend
+2026-03-04 19:02:31,339 [__main__] INFO: Loaded XLV from cache
+2026-03-04 19:02:31,340 [__main__] INFO: XLV (Health Care): price=156.74, ret_21d=1.29, rel_str_21d=2.97, trend=downtrend
+2026-03-04 19:02:31,343 [__main__] INFO: Loaded XLI from cache
+2026-03-04 19:02:31,343 [__main__] INFO: XLI (Industrials): price=175.44, ret_21d=6.04, rel_str_21d=7.72, trend=uptrend
+2026-03-04 19:02:31,345 [__main__] INFO: Loaded XLY from cache
+2026-03-04 19:02:31,346 [__main__] INFO: XLY (Consumer Discretionary): price=114.36, ret_21d=-5.62, rel_str_21d=-3.94, trend=downtrend
+2026-03-04 19:02:31,348 [__main__] INFO: Loaded XLP from cache
+2026-03-04 19:02:31,349 [__main__] INFO: XLP (Consumer Staples): price=87.74, ret_21d=5.07, rel_str_21d=6.75, trend=downtrend
+2026-03-04 19:02:31,350 [__main__] INFO: Loaded XLU from cache
+2026-03-04 19:02:31,351 [__main__] INFO: XLU (Utilities): price=47.07, ret_21d=8.83, rel_str_21d=10.51, trend=uptrend
+2026-03-04 19:02:31,353 [__main__] INFO: Loaded XLB from cache
+2026-03-04 19:02:31,353 [__main__] INFO: XLB (Materials): price=51.94, ret_21d=5.42, rel_str_21d=7.10, trend=downtrend
+2026-03-04 19:02:31,355 [__main__] INFO: Loaded XLRE from cache
+2026-03-04 19:02:31,355 [__main__] INFO: XLRE (Real Estate): price=43.70, ret_21d=5.48, rel_str_21d=7.16, trend=uptrend
+2026-03-04 19:02:31,357 [__main__] INFO: Loaded XLC from cache
+2026-03-04 19:02:31,357 [__main__] INFO: XLC (Communication Services): price=117.96, ret_21d=-1.77, rel_str_21d=-0.09, trend=uptrend
+2026-03-04 19:02:31,358 [__main__] INFO: Rotation type: growth_rotation
+2026-03-04 19:02:31,358 [__main__] INFO: Breadth: 4 positive, 7 negative (mixed)
+2026-03-04 19:02:31,358 [__main__] INFO: Signal: growth_momentum — Growth and discretionary sectors gaining leadership — risk-on environment
+2026-03-04 19:02:31,360 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/sector_rotation.json
+2026-03-04 19:02:31,360 [__main__] INFO: Sector rotation analysis complete
+2026-03-04 19:02:32,093 [__main__] INFO: === Opportunity Scanner Module ===
+2026-03-04 19:02:32,973 [__main__] INFO: XLK: 1d=+2.23% 5d=-1.71% trend=mixed
+2026-03-04 19:02:33,292 [__main__] INFO: XLF: 1d=+0.62% 5d=-0.67% trend=mixed
+2026-03-04 19:02:33,617 [__main__] INFO: XLE: 1d=-1.14% 5d=+1.83% trend=mixed
+2026-03-04 19:02:33,852 [__main__] INFO: XLV: 1d=+0.22% 5d=-0.47% trend=mixed
+2026-03-04 19:02:34,142 [__main__] INFO: XLI: 1d=+0.30% 5d=+0.21% trend=bullish
+2026-03-04 19:02:34,321 [__main__] INFO: ARKK: 1d=+3.85% 5d=+2.04% trend=bullish
+2026-03-04 19:02:34,524 [__main__] INFO: AVGO: PASSED filter (opp_score=4.1, composite=0.6, rsi=44.69, vol=0.59, sma=golden_cross)
+2026-03-04 19:02:35,578 [__main__] INFO: SHOP: PASSED filter (opp_score=4.1, composite=0.6, rsi=52.81, vol=0.39, sma=golden_cross)
+2026-03-04 19:02:36,744 [yfinance] ERROR: $SQ: possibly delisted; no price data found  (period=1y) (Yahoo error = "No data found, symbol may be delisted")
+2026-03-04 19:02:36,752 [yfinance] ERROR: 
+1 Failed download:
+2026-03-04 19:02:36,753 [yfinance] ERROR: ['SQ']: possibly delisted; no price data found  (period=1y) (Yahoo error = "No data found, symbol may be delisted")
+2026-03-04 19:02:36,755 [lib.api] WARNING: No price data for SQ
+2026-03-04 19:02:36,757 [modules.technical_signals] WARNING: SQ: insufficient history (0 rows, need 200+)
+2026-03-04 19:02:37,868 [__main__] INFO: MRVL: PASSED filter (opp_score=5.8, composite=2.3, rsi=46.75, vol=0.54, sma=golden_cross)
+2026-03-04 19:02:38,485 [__main__] INFO: MU: PASSED filter (opp_score=3.9, composite=0.4, rsi=52.13, vol=0.68, sma=golden_cross)
+2026-03-04 19:02:38,727 [__main__] INFO: ASML: PASSED filter (opp_score=4.4, composite=0.9, rsi=49.11, vol=0.67, sma=golden_cross)
+2026-03-04 19:02:39,040 [__main__] INFO: KLAC: PASSED filter (opp_score=3.9, composite=0.4, rsi=50.2, vol=0.33, sma=golden_cross)
+2026-03-04 19:02:39,277 [__main__] INFO: LRCX: PASSED filter (opp_score=4.6, composite=1.1, rsi=46.64, vol=0.42, sma=golden_cross)
+2026-03-04 19:02:39,655 [__main__] INFO: AMAT: PASSED filter (opp_score=3.7, composite=0.2, rsi=54.5, vol=0.31, sma=golden_cross)
+2026-03-04 19:02:40,806 [__main__] INFO: RKLB: PASSED filter (opp_score=5.9, composite=2.4, rsi=48.44, vol=0.73, sma=golden_cross)
+2026-03-04 19:02:42,580 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/opportunities.json
+2026-03-04 19:02:42,581 [__main__] INFO: Opportunity scan complete: 9/22 passed filter, 5 surfaced
+2026-03-04 19:02:43,829 [__main__] INFO: === Unusual Options Module ===
+2026-03-04 19:02:43,832 [__main__] INFO: Scanning unusual options for AAPL
+2026-03-04 19:02:45,317 [__main__] INFO: Scanning unusual options for AMD
+2026-03-04 19:02:46,185 [__main__] INFO: Scanning unusual options for AMZN
+2026-03-04 19:02:47,121 [__main__] INFO: Scanning unusual options for GOOGL
+2026-03-04 19:02:48,017 [__main__] INFO: Scanning unusual options for META
+2026-03-04 19:02:49,217 [__main__] INFO: Scanning unusual options for MSFT
+2026-03-04 19:02:50,191 [__main__] INFO: Scanning unusual options for NVDA
+2026-03-04 19:02:51,093 [__main__] INFO: Scanning unusual options for TSLA
+2026-03-04 19:02:52,101 [__main__] INFO: Scanning unusual options for VOO
+2026-03-04 19:02:53,007 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/unusual_options.json
+2026-03-04 19:02:53,007 [__main__] INFO: Unusual options scan complete: 9 tickers with unusual activity
+2026-03-04 19:02:53,134 [__main__] INFO: === Social Sentiment Module ===
+2026-03-04 19:02:54,568 [__main__] INFO: AAPL: buzz=10, sentiment=0.10, trend=declining, interest=high
+2026-03-04 19:02:54,709 [__main__] INFO: AMD: buzz=10, sentiment=0.50, trend=declining, interest=high
+2026-03-04 19:02:54,859 [__main__] INFO: AMZN: buzz=10, sentiment=0.00, trend=declining, interest=high
+2026-03-04 19:02:54,986 [__main__] INFO: GOOGL: buzz=10, sentiment=0.20, trend=improving, interest=high
+2026-03-04 19:02:55,103 [__main__] INFO: META: buzz=10, sentiment=-0.20, trend=stable, interest=high
+2026-03-04 19:02:55,225 [__main__] INFO: MSFT: buzz=10, sentiment=-0.10, trend=improving, interest=high
+2026-03-04 19:02:55,401 [__main__] INFO: NVDA: buzz=10, sentiment=0.10, trend=improving, interest=high
+2026-03-04 19:02:55,615 [__main__] INFO: TSLA: buzz=10, sentiment=0.60, trend=stable, interest=high
+2026-03-04 19:02:55,784 [__main__] INFO: VOO: buzz=10, sentiment=0.20, trend=declining, interest=high
+2026-03-04 19:02:55,788 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/social_sentiment.json
+2026-03-04 19:02:55,789 [__main__] INFO: Social sentiment complete: 9 tickers analyzed, 9 with news
+2026-03-04 19:02:56,628 [__main__] INFO: === Building module: dividend_tracker ===
+2026-03-04 19:03:05,092 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/dividend_tracker.json
+2026-03-04 19:03:05,093 [__main__] INFO: Dividend tracker complete: 9 tickers processed
+2026-03-04 19:03:05,967 [__main__] INFO: === Risk Dashboard Module ===
+2026-03-04 19:03:08,437 [yfinance] ERROR: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: VOO"}}}
+2026-03-04 19:03:08,534 [__main__] INFO: Risk regime: CAUTION (total=12.5, now=9.0, short=1.0, long=7.0)
+2026-03-04 19:03:08,536 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/risk_dashboard.json
+2026-03-04 19:03:08,537 [__main__] INFO: Risk dashboard complete: regime=CAUTION, total_risk=12.5
+2026-03-04 19:03:08,653 [__main__] INFO: === Trade Memory Module ===
+2026-03-04 19:03:08,660 [__main__] INFO: AAPL: Mixed history: 3W/2L in 5 similar setups
+2026-03-04 19:03:08,661 [__main__] INFO: META: HIGH CONFIDENCE: Setup matches 4/4 winning patterns (100%)
+2026-03-04 19:03:08,661 [__main__] INFO: NVDA: Mixed history: 4W/2L in 6 similar setups
+2026-03-04 19:03:08,665 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/trade_memory.json
+2026-03-04 19:03:08,665 [__main__] INFO: Trade memory complete: 9 tickers analyzed
+2026-03-04 19:03:08,702 [__main__] INFO: === Position Sizer Module ===
+2026-03-04 19:03:08,709 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/position_sizer.json
+2026-03-04 19:03:09,507 [__main__] INFO: === Starting correlation_heatmap module ===
+2026-03-04 19:03:09,508 [__main__] INFO: Analyzing 9 tickers: ['AAPL', 'AMD', 'AMZN', 'GOOGL', 'META', 'MSFT', 'NVDA', 'TSLA', 'VOO']
+2026-03-04 19:03:09,509 [__main__] INFO: Downloading price history for AAPL
+2026-03-04 19:03:10,466 [__main__] INFO: Downloading price history for AMD
+2026-03-04 19:03:10,651 [__main__] INFO: Downloading price history for AMZN
+2026-03-04 19:03:10,804 [__main__] INFO: Downloading price history for GOOGL
+2026-03-04 19:03:11,323 [__main__] INFO: Downloading price history for META
+2026-03-04 19:03:11,484 [__main__] INFO: Downloading price history for MSFT
+2026-03-04 19:03:11,715 [__main__] INFO: Downloading price history for NVDA
+2026-03-04 19:03:11,995 [__main__] INFO: Downloading price history for TSLA
+2026-03-04 19:03:12,157 [__main__] INFO: Downloading price history for VOO
+2026-03-04 19:03:12,347 [__main__] INFO: Price data shape: (125, 9)
+2026-03-04 19:03:12,352 [__main__] INFO: Correlation matrix shape: (9, 9)
+2026-03-04 19:03:12,353 [__main__] INFO: Found 0 high correlations (> 0.70)
+2026-03-04 19:03:12,354 [__main__] INFO: Found 0 risk clusters (corr > 0.75)
+2026-03-04 19:03:12,358 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/correlation_heatmap.json
+2026-03-04 19:03:12,359 [__main__] INFO: Saved JSON envelope
+2026-03-04 19:03:12,363 [__main__] INFO: Generated HTML heatmap to /sessions/zen-laughing-curie/mnt/morning-brief/data/outputs/correlation_heatmap_2026-03-04.html
+2026-03-04 19:03:12,364 [__main__] INFO: Saved HTML heatmap
+2026-03-04 19:03:12,364 [__main__] INFO: === correlation_heatmap module complete ===
+2026-03-04 19:03:13,308 [__main__] INFO: === Backtester Module ===
+2026-03-04 19:03:13,310 [__main__] INFO: Backtesting 39 verdict entries
+2026-03-04 19:03:26,874 [__main__] INFO: Backtest complete: 39 verdicts tested, 57.1% win rate, $373.90 total P&L
+2026-03-04 19:03:26,878 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/backtester.json
+2026-03-04 19:03:26,878 [__main__] INFO: Backtester module complete
+2026-03-04 19:03:26,990 [__main__] INFO: === Alert System Module ===
+2026-03-04 19:03:28,696 [yfinance] ERROR: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"No fundamentals data found for symbol: VOO"}}}
+2026-03-04 19:03:28,697 [__main__] INFO: Detected 0 critical, 1 high, 0 medium, 0 low alerts
+2026-03-04 19:03:28,699 [__main__] INFO: Saved alert history to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/alert_history.json
+2026-03-04 19:03:28,702 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/alert_system.json
+2026-03-04 19:03:28,703 [__main__] INFO: Alert system analysis complete
+2026-03-04 19:03:29,604 [__main__] INFO: === Scorecard Module ===
+2026-03-04 19:03:32,464 [lib.data_envelope] INFO: Saved envelope to /sessions/zen-laughing-curie/mnt/morning-brief/data/processed/scorecard.json
+2026-03-04 19:03:32,464 [__main__] INFO: Scorecard: 30 verdicts evaluated, 63% win rate
+2026-03-04 19:03:33,314 [__main__] INFO: === Morning Brief Module ===
+2026-03-04 19:03:33,337 [__main__] INFO: Morning brief written to /sessions/zen-laughing-curie/mnt/morning-brief/data/outputs/morning_brief_2026-03-04.md
