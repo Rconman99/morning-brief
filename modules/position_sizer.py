@@ -89,14 +89,76 @@ def check_correlation_overlap(ticker: str, portfolio_data: dict, threshold: floa
     return False
 
 
+def _calculate_entry_levels(current_price: float, high_volume_nodes: list) -> dict:
+    """Calculate 3-tier entry levels using volume profile support or % fallbacks.
+
+    - Aggressive: current price (enter now)
+    - Moderate: nearest HVN below price, or 3% pullback
+    - Conservative: next HVN below moderate, or 6% pullback
+    """
+    fallback_moderate = round(current_price * 0.97, 2)
+    fallback_conservative = round(current_price * 0.94, 2)
+
+    # Filter HVNs below current price, sorted descending (closest first)
+    support_nodes = sorted(
+        [n for n in high_volume_nodes if n < current_price],
+        reverse=True,
+    )
+
+    aggressive = {
+        "price": round(current_price, 2),
+        "note": "Current price",
+    }
+
+    if len(support_nodes) >= 1:
+        mod_price = round(support_nodes[0], 2)
+        moderate = {"price": mod_price, "note": f"Volume support at ${mod_price}"}
+    else:
+        moderate = {"price": fallback_moderate, "note": "3% pullback"}
+
+    if len(support_nodes) >= 2:
+        cons_price = round(support_nodes[1], 2)
+        conservative = {"price": cons_price, "note": f"Deep support at ${cons_price}"}
+    else:
+        conservative = {"price": fallback_conservative, "note": "6% pullback"}
+
+    return {
+        "aggressive": aggressive,
+        "moderate": moderate,
+        "conservative": conservative,
+    }
+
+
+def _calculate_exit_targets(current_price: float, atr: float) -> dict:
+    """Calculate 3-tier exit targets using ATR-based Fibonacci extension equivalents.
+
+    - Target 1: +2.0x ATR (~127.2% Fib)
+    - Target 2: +3.5x ATR (~161.8% Fib)
+    - Target 3: +6.0x ATR (~261.8% Fib)
+    """
+    targets = {}
+    for label, multiplier in [("target_1", 2.0), ("target_2", 3.5), ("target_3", 6.0)]:
+        target_price = round(current_price + (atr * multiplier), 2)
+        pct_gain = round(((target_price - current_price) / current_price) * 100, 1)
+        targets[label] = {
+            "price": target_price,
+            "note": f"{multiplier}x ATR (+{pct_gain}%)",
+        }
+    return targets
+
+
 def size_position(ticker: str, current_price: float, atr: float,
                   portfolio_value: float, settings: dict,
-                  is_correlated: bool = False) -> dict:
-    """Calculate position size for a single ticker.
+                  is_correlated: bool = False,
+                  volume_profile: dict = None) -> dict:
+    """Calculate position size for a single ticker with 3-tier entry/exit levels.
 
     Uses fixed risk model: risk X% of portfolio per trade.
     Stop loss = entry - (ATR * multiplier)
     Shares = (portfolio * risk%) / (entry - stop)
+
+    Entry levels use volume profile HVNs when available, otherwise % pullbacks.
+    Exit targets use ATR-based Fibonacci extension equivalents.
     """
     risk_pct = settings.get("risk_per_trade_pct", 0.02)
     max_position_pct = settings.get("max_position_pct", 0.15)
@@ -110,6 +172,8 @@ def size_position(ticker: str, current_price: float, atr: float,
             "stop_loss": None,
             "risk_per_share": None,
             "portfolio_pct": 0,
+            "entry_levels": {},
+            "exit_targets": {},
             "note": "Insufficient price/ATR data",
         }
 
@@ -124,6 +188,8 @@ def size_position(ticker: str, current_price: float, atr: float,
             "stop_loss": stop_loss,
             "risk_per_share": 0,
             "portfolio_pct": 0,
+            "entry_levels": {},
+            "exit_targets": {},
             "note": "ATR stop is at or above current price — skip",
         }
 
@@ -150,6 +216,13 @@ def size_position(ticker: str, current_price: float, atr: float,
     if shares == max_shares:
         note_parts.append(f"capped at {max_position_pct:.0%} max position")
 
+    # 3-tier entry/exit calculations
+    hvn_list = []
+    if volume_profile and isinstance(volume_profile, dict):
+        hvn_list = volume_profile.get("high_volume_nodes", [])
+    entry_levels = _calculate_entry_levels(current_price, hvn_list)
+    exit_targets = _calculate_exit_targets(current_price, atr)
+
     return {
         "ticker": ticker,
         "recommended_shares": shares,
@@ -157,6 +230,8 @@ def size_position(ticker: str, current_price: float, atr: float,
         "stop_loss": stop_loss,
         "risk_per_share": round(risk_per_share, 2),
         "portfolio_pct": pct,
+        "entry_levels": entry_levels,
+        "exit_targets": exit_targets,
         "note": " | ".join(note_parts),
     }
 
@@ -169,6 +244,15 @@ def analyze_position_sizes() -> dict:
 
     portfolio_env = load_envelope("portfolio.json")
     portfolio_data = portfolio_env.get("data", {})
+
+    # Load technical signals for volume profile data (entry level support)
+    tech_env = load_envelope("technical_signals.json")
+    tech_data = tech_env.get("data", {})
+    volume_profile_by_ticker = {}
+    for result in tech_data.get("results", []):
+        t = result.get("ticker")
+        if t and result.get("volume_profile"):
+            volume_profile_by_ticker[t] = result["volume_profile"]
 
     portfolio_value = calculate_portfolio_value(portfolio_data, cash)
 
@@ -194,11 +278,13 @@ def analyze_position_sizes() -> dict:
             settings.get("risk_correlation_alert", 0.80),
         )
 
-        sizing = size_position(ticker, price, atr, portfolio_value, settings, is_correlated)
+        vol_profile = volume_profile_by_ticker.get(ticker)
+        sizing = size_position(ticker, price, atr, portfolio_value, settings,
+                               is_correlated, volume_profile=vol_profile)
         results.append(sizing)
 
         if sizing["recommended_shares"] > 0:
-            logger.info("%s: %d shares ($%,.0f) @ $%.2f with $%.2f stop — %s",
+            logger.info("%s: %d shares ($%.0f) @ $%.2f with $%.2f stop — %s",
                         ticker, sizing["recommended_shares"], sizing["recommended_value"],
                         price, sizing["stop_loss"], sizing["note"])
 
@@ -220,7 +306,7 @@ def main():
 
     envelope = create_envelope("position_sizer", data, status=status, error=error)
     save_envelope(envelope, "position_sizer.json")
-    logger.info("Position sizing complete: %d tickers, portfolio $%,.0f",
+    logger.info("Position sizing complete: %d tickers, portfolio $%.0f",
                 len(data["positions"]), data["portfolio_value"])
 
 

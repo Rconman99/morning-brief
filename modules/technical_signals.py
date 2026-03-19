@@ -246,6 +246,164 @@ def calculate_sma(close: pd.Series, window: int) -> float | None:
         return None
 
 
+def calculate_adx(high: pd.Series, low: pd.Series, close: pd.Series, length: int = 14) -> tuple[float | None, str]:
+    """Calculate Average Directional Index for trend strength.
+
+    Returns (adx_value, strength_label).
+    strength_label: 'strong_trend' if >25, 'weak_trend' if <20, 'moderate' otherwise.
+    """
+    if len(close) < length * 2:
+        return None, "unknown"
+
+    try:
+        # True Range
+        prev_close = close.shift(1)
+        tr1 = high - low
+        tr2 = (high - prev_close).abs()
+        tr3 = (low - prev_close).abs()
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+        # Directional Movement
+        up_move = high - high.shift(1)
+        down_move = low.shift(1) - low
+        plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
+        minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
+
+        # Smooth with EWM (Wilder's smoothing: alpha = 1/length)
+        atr = tr.ewm(alpha=1/length, min_periods=length).mean()
+        plus_di = 100 * (plus_dm.ewm(alpha=1/length, min_periods=length).mean() / atr)
+        minus_di = 100 * (minus_dm.ewm(alpha=1/length, min_periods=length).mean() / atr)
+
+        # ADX = smoothed DX
+        dx = (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan) * 100
+        adx = dx.ewm(alpha=1/length, min_periods=length).mean()
+
+        adx_value = round(float(adx.iloc[-1]), 2)
+
+        if adx_value > 25:
+            strength = "strong_trend"
+        elif adx_value < 20:
+            strength = "weak_trend"
+        else:
+            strength = "moderate"
+
+        return adx_value, strength
+    except Exception as e:
+        logger.debug("ADX calculation error: %s", e)
+        return None, "unknown"
+
+
+def calculate_stochastic(high: pd.Series, low: pd.Series, close: pd.Series,
+                         k_period: int = 14, d_period: int = 3) -> tuple[float | None, float | None, str]:
+    """Calculate Stochastic Oscillator.
+
+    Returns (%K, %D, signal).
+    signal: 'oversold' if K<20, 'overbought' if K>80, else 'neutral'.
+    """
+    if len(close) < k_period:
+        return None, None, "neutral"
+
+    try:
+        lowest_low = low.rolling(window=k_period).min()
+        highest_high = high.rolling(window=k_period).max()
+
+        denom = (highest_high - lowest_low).replace(0, np.nan)
+        k_pct = ((close - lowest_low) / denom) * 100
+        d_pct = k_pct.rolling(window=d_period).mean()
+
+        k_val = round(float(k_pct.iloc[-1]), 2)
+        d_val = round(float(d_pct.iloc[-1]), 2) if not np.isnan(d_pct.iloc[-1]) else None
+
+        if k_val < 20:
+            signal = "oversold"
+        elif k_val > 80:
+            signal = "overbought"
+        else:
+            signal = "neutral"
+
+        return k_val, d_val, signal
+    except Exception as e:
+        logger.debug("Stochastic calculation error: %s", e)
+        return None, None, "neutral"
+
+
+def calculate_fibonacci_levels(high: pd.Series, low: pd.Series, close: pd.Series) -> dict | None:
+    """Calculate Fibonacci retracement from 100-bar swing high/low.
+
+    Returns dict with swing_high, swing_low, retracement levels, and extensions.
+    Uses last 100 bars of data.
+    """
+    if len(close) < 100:
+        return None
+
+    try:
+        # Use last 100 bars
+        h = high.iloc[-100:]
+        l = low.iloc[-100:]
+
+        swing_high = float(h.max())
+        swing_low = float(l.min())
+        diff = swing_high - swing_low
+
+        if diff <= 0:
+            return None
+
+        # Retracement levels (measured from swing high downward)
+        levels = {
+            "0.236": round(swing_high - 0.236 * diff, 2),
+            "0.382": round(swing_high - 0.382 * diff, 2),
+            "0.5": round(swing_high - 0.5 * diff, 2),
+            "0.618": round(swing_high - 0.618 * diff, 2),
+        }
+
+        # Extension levels (above swing high)
+        extensions = {
+            "1.272": round(swing_low + 1.272 * diff, 2),
+            "1.618": round(swing_low + 1.618 * diff, 2),
+            "2.618": round(swing_low + 2.618 * diff, 2),
+        }
+
+        return {
+            "swing_high": swing_high,
+            "swing_low": swing_low,
+            "levels": levels,
+            "extensions": extensions,
+        }
+    except Exception as e:
+        logger.debug("Fibonacci calculation error: %s", e)
+        return None
+
+
+def get_tradingview_consensus(ticker: str) -> dict | None:
+    """Get TradingView technical analysis consensus if tradingview_ta is available.
+
+    Returns {"recommendation": "BUY", "buy": 15, "sell": 3, "neutral": 8} or None.
+    Fails gracefully if tradingview_ta is not installed.
+    """
+    try:
+        from tradingview_ta import TA_Handler, Interval
+        handler = TA_Handler(
+            symbol=ticker,
+            screener="america",
+            exchange="NASDAQ",
+            interval=Interval.INTERVAL_1_DAY,
+        )
+        analysis = handler.get_analysis()
+        summary = analysis.summary
+        return {
+            "recommendation": summary.get("RECOMMENDATION", "NEUTRAL"),
+            "buy": summary.get("BUY", 0),
+            "sell": summary.get("SELL", 0),
+            "neutral": summary.get("NEUTRAL", 0),
+        }
+    except ImportError:
+        logger.debug("tradingview_ta not installed, skipping TradingView consensus")
+        return None
+    except Exception as e:
+        logger.debug("TradingView consensus error for %s: %s", ticker, e)
+        return None
+
+
 def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
     """Compute technical indicators for a single ticker.
 
@@ -381,7 +539,33 @@ def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
         # Volume Profile
         vol_profile = calculate_volume_profile(history)
 
-        # Composite: sum clamped to [-5, +5] (includes VWAP score)
+        # ADX — trend strength
+        adx_value, adx_strength = calculate_adx(high, low, close)
+        adx_score = 0.0
+        if adx_value is not None and adx_strength == "strong_trend":
+            # Determine trend direction from price vs SMA or recent price change
+            if price_change > 0 or (sma_50 and current_price > sma_50):
+                adx_score = 0.5
+            elif price_change < 0 or (sma_50 and current_price < sma_50):
+                adx_score = -0.5
+        indicators.append({"name": "ADX", "value": adx_value, "signal": adx_strength, "score": adx_score})
+
+        # Stochastic Oscillator
+        stoch_k, stoch_d, stoch_signal = calculate_stochastic(high, low, close)
+        stoch_score = 0.0
+        if stoch_signal == "oversold":
+            stoch_score = 0.5
+        elif stoch_signal == "overbought":
+            stoch_score = -0.5
+        indicators.append({"name": "Stochastic", "value": stoch_k, "signal": stoch_signal, "score": stoch_score})
+
+        # Fibonacci Retracement Levels
+        fib_levels = calculate_fibonacci_levels(high, low, close)
+
+        # TradingView Consensus (optional, fails gracefully)
+        tv_consensus = get_tradingview_consensus(ticker)
+
+        # Composite: sum clamped to [-5, +5] (includes VWAP, ADX, Stochastic scores)
         raw_composite = sum(ind["score"] for ind in indicators)
         composite_score = round(max(-5.0, min(5.0, raw_composite)), 2)
 
@@ -397,6 +581,13 @@ def analyze_ticker(ticker: str, history: pd.DataFrame) -> dict | None:
             "vwap": vwap,
             "vwap_signal": vwap_signal,
             "volume_profile": vol_profile,
+            "adx": adx_value,
+            "adx_strength": adx_strength,
+            "stochastic_k": stoch_k,
+            "stochastic_d": stoch_d,
+            "stochastic_signal": stoch_signal,
+            "fibonacci": fib_levels,
+            "tradingview": tv_consensus,
             "indicators": indicators,
         }
     except Exception as e:
