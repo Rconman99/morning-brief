@@ -13,7 +13,7 @@
 - ✅ **Risk**: success
 - ⚠️ **Scorecard**: partial
 - ✅ **Memory**: success
-- ⬜ **Insider**: missing
+- ⚠️ **Insider**: partial
 - ✅ **Sizer**: success
 - ⚠️ **Congress**: partial
 - ⚠️ **Polymarket**: partial
@@ -116,7 +116,7 @@ Favorable conditions — lean into high-conviction setups
 *No matching patterns found in trade history*
 
 ## Insider Activity (SEC Form 4)
-*Data unavailable*
+*No recent insider activity detected*
 
 ## Congressional Trading (STOCK Act)
 *Signal: CLUSTER_DETECTED — 1 cluster signal(s) detected, 1 in your watchlist*

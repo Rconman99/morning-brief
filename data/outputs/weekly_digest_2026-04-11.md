@@ -1,5 +1,5 @@
 # Weekly Digest — Week of 2026-04-05 to 2026-04-11
-*Generated 2026-04-11 20:56:53*
+*Generated 2026-04-11 21:11:11*
 ## Week Summary
 - **Briefs generated**: 1
 - **Date range**: 2026-04-05 to 2026-04-11
