@@ -357,6 +357,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     sector_rot = load_envelope("sector_rotation.json")
     unusual_opts = load_envelope("unusual_options.json")
     social_sent = load_envelope("social_sentiment.json")
+    last30days = load_envelope("last30days_research.json")
+    social_intel = load_envelope("social_intelligence.json")
     dividends = load_envelope("dividend_tracker.json")
     corr_heatmap = load_envelope("correlation_heatmap.json")
     backtester = load_envelope("backtester.json")
@@ -374,7 +376,8 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                "EconCalendar": econ_calendar, "Macro": macro, "SectorRotation": sector_rot,
                "UnusualOpts": unusual_opts, "SocialSent": social_sent,
                "Dividends": dividends, "CorrHeatmap": corr_heatmap,
-               "Backtester": backtester, "Alerts": alerts}
+               "Backtester": backtester, "Alerts": alerts,
+               "Last30Days": last30days, "SocialIntel": social_intel}
 
     lines = [
         f"# Morning Brief — {date_str}",
@@ -890,11 +893,183 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             lines.append(f"*Categories: {cat_line}*")
             lines.append("")
 
+        # Gimme Bets (High Confidence Plays)
+        gimmes = pm.get("gimme_bets", [])
+        if gimmes:
+            lines.append("### High Confidence Plays (Gimme Bets)")
+            for g in gimmes[:8]:
+                risk_str = f" | Risks: {', '.join(g['risks'])}" if g.get("risks") else ""
+                ann_str = f" | Ann. yield: {g['annualized_yield_pct']:.0f}%" if g.get("annualized_yield_pct") else ""
+                days_str = f" | {g['days_to_expiry']}d to expiry" if g.get("days_to_expiry") is not None else ""
+                lines.append(f"- **{g['question'][:75]}**")
+                lines.append(f"  - {g['side']} @ {g['price']:.0%} | Return: {g['raw_return_pct']:.1f}%{days_str}{ann_str}{risk_str}")
+            lines.append("")
+
+        # Sports Events
+        sports = pm.get("sports_events", [])
+        if sports:
+            lines.append("### Sports Events")
+            for evt in sports[:5]:
+                tag = " 🔴 TODAY" if evt["has_today"] else " 📅 This Week" if evt["has_this_week"] else ""
+                lines.append(f"**{evt['event']}** ({evt['market_count']} markets, ${evt['total_volume']:,.0f} vol){tag}")
+                for sm in evt["top_markets"][:3]:
+                    day_flag = " 🔴" if sm.get("is_today") else ""
+                    lines.append(f"  - {sm['question'][:70]} — YES {sm['yes_price']:.0%}{day_flag}")
+                lines.append("")
+
+        # Economics Signals
+        econ_sigs = pm.get("economics_signals", [])
+        if econ_sigs:
+            lines.append("### Economics Signals (Macro Cross-Reference)")
+            for es in econ_sigs:
+                direction = es.get("edge_direction", "")
+                dir_icon = {"hawkish": "🦅", "dovish": "🕊️", "higher_inflation": "🔥", "lower_inflation": "❄️"}.get(direction, "📊")
+                lines.append(f"- {dir_icon} **{es['question'][:70]}** — YES {es['yes_price']:.0%}")
+                for sig in es.get("macro_signals", []):
+                    lines.append(f"  - {sig}")
+            lines.append("")
+
+        # Trending Markets
+        trending = pm.get("trending", [])
+        if trending:
+            lines.append("### Trending Markets")
+            for t in trending[:8]:
+                icon = "🔥" if t.get("has_momentum") else "📈" if t["direction"] == "up" else "📉"
+                mom_label = " MOMENTUM" if t.get("has_momentum") else ""
+                lines.append(f"- {icon} **{t['question'][:70]}** — Week: {t['week_change_pct']:+.1f}% | Day: {t['day_change_pct']:+.1f}%{mom_label}")
+            lines.append("")
+
+        # Crypto Intelligence
+        ci = pm.get("crypto_intelligence", {})
+        if ci:
+            lines.append("### Crypto Intelligence")
+            fng = ci.get("fear_greed", {})
+            if fng:
+                val = fng.get("value", 0)
+                label = fng.get("label", "")
+                trend = fng.get("trend", "")
+                hist = fng.get("history", [])
+                spark = " → ".join(str(h["value"]) for h in reversed(hist[:5])) if hist else ""
+                lines.append(f"- **Fear & Greed**: {val} ({label}) — {trend} | 7d: {spark}")
+
+            funding = ci.get("funding_rate", {})
+            if funding:
+                signal = funding.get("signal", "neutral").replace("_", " ")
+                lines.append(f"- **Funding Rate**: {funding.get('current', 0):.4f}% (annualized {funding.get('annualized_pct', 0):+.1f}%) — {signal}")
+
+            btc = ci.get("btc_price", {})
+            if btc:
+                lines.append(f"- **BTC**: ${btc.get('current', 0):,.0f} | 24h: {btc.get('change_24h_pct', 0):+.2f}% | 7d: {btc.get('change_7d_pct', 0):+.1f}% | 30d: {btc.get('change_30d_pct', 0):+.1f}% | ATH: ${btc.get('ath', 0):,.0f} ({btc.get('ath_drop_pct', 0):+.1f}%)")
+            lines.append("")
+
+        # Contradiction Alerts
+        contradictions = pm.get("contradiction_alerts", [])
+        if contradictions:
+            lines.append("### ⚠️ Position Contradiction Alerts")
+            for c in contradictions:
+                icon = {"critical": "🚨", "warning": "⚠️", "info": "ℹ️"}.get(c["severity"], "ℹ️")
+                lines.append(f"- {icon} **{c['severity'].upper()}**: {c['detail']}")
+            lines.append("")
+
+        # Portfolio Tracking
+        port = pm.get("portfolio", {})
+        if port and port.get("total_positions", 0) > 0:
+            pseudo = port.get("pseudonym", "")
+            name_str = f" ({pseudo})" if pseudo else ""
+            lines.append(f"### Your Polymarket Portfolio{name_str}")
+            lines.append(f"- **Active Positions**: {port.get('active_positions', 0)} | **Closed**: {port.get('closed_positions', 0)}")
+            lines.append(f"- **Invested**: ${port.get('total_invested', 0):,.2f} | **Current Value**: ${port.get('total_current_value', 0):,.2f}")
+            pnl = port.get("total_cash_pnl", 0)
+            pnl_icon = "🟢" if pnl >= 0 else "🔴"
+            lines.append(f"- {pnl_icon} **P&L**: ${pnl:,.2f} ({port.get('overall_pnl_pct', 0):+.1f}%)")
+            lines.append(f"- **Win Rate**: {port.get('win_rate', 0):.1f}% ({port.get('wins', 0)}W / {port.get('losses', 0)}L)")
+            lines.append("")
+
+            # Expiring soon
+            expiring = port.get("expiring_soon", [])
+            if expiring:
+                lines.append("**⏰ Expiring Soon**")
+                for e in expiring[:5]:
+                    day_label = "TODAY" if e["days_left"] == 0 else f"{e['days_left']}d"
+                    pnl_e = e.get("pnl", 0)
+                    icon_e = "🟢" if pnl_e >= 0 else "🔴"
+                    lines.append(f"- [{day_label}] {icon_e} {e['title'][:65]} — {e['outcome']} @ {e['current_price']:.0%} (${pnl_e:+,.0f})")
+                lines.append("")
+
+            # Top active positions
+            tops = port.get("top_positions", [])
+            if tops:
+                lines.append("**Top Positions**")
+                for t in tops[:5]:
+                    pnl_t = t.get("pnl", 0)
+                    icon_t = "🟢" if pnl_t >= 0 else "🔴"
+                    lines.append(f"- {icon_t} **{t['title'][:60]}** — {t['outcome']} @ {t['current_price']:.0%} | ${t['current_value']:,.0f} ({t['pnl_pct']:+.1f}%)")
+                lines.append("")
+
+            # Today's trades
+            today = port.get("today_trades", [])
+            if today:
+                lines.append("**Today's Trades**")
+                for tr in today[:8]:
+                    lines.append(f"- {tr['side']} {tr['outcome']} — {tr['title'][:55]} | {tr['size']} shares @ {tr['price']:.0%} (${tr['usdc']:,.0f})")
+                lines.append("")
+
+            # Category exposure
+            exposure = port.get("category_exposure", {})
+            if exposure:
+                exp_parts = [f"{cat}: ${val:,.0f}" for cat, val in list(exposure.items())[:5]]
+                lines.append(f"*Exposure: {' | '.join(exp_parts)}*")
+                lines.append("")
+
         source = pm.get("data_source", "unknown")
         lines.append(f"*Source: {source} | Prediction markets are not financial advice — 80% of participants lose money*")
         lines.append("")
     else:
         lines.append("*Data unavailable*")
+        lines.append("")
+
+    # Social Intelligence (last30days v3)
+    if social_intel["status"] in ("success", "partial"):
+        si = social_intel["data"]
+        mood = si.get("overall_mood", "neutral")
+        mood_icon = {"bullish": "🟢", "bearish": "🔴", "mixed": "🟡"}.get(mood, "⚪")
+        lines.append("## Social Intelligence (Reddit / X / YouTube / HN)")
+        lines.append(f"*{mood_icon} Overall social mood: **{mood.upper()}** ({si.get('total_bull_signals', 0)} bull / {si.get('total_bear_signals', 0)} bear signals across {si.get('topics_researched', 0)} topics)*")
+        lines.append("")
+
+        for topic_data in si.get("topics", []):
+            if topic_data.get("status") != "success":
+                continue
+            topic = topic_data["topic"]
+            sent = topic_data.get("sentiment", "neutral")
+            sent_icon = {"bullish": "🟢", "bearish": "🔴", "mixed": "🟡"}.get(sent, "⚪")
+            lines.append(f"### {sent_icon} {topic}")
+            srcs = topic_data.get("source_counts", {})
+            src_str = " | ".join(f"{k}: {v}" for k, v in sorted(srcs.items(), key=lambda x: x[1], reverse=True)[:5])
+            lines.append(f"*{topic_data.get('total_results', 0)} results ({src_str})*")
+            lines.append("")
+
+            # Top items
+            for item in topic_data.get("top_items", [])[:4]:
+                engagement = item.get("upvotes", 0)
+                eng_str = f" ({engagement:,} upvotes)" if engagement else ""
+                lines.append(f"- [{item['source']}] **{item['title'][:70]}**{eng_str}")
+                if item.get("snippet"):
+                    lines.append(f"  > {item['snippet'][:120]}")
+
+            # Reddit takes (the real alpha)
+            takes = topic_data.get("reddit_takes", [])
+            if takes:
+                lines.append("")
+                lines.append("**Top Reddit takes:**")
+                for take in takes[:3]:
+                    score = take.get("score", 0)
+                    sub = take.get("subreddit", "")
+                    sub_str = f" (r/{sub})" if sub else ""
+                    lines.append(f"- \"{take['text'][:120]}\" — {score:,} upvotes{sub_str}")
+            lines.append("")
+
+        lines.append(f"*Powered by last30days v{si.get('last30days_version', '3.0.0')} — social relevancy, not SEO relevancy*")
         lines.append("")
 
     # Alerts
@@ -953,6 +1128,47 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
             lines.append("*No trending tickers*")
     else:
         lines.append("*Data unavailable*")
+    lines.append("")
+
+    # Last30Days Community Research
+    if last30days["status"] in ("success", "partial"):
+        l30_data = last30days["data"]
+        highlights = l30_data.get("highlights", [])
+        if highlights:
+            lines.append("## Community Intelligence (Last 30 Days)")
+            lines.append(f"*Sources: Reddit, X, HN, Polymarket | Topics researched: {l30_data.get('research_count', 0)}*")
+            lines.append("")
+            for h in highlights:
+                topic = h.get("topic", "")
+                hl = h.get("highlights", {})
+                lines.append(f"### {topic}")
+
+                # Polymarket odds
+                for pm in hl.get("polymarket_odds", [])[:3]:
+                    lines.append(f"- 🎲 **Polymarket**: {pm['title']} — {pm['odds']}")
+
+                # High-engagement sentiment signals
+                for sig in hl.get("sentiment_signals", [])[:5]:
+                    lines.append(f"- 📊 **{sig['source']}** ({sig['engagement']} engagement): {sig['title']}")
+
+                # Top stories
+                for story in hl.get("top_stories", [])[:3]:
+                    lines.append(f"- 📰 **{story['source']}**: {story['title']}")
+
+                # Best takes
+                for take in hl.get("best_takes", [])[:2]:
+                    lines.append(f"- 💬 *\"{take}\"*")
+
+                lines.append("")
+
+        # Include context markdown if available (compact summary)
+        context_md = l30_data.get("context_markdown", "")
+        if context_md and len(context_md) > 50:
+            lines.append("### Research Context")
+            # Truncate to keep brief readable
+            for line in context_md.split("\n")[:20]:
+                lines.append(line)
+            lines.append("")
     lines.append("")
 
     # Dividend Tracker

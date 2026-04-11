@@ -1271,6 +1271,65 @@ def generate_html(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 parts.append(f'<span style="background:var(--blue-bg);color:var(--blue);padding:2px 8px;border-radius:4px;font-size:0.75rem">{_esc(cat)}: {count}{badge}</span>')
             parts.append('</div>')
 
+        # Gimme Bets (High Confidence Plays)
+        pm_gimmes = pm_data.get("gimme_bets", [])
+        if pm_gimmes:
+            parts.append(f'<h4 style="color:var(--green);margin:16px 0 6px">{ll("High Confidence Plays")} ({len(pm_gimmes)})</h4>')
+            parts.append('<div class="table-wrap"><table>')
+            parts.append('<thead><tr><th>Market</th><th>Side</th><th>Price</th><th>Return</th><th>Days</th><th>Ann. Yield</th><th>Risks</th></tr></thead><tbody>')
+            for g in pm_gimmes[:8]:
+                risk_badges = ""
+                for r in g.get("risks", []):
+                    r_color = "var(--red)" if r in ("likely_settled", "imminent_resolution") else "var(--yellow)"
+                    risk_badges += f'<span style="background:rgba(209,153,34,0.15);color:{r_color};padding:1px 5px;border-radius:3px;font-size:0.7rem;margin-left:2px">{_esc(r)}</span>'
+                side_c = "var(--green)" if g["side"] == "YES" else "var(--red)"
+                ann = f'{g["annualized_yield_pct"]:.0f}%' if g.get("annualized_yield_pct") else "—"
+                days = str(g["days_to_expiry"]) if g.get("days_to_expiry") is not None else "—"
+                parts.append(f'<tr><td style="font-size:0.85rem">{_esc(g["question"][:60])}</td>'
+                             f'<td style="color:{side_c};font-weight:700">{g["side"]}</td>'
+                             f'<td>{g["price"]:.0%}</td>'
+                             f'<td style="color:var(--green)">{g["raw_return_pct"]:.1f}%</td>'
+                             f'<td>{days}</td>'
+                             f'<td style="font-weight:600">{ann}</td>'
+                             f'<td>{risk_badges if risk_badges else "—"}</td></tr>')
+            parts.append('</tbody></table></div>')
+
+        # Sports Events
+        pm_sports = pm_data.get("sports_events", [])
+        if pm_sports:
+            parts.append(f'<h4 style="color:var(--blue);margin:16px 0 6px">{ll("Sports Events")}</h4>')
+            for evt in pm_sports[:5]:
+                tag = ' <span style="color:var(--red);font-weight:700">TODAY</span>' if evt["has_today"] else ' <span style="color:var(--yellow)">This Week</span>' if evt["has_this_week"] else ""
+                parts.append(f'<div style="margin:8px 0 4px;font-weight:600;color:var(--text-primary)">{_esc(evt["event"])} ({evt["market_count"]} mkts, ${evt["total_volume"]:,.0f} vol){tag}</div>')
+                for sm in evt["top_markets"][:3]:
+                    day_flag = ' <span style="color:var(--red);font-size:0.75rem">LIVE</span>' if sm.get("is_today") else ""
+                    parts.append(f'<div style="font-size:0.85rem;padding:2px 0 2px 12px;color:var(--text-secondary)">{_esc(sm["question"][:65])} — YES <span style="color:var(--green)">{sm["yes_price"]:.0%}</span>{day_flag}</div>')
+
+        # Economics Signals
+        pm_econ = pm_data.get("economics_signals", [])
+        if pm_econ:
+            parts.append(f'<h4 style="color:var(--yellow);margin:16px 0 6px">{ll("Economics Signals")}</h4>')
+            for es in pm_econ:
+                direction = es.get("edge_direction", "")
+                dir_icons = {"hawkish": "&#x1F985;", "dovish": "&#x1F54A;", "higher_inflation": "&#x1F525;", "lower_inflation": "&#x2744;"}
+                icon = dir_icons.get(direction, "&#x1F4CA;")
+                dir_label = f' <span style="color:var(--yellow);font-size:0.8rem">({direction})</span>' if direction else ""
+                parts.append(f'<div style="margin:6px 0 2px;font-size:0.9rem">{icon} <strong>{_esc(es["question"][:65])}</strong> — YES {es["yes_price"]:.0%}{dir_label}</div>')
+                for sig in es.get("macro_signals", []):
+                    parts.append(f'<div style="font-size:0.8rem;padding:1px 0 1px 20px;color:var(--text-muted)">&bull; {_esc(sig)}</div>')
+
+        # Trending Markets
+        pm_trending = pm_data.get("trending", [])
+        if pm_trending:
+            parts.append(f'<h4 style="color:var(--yellow);margin:16px 0 6px">{ll("Trending Markets")}</h4>')
+            for t in pm_trending[:8]:
+                wk_c = "var(--green)" if t["week_change_pct"] > 0 else "var(--red)"
+                dy_c = "var(--green)" if t["day_change_pct"] > 0 else "var(--red)"
+                mom_badge = ' <span style="background:rgba(63,185,80,0.2);color:var(--green);padding:1px 5px;border-radius:3px;font-size:0.7rem">MOMENTUM</span>' if t.get("has_momentum") else ""
+                parts.append(f'<div style="font-size:0.85rem;padding:3px 0">{_esc(t["question"][:65])} — '
+                             f'Wk: <span style="color:{wk_c};font-weight:600">{t["week_change_pct"]:+.1f}%</span> | '
+                             f'Day: <span style="color:{dy_c}">{t["day_change_pct"]:+.1f}%</span>{mom_badge}</div>')
+
         # Source + disclaimer
         pm_source = pm_data.get("data_source", "unknown")
         source_label = {"sample_data": "Sample data", "gamma_api": "Polymarket Gamma API", "none": "Unavailable"}.get(pm_source, pm_source)

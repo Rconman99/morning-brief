@@ -58,6 +58,8 @@ MODULES = [
     ("opportunity_scanner", "modules/opportunity_scanner.py"),
     ("unusual_options", "modules/unusual_options.py"),
     ("social_sentiment", "modules/social_sentiment.py"),
+    ("social_intelligence", "modules/social_intelligence.py"),
+    ("last30days_research", "modules/last30days_research.py"),
     ("dividend_tracker", "modules/dividend_tracker.py"),
     ("risk_dashboard", "modules/risk_dashboard.py"),
     ("trade_memory", "modules/trade_memory.py"),

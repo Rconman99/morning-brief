@@ -32,6 +32,7 @@ except ImportError:
     logger.warning("requests not installed — API fetching disabled")
 
 GAMMA_API = "https://gamma-api.polymarket.com"
+DATA_API = "https://data-api.polymarket.com"
 WEATHER_API = "https://api.open-meteo.com/v1/forecast"
 NOAA_API = "https://api.weather.gov"
 
@@ -42,7 +43,9 @@ CATEGORY_PATTERNS = {
     "politics": [r"president", r"congress", r"senate", r"election", r"executive order", r"trump", r"biden", r"democrat", r"republican", r"governor", r"nomination"],
     "economics": [r"\bfed\b", r"interest rate", r"inflation", r"gdp", r"recession", r"unemployment", r"cpi\b", r"federal reserve", r"rate cut", r"rate hike", r"bps"],
     "geopolitics": [r"iran", r"china", r"russia", r"ukraine", r"war", r"strait", r"sanctions", r"nato", r"ceasefire", r"invasion", r"regime"],
-    "sports": [r"nba", r"nfl", r"mlb", r"nhl", r"world cup", r"super bowl", r"championship", r"playoffs", r"finals", r"la liga", r"premier league", r"win the"],
+    "sports": [r"nba", r"nfl", r"mlb", r"nhl", r"world cup", r"super bowl", r"championship", r"playoffs", r"finals", r"la liga", r"premier league", r"win the",
+                r"\bvs\.?\b", r"march madness", r"ncaa", r"bracket", r"sweet sixteen", r"elite eight", r"final four",
+                r"\bufc\b", r"fight night", r"\bbout\b", r"score", r"match"],
     "tech": [r"\bai\b", r"agi\b", r"openai", r"google", r"apple", r"microsoft", r"launch", r"ship", r"artificial intelligence", r"gpt"],
     "markets": [r"s&p", r"nasdaq", r"dow jones", r"all-time high", r"stock market", r"spy\b", r"qqq\b"],
     "culture": [r"elon", r"tweet", r"musk", r"celebrity", r"social media", r"tiktok", r"viral"],
@@ -52,7 +55,12 @@ CATEGORY_PATTERNS = {
 MIN_VOLUME_24H = 5000       # $5K daily volume minimum
 MIN_LIQUIDITY = 2000        # $2K liquidity minimum
 MIN_EDGE_PCT = 0.10         # 10% expected value minimum
-BIG_MOVE_THRESHOLD = 0.08   # 8% price change = "big move"
+BIG_MOVE_THRESHOLD = 0.03   # 3% price change = "big move" (real movers are 1-3%)
+
+# Gimme bet thresholds (near-guaranteed plays)
+GIMME_BET_PRICE_THRESHOLD = 0.92  # YES or NO price >= 92%
+GIMME_BET_MIN_VOLUME = 10000      # $10K minimum volume
+GIMME_BET_MAX_DAYS = 30           # Resolves within 30 days
 
 
 def setup_logging():
@@ -358,6 +366,570 @@ def analyze_crypto_market(market: dict) -> dict:
     return result
 
 
+def scan_gimme_bets(markets: list) -> list:
+    """Find near-guaranteed profit plays: extreme prices, decent volume, resolving soon."""
+    now = datetime.now().astimezone()
+    results = []
+    for m in markets:
+        question = m.get("question", "")
+        yes_price, no_price = parse_outcome_prices(m.get("outcomePrices"))
+        if yes_price is None:
+            continue
+
+        try:
+            vol = float(m.get("volume24hr", 0) or 0)
+            liq = float(m.get("liquidity", 0) or 0)
+        except (ValueError, TypeError):
+            continue
+        if vol < GIMME_BET_MIN_VOLUME:
+            continue
+
+        end_str = m.get("endDate", "")
+        days_to_expiry = None
+        if end_str:
+            try:
+                end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                days_to_expiry = (end_dt - now).days
+            except (ValueError, TypeError):
+                pass
+
+        if days_to_expiry is not None and days_to_expiry > GIMME_BET_MAX_DAYS:
+            continue
+        if days_to_expiry is not None and days_to_expiry < 0:
+            continue
+
+        # Check for extreme prices (YES >= 0.92 or NO >= 0.92)
+        for side, price in [("YES", yes_price), ("NO", no_price)]:
+            if price >= GIMME_BET_PRICE_THRESHOLD:
+                profit_per_share = 1.0 - price
+                raw_return_pct = round((profit_per_share / price) * 100, 2)
+                annualized = round(raw_return_pct * (365 / max(days_to_expiry, 1)), 1) if days_to_expiry else None
+
+                # Risk flags
+                risks = []
+                try:
+                    spread = float(m.get("spread", 0) or 0)
+                except (ValueError, TypeError):
+                    spread = 0
+                if spread > 0.04:
+                    risks.append("wide_spread")
+                if liq < 5000:
+                    risks.append("low_liquidity")
+                if days_to_expiry is not None and days_to_expiry <= 2:
+                    risks.append("imminent_resolution")
+                if price >= 0.98:
+                    risks.append("likely_settled")
+
+                results.append({
+                    "question": question,
+                    "slug": m.get("slug", ""),
+                    "side": side,
+                    "price": round(price, 3),
+                    "profit_per_share": round(profit_per_share, 3),
+                    "raw_return_pct": raw_return_pct,
+                    "annualized_yield_pct": annualized,
+                    "volume_24h": vol,
+                    "liquidity": liq,
+                    "days_to_expiry": days_to_expiry,
+                    "risks": risks,
+                    "category": categorize_market(question),
+                })
+
+    # Sort by annualized yield (None last)
+    results.sort(key=lambda x: x.get("annualized_yield_pct") or 0, reverse=True)
+    return results[:15]
+
+
+# Sports event grouping patterns
+SPORTS_EVENTS = {
+    "March Madness": [r"march madness", r"ncaa.*tournament", r"bracket", r"sweet sixteen", r"elite eight", r"final four"],
+    "NBA Playoffs": [r"nba.*playoff", r"nba.*finals", r"nba.*champion"],
+    "NBA": [r"\bnba\b"],
+    "NFL": [r"\bnfl\b", r"super bowl"],
+    "Premier League": [r"premier league", r"\bepl\b"],
+    "La Liga": [r"la liga"],
+    "UFC": [r"\bufc\b", r"fight night", r"\bbout\b"],
+    "MLB": [r"\bmlb\b", r"world series"],
+    "NHL": [r"\bnhl\b", r"stanley cup"],
+    "College Basketball": [r"ncaa", r"college basketball"],
+    "Other Sports": [r"\bvs\.?\b", r"match", r"score", r"championship", r"playoffs", r"finals", r"win the"],
+}
+
+
+def group_sports_events(markets: list) -> list:
+    """Group sports markets by named events, flagging today/this-week markets."""
+    now = datetime.now().astimezone()
+    today = now.date()
+    week_end = today + timedelta(days=7)
+
+    sports_markets = []
+    for m in markets:
+        question = m.get("question", "")
+        if not question:
+            continue
+        cat = m.get("category") or categorize_market(question)
+        if cat != "sports":
+            continue
+
+        yes_price, no_price = parse_outcome_prices(m.get("outcomePrices"))
+        if yes_price is None:
+            continue
+
+        end_str = m.get("endDate", "")
+        end_date = None
+        if end_str:
+            try:
+                end_date = datetime.fromisoformat(end_str.replace("Z", "+00:00")).date()
+            except (ValueError, TypeError):
+                pass
+
+        is_today = end_date == today if end_date else False
+        is_this_week = (today <= end_date <= week_end) if end_date else False
+
+        # Match to event group
+        q_lower = question.lower()
+        event_name = "Other Sports"
+        for evt, patterns in SPORTS_EVENTS.items():
+            if evt == "Other Sports":
+                continue
+            if any(re.search(p, q_lower) for p in patterns):
+                event_name = evt
+                break
+
+        sports_markets.append({
+            "question": question,
+            "slug": m.get("slug", ""),
+            "yes_price": yes_price,
+            "no_price": no_price,
+            "volume_24h": m.get("volume24hr", 0) or 0,
+            "end_date": end_str,
+            "event": event_name,
+            "is_today": is_today,
+            "is_this_week": is_this_week,
+        })
+
+    # Group by event
+    from collections import OrderedDict
+    groups = defaultdict(list)
+    for sm in sports_markets:
+        groups[sm["event"]].append(sm)
+
+    result = []
+    for event_name, items in groups.items():
+        # Sort: today first, then this-week, then by volume
+        items.sort(key=lambda x: (not x["is_today"], not x["is_this_week"], -x["volume_24h"]))
+        has_today = any(i["is_today"] for i in items)
+        has_this_week = any(i["is_this_week"] for i in items)
+        result.append({
+            "event": event_name,
+            "market_count": len(items),
+            "has_today": has_today,
+            "has_this_week": has_this_week,
+            "total_volume": sum(i["volume_24h"] for i in items),
+            "top_markets": items[:10],
+        })
+
+    # Sort: today-events first, then this-week, then by volume
+    result.sort(key=lambda x: (not x["has_today"], not x["has_this_week"], -x["total_volume"]))
+    return result
+
+
+def fetch_crypto_intelligence() -> dict:
+    """Fetch BTC Fear & Greed, funding rates, and price context from free APIs."""
+    if requests is None:
+        return {}
+
+    cache_key = f"crypto_intelligence_{date.today().isoformat()}"
+    cached = get_cached(cache_key, max_age_hours=1)
+    if cached:
+        return cached
+
+    intel = {}
+
+    # Fear & Greed Index (alternative.me — free, no auth)
+    try:
+        resp = requests.get("https://api.alternative.me/fng/?limit=7", timeout=10)
+        resp.raise_for_status()
+        fng_data = resp.json().get("data", [])
+        if fng_data:
+            current = fng_data[0]
+            intel["fear_greed"] = {
+                "value": int(current["value"]),
+                "label": current["value_classification"],
+                "history": [{"value": int(d["value"]), "label": d["value_classification"]} for d in fng_data],
+                "trend": "improving" if len(fng_data) >= 3 and int(fng_data[0]["value"]) > int(fng_data[2]["value"]) else
+                         "worsening" if len(fng_data) >= 3 and int(fng_data[0]["value"]) < int(fng_data[2]["value"]) else "flat",
+            }
+    except Exception as e:
+        logger.debug("Fear & Greed API failed: %s", e)
+
+    # BTC funding rate (OKX — free, no auth, no geo-block)
+    try:
+        resp = requests.get("https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP", timeout=10)
+        resp.raise_for_status()
+        okx = resp.json().get("data", [])
+        if okx:
+            rate = float(okx[0].get("fundingRate", 0))
+            settled = float(okx[0].get("settFundingRate", 0))
+            # Annualize: rate * 3 * 365 (funding every 8h)
+            annualized = rate * 3 * 365 * 100
+            intel["funding_rate"] = {
+                "current": round(rate * 100, 4),  # as percentage
+                "settled": round(settled * 100, 4),
+                "annualized_pct": round(annualized, 1),
+                "signal": "overleveraged_long" if rate > 0.01 else
+                          "overleveraged_short" if rate < -0.01 else
+                          "slightly_long" if rate > 0.005 else
+                          "slightly_short" if rate < -0.005 else "neutral",
+            }
+    except Exception as e:
+        logger.debug("OKX funding rate failed: %s", e)
+
+    # BTC price context (CoinGecko — free, no auth)
+    try:
+        resp = requests.get(
+            "https://api.coingecko.com/api/v3/coins/bitcoin",
+            params={"localization": "false", "tickers": "false", "market_data": "true",
+                    "community_data": "false", "developer_data": "false"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        md = resp.json().get("market_data", {})
+        intel["btc_price"] = {
+            "current": md.get("current_price", {}).get("usd", 0),
+            "high_24h": md.get("high_24h", {}).get("usd", 0),
+            "low_24h": md.get("low_24h", {}).get("usd", 0),
+            "change_24h_pct": round(md.get("price_change_percentage_24h", 0), 2),
+            "change_7d_pct": round(md.get("price_change_percentage_7d", 0), 2),
+            "change_30d_pct": round(md.get("price_change_percentage_30d", 0), 2),
+            "ath": md.get("ath", {}).get("usd", 0),
+            "ath_drop_pct": round(md.get("ath_change_percentage", {}).get("usd", 0), 1),
+        }
+    except Exception as e:
+        logger.debug("CoinGecko BTC price failed: %s", e)
+
+    if intel:
+        set_cached(cache_key, intel)
+    return intel
+
+
+def generate_contradiction_alerts(portfolio: dict, crypto_intel: dict) -> list:
+    """Cross-reference portfolio positions against technical signals, macro data, and crypto intel.
+
+    Flags positions that contradict available signals — e.g., holding bullish BTC bets
+    while Fear & Greed is at Extreme Fear and funding is negative.
+    """
+    alerts = []
+    if not portfolio or not portfolio.get("top_positions"):
+        return alerts
+
+    # Load existing module outputs for cross-referencing
+    tech = load_envelope("technical_signals.json")
+    macro = load_envelope("macro_dashboard.json")
+    news = load_envelope("news_sentiment.json")
+
+    # Determine overall BTC bias from signals
+    btc_signals = {"bullish": 0, "bearish": 0, "reasons": []}
+
+    # Fear & Greed signal
+    fng = crypto_intel.get("fear_greed", {})
+    fng_val = fng.get("value", 50)
+    if fng_val <= 20:
+        # Extreme fear historically = contrarian buy signal
+        btc_signals["bullish"] += 2
+        btc_signals["reasons"].append(f"Fear & Greed at {fng_val} (Extreme Fear) — contrarian bullish")
+    elif fng_val <= 35:
+        btc_signals["bullish"] += 1
+        btc_signals["reasons"].append(f"Fear & Greed at {fng_val} (Fear) — leaning contrarian bullish")
+    elif fng_val >= 80:
+        btc_signals["bearish"] += 2
+        btc_signals["reasons"].append(f"Fear & Greed at {fng_val} (Extreme Greed) — contrarian bearish")
+    elif fng_val >= 65:
+        btc_signals["bearish"] += 1
+        btc_signals["reasons"].append(f"Fear & Greed at {fng_val} (Greed) — leaning contrarian bearish")
+
+    # Funding rate signal
+    funding = crypto_intel.get("funding_rate", {})
+    fund_signal = funding.get("signal", "neutral")
+    if fund_signal == "overleveraged_long":
+        btc_signals["bearish"] += 2
+        btc_signals["reasons"].append(f"Funding rate {funding.get('current', 0):.4f}% — overleveraged longs, correction risk")
+    elif fund_signal == "overleveraged_short":
+        btc_signals["bullish"] += 2
+        btc_signals["reasons"].append(f"Funding rate {funding.get('current', 0):.4f}% — overleveraged shorts, squeeze potential")
+    elif fund_signal == "slightly_long":
+        btc_signals["bearish"] += 1
+        btc_signals["reasons"].append(f"Funding rate slightly positive — mild long bias")
+    elif fund_signal == "slightly_short":
+        btc_signals["bullish"] += 1
+        btc_signals["reasons"].append(f"Funding rate slightly negative — mild short bias")
+
+    # BTC price momentum
+    btc_price = crypto_intel.get("btc_price", {})
+    change_7d = btc_price.get("change_7d_pct", 0)
+    if change_7d > 5:
+        btc_signals["bullish"] += 1
+        btc_signals["reasons"].append(f"BTC +{change_7d:.1f}% in 7d — positive momentum")
+    elif change_7d < -5:
+        btc_signals["bearish"] += 1
+        btc_signals["reasons"].append(f"BTC {change_7d:.1f}% in 7d — negative momentum")
+
+    # Macro signals (VIX, DXY, Gold)
+    if macro.get("status") in ("success", "partial"):
+        indicators = macro.get("data", {}).get("indicators", {})
+        vix = indicators.get("VIX", {})
+        if (vix.get("value") or 0) > 25:
+            btc_signals["bearish"] += 1
+            btc_signals["reasons"].append(f"VIX at {vix['value']:.0f} — risk-off environment")
+        dxy = indicators.get("DXY", {})
+        if (dxy.get("change_5d") or 0) > 1:
+            btc_signals["bearish"] += 1
+            btc_signals["reasons"].append(f"Dollar strengthening (DXY +{dxy['change_5d']:.1f}% 5d) — headwind for BTC")
+        elif (dxy.get("change_5d") or 0) < -1:
+            btc_signals["bullish"] += 1
+            btc_signals["reasons"].append(f"Dollar weakening (DXY {dxy['change_5d']:.1f}% 5d) — tailwind for BTC")
+        gold = indicators.get("GOLD", {})
+        if (gold.get("change_5d") or 0) > 3:
+            btc_signals["bullish"] += 1
+            btc_signals["reasons"].append(f"Gold surging (+{gold['change_5d']:.1f}% 5d) — risk hedge demand up")
+
+    # Determine overall signal bias
+    bull = btc_signals["bullish"]
+    bear = btc_signals["bearish"]
+    if bull >= bear + 2:
+        overall_bias = "bullish"
+    elif bear >= bull + 2:
+        overall_bias = "bearish"
+    elif bull > bear:
+        overall_bias = "slightly_bullish"
+    elif bear > bull:
+        overall_bias = "slightly_bearish"
+    else:
+        overall_bias = "neutral"
+
+    btc_signals["overall_bias"] = overall_bias
+    btc_signals["bull_score"] = bull
+    btc_signals["bear_score"] = bear
+
+    # Now check each active position for contradictions
+    btc_current = btc_price.get("current", 0)
+
+    for pos in portfolio.get("top_positions", []):
+        title = pos.get("title", "").lower()
+        outcome = pos.get("outcome", "")
+        pnl = pos.get("pnl", 0)
+        current_value = pos.get("current_value", 0)
+
+        # Determine position's directional bet
+        position_direction = None
+        if any(kw in title for kw in ["dip to", "reach", "hit"]):
+            # "Will BTC dip to $65K" — YES = bearish, NO = bullish
+            if "dip" in title:
+                position_direction = "bearish" if outcome == "Yes" else "bullish"
+            else:
+                position_direction = "bullish" if outcome == "Yes" else "bearish"
+        elif "above" in title:
+            position_direction = "bullish" if outcome == "Yes" else "bearish"
+        elif "below" in title:
+            position_direction = "bearish" if outcome == "Yes" else "bullish"
+        elif "between" in title:
+            position_direction = "range"  # neutral/range bet
+        elif "up or down" in title:
+            if outcome.lower() == "up":
+                position_direction = "bullish"
+            elif outcome.lower() == "down":
+                position_direction = "bearish"
+
+        if position_direction is None:
+            continue
+
+        # Check for contradiction
+        contradiction = False
+        severity = "info"
+        detail = ""
+
+        if position_direction == "bullish" and overall_bias in ("bearish", "slightly_bearish"):
+            contradiction = True
+            severity = "warning" if overall_bias == "bearish" else "info"
+            detail = f"You're betting BTC UP ({outcome} on \"{pos['title'][:50]}\") but signals lean {overall_bias} ({bear}🐻 vs {bull}🐂)"
+        elif position_direction == "bearish" and overall_bias in ("bullish", "slightly_bullish"):
+            contradiction = True
+            severity = "warning" if overall_bias == "bullish" else "info"
+            detail = f"You're betting BTC DOWN ({outcome} on \"{pos['title'][:50]}\") but signals lean {overall_bias} ({bull}🐂 vs {bear}🐻)"
+        elif position_direction == "range" and abs(change_7d) > 7:
+            contradiction = True
+            severity = "warning"
+            detail = f"Range bet on \"{pos['title'][:50]}\" but BTC moved {change_7d:+.1f}% in 7d — high volatility"
+
+        # Also flag positions that are deeply underwater and contradicted
+        if contradiction and pnl < -1000:
+            severity = "critical"
+            detail += f" | Already down ${abs(pnl):,.0f}"
+
+        if contradiction:
+            alerts.append({
+                "title": pos.get("title", ""),
+                "outcome": outcome,
+                "position_direction": position_direction,
+                "signal_bias": overall_bias,
+                "severity": severity,
+                "detail": detail,
+                "current_value": current_value,
+                "pnl": pnl,
+            })
+
+    # Sort: critical first, then warning, then info
+    severity_order = {"critical": 0, "warning": 1, "info": 2}
+    alerts.sort(key=lambda a: severity_order.get(a["severity"], 3))
+
+    return alerts
+
+
+def analyze_economics_markets(markets: list) -> list:
+    """Cross-reference economics markets with macro dashboard and economic calendar."""
+    econ_markets = []
+    for m in markets:
+        question = m.get("question", "")
+        if not question:
+            continue
+        cat = m.get("category") or categorize_market(question)
+        if cat != "economics":
+            continue
+        yes_price, no_price = parse_outcome_prices(m.get("outcomePrices"))
+        if yes_price is None:
+            continue
+        econ_markets.append({
+            "question": question,
+            "slug": m.get("slug", ""),
+            "yes_price": yes_price,
+            "no_price": no_price,
+            "volume_24h": m.get("volume24hr", 0) or 0,
+            "end_date": m.get("endDate", ""),
+        })
+
+    if not econ_markets:
+        return []
+
+    # Load macro data
+    macro = load_envelope("macro_dashboard.json")
+    econ_cal = load_envelope("economic_calendar.json")
+
+    indicators = {}
+    if macro.get("status") in ("success", "partial"):
+        indicators = macro.get("data", {}).get("indicators", {})
+
+    fomc_next = None
+    if econ_cal.get("status") in ("success", "partial"):
+        fomc_next = econ_cal.get("data", {}).get("fomc_next", {})
+
+    results = []
+    for em in econ_markets:
+        q_lower = em["question"].lower()
+        macro_signals = []
+        edge_direction = None
+
+        # Fed/rate markets
+        if any(kw in q_lower for kw in ["fed", "rate", "interest rate", "rate cut", "rate hike", "bps", "federal reserve"]):
+            hawkish = 0
+            dovish = 0
+
+            us10y = indicators.get("US10Y", {})
+            if us10y.get("trend") == "rising" or (us10y.get("change_5d", 0) or 0) > 0:
+                hawkish += 1
+                macro_signals.append(f"10Y yield rising ({us10y.get('value', '?')})")
+            elif us10y.get("trend") == "falling" or (us10y.get("change_5d", 0) or 0) < 0:
+                dovish += 1
+                macro_signals.append(f"10Y yield falling ({us10y.get('value', '?')})")
+
+            dxy = indicators.get("DXY", {})
+            if (dxy.get("change_5d", 0) or 0) > 0:
+                hawkish += 1
+                macro_signals.append(f"Dollar strengthening (DXY {dxy.get('value', '?')})")
+            elif (dxy.get("change_5d", 0) or 0) < 0:
+                dovish += 1
+                macro_signals.append(f"Dollar weakening (DXY {dxy.get('value', '?')})")
+
+            oil = indicators.get("OIL", {})
+            if (oil.get("change_20d", 0) or 0) > 10:
+                hawkish += 1
+                macro_signals.append(f"Oil surging (+{oil.get('change_20d', 0):.0f}% 20d)")
+
+            vix = indicators.get("VIX", {})
+            if (vix.get("value", 0) or 0) > 25:
+                dovish += 1
+                macro_signals.append(f"VIX elevated ({vix.get('value', '?')}) — market stress")
+
+            if hawkish > dovish:
+                edge_direction = "hawkish"
+            elif dovish > hawkish:
+                edge_direction = "dovish"
+            else:
+                edge_direction = "mixed"
+
+        # CPI/inflation markets
+        elif any(kw in q_lower for kw in ["cpi", "inflation"]):
+            oil = indicators.get("OIL", {})
+            if (oil.get("change_20d", 0) or 0) > 10:
+                macro_signals.append(f"Oil up sharply — inflationary pressure")
+                edge_direction = "higher_inflation"
+            elif (oil.get("change_20d", 0) or 0) < -10:
+                macro_signals.append(f"Oil down sharply — disinflationary")
+                edge_direction = "lower_inflation"
+
+        # FOMC proximity flag
+        if fomc_next and fomc_next.get("days_until") is not None:
+            days = fomc_next["days_until"]
+            if days <= 7:
+                macro_signals.append(f"FOMC in {days} day(s) — {fomc_next.get('date', '?')}")
+
+        if macro_signals:
+            results.append({
+                **em,
+                "macro_signals": macro_signals,
+                "edge_direction": edge_direction,
+            })
+
+    return results
+
+
+def detect_trending(markets: list) -> list:
+    """Detect trending markets using oneWeekPriceChange (primary) and oneDayPriceChange."""
+    results = []
+    for m in markets:
+        question = m.get("question", "")
+        if not question:
+            continue
+        yes_price, no_price = parse_outcome_prices(m.get("outcomePrices"))
+        if yes_price is None:
+            continue
+
+        week_change = m.get("oneWeekPriceChange", 0) or 0
+        day_change = m.get("oneDayPriceChange", 0) or 0
+
+        if abs(week_change) < 0.03:
+            continue
+
+        # Momentum: week + day change in same direction
+        has_momentum = (week_change > 0 and day_change > 0) or (week_change < 0 and day_change < 0)
+
+        results.append({
+            "question": question,
+            "slug": m.get("slug", ""),
+            "yes_price": yes_price,
+            "no_price": no_price,
+            "volume_24h": m.get("volume24hr", 0) or 0,
+            "week_change_pct": round(week_change * 100, 1),
+            "day_change_pct": round(day_change * 100, 1),
+            "has_momentum": has_momentum,
+            "direction": "up" if week_change > 0 else "down",
+            "category": m.get("category") or categorize_market(question),
+        })
+
+    # Sort: momentum markets first, then by absolute week change
+    results.sort(key=lambda x: (not x["has_momentum"], -abs(x["week_change_pct"])))
+    return results[:20]
+
+
 def analyze_markets(markets: list) -> dict:
     """Analyze all markets and identify opportunities.
 
@@ -373,6 +945,10 @@ def analyze_markets(markets: list) -> dict:
             "big_movers": [],
             "weather_analysis": [],
             "crypto_analysis": [],
+            "gimme_bets": [],
+            "sports_events": [],
+            "economics_signals": [],
+            "trending": [],
             "category_summary": {},
             "top_volume": [],
             "markets_scanned": 0,
@@ -398,7 +974,9 @@ def analyze_markets(markets: list) -> dict:
         vol = m.get("volume24hr", 0) or 0
         liq = m.get("liquidity", 0) or 0
         spread = m.get("spread", 0) or 0
-        change = m.get("oneDayPriceChange", 0) or 0
+        week_change = m.get("oneWeekPriceChange", 0) or 0
+        day_change = m.get("oneDayPriceChange", 0) or 0
+        change = week_change if abs(week_change) > abs(day_change) else day_change
 
         # Skip very low liquidity/volume markets
         if vol < MIN_VOLUME_24H and liq < MIN_LIQUIDITY:
@@ -528,11 +1106,21 @@ def analyze_markets(markets: list) -> dict:
         signal = "quiet"
         signal_detail = f"Scanned {total_scanned} markets — no strong opportunities today"
 
+    # New analysis functions — run on full market list
+    gimme_bets = scan_gimme_bets(markets)
+    sports_events = group_sports_events(markets)
+    economics_signals = analyze_economics_markets(markets)
+    trending = detect_trending(markets)
+
     return {
         "opportunities": opportunities[:15],
         "big_movers": big_movers[:10],
         "weather_analysis": weather_analysis[:10],
         "crypto_analysis": crypto_analysis[:10],
+        "gimme_bets": gimme_bets,
+        "sports_events": sports_events,
+        "economics_signals": economics_signals,
+        "trending": trending,
         "category_summary": category_summary,
         "top_volume": top_volume,
         "markets_scanned": total_scanned,
@@ -554,8 +1142,176 @@ def load_sample_markets() -> list:
     return []
 
 
+def fetch_portfolio_positions(wallet: str) -> list:
+    """Fetch all positions for a wallet from the Polymarket Data API."""
+    if requests is None or not wallet:
+        return []
+    cache_key = f"polymarket_portfolio_{wallet[:10]}_{date.today().isoformat()}"
+    cached = get_cached(cache_key, max_age_hours=1)
+    if cached:
+        return cached.get("positions", [])
+    try:
+        resp = requests.get(
+            f"{DATA_API}/positions",
+            params={"user": wallet, "sizeThreshold": "0.1"},
+            timeout=15,
+            headers={"User-Agent": "TradingSystem/1.0"},
+        )
+        resp.raise_for_status()
+        positions = resp.json()
+        if isinstance(positions, list):
+            set_cached(cache_key, {"positions": positions})
+            logger.info("Fetched %d portfolio positions for %s...", len(positions), wallet[:10])
+            return positions
+    except Exception as e:
+        logger.warning("Failed to fetch portfolio positions: %s", e)
+    return []
+
+
+def fetch_portfolio_activity(wallet: str, limit: int = 20) -> list:
+    """Fetch recent trade activity for a wallet from the Polymarket Data API."""
+    if requests is None or not wallet:
+        return []
+    cache_key = f"polymarket_activity_{wallet[:10]}_{date.today().isoformat()}"
+    cached = get_cached(cache_key, max_age_hours=1)
+    if cached:
+        return cached.get("activity", [])
+    try:
+        resp = requests.get(
+            f"{DATA_API}/activity",
+            params={"user": wallet, "limit": str(limit)},
+            timeout=15,
+            headers={"User-Agent": "TradingSystem/1.0"},
+        )
+        resp.raise_for_status()
+        activity = resp.json()
+        if isinstance(activity, list):
+            set_cached(cache_key, {"activity": activity})
+            logger.info("Fetched %d activity records for %s...", len(activity), wallet[:10])
+            return activity
+    except Exception as e:
+        logger.warning("Failed to fetch portfolio activity: %s", e)
+    return []
+
+
+def analyze_portfolio(positions: list, activity: list) -> dict:
+    """Analyze a Polymarket portfolio: P&L, win rate, concentration, risk."""
+    if not positions:
+        return {}
+
+    active = [p for p in positions if (p.get("currentValue") or 0) > 0]
+    closed = [p for p in positions if (p.get("currentValue") or 0) == 0 and p.get("redeemable")]
+
+    # Aggregate P&L
+    total_initial = sum(p.get("initialValue", 0) or 0 for p in positions)
+    total_current = sum(p.get("currentValue", 0) or 0 for p in positions)
+    total_cash_pnl = sum(p.get("cashPnl", 0) or 0 for p in positions)
+    total_realized = sum(p.get("realizedPnl", 0) or 0 for p in positions)
+
+    # Win rate from closed positions
+    wins = sum(1 for p in positions if (p.get("cashPnl") or 0) > 0)
+    losses = sum(1 for p in positions if (p.get("cashPnl") or 0) < 0)
+    total_trades = wins + losses
+    win_rate = round(wins / total_trades * 100, 1) if total_trades > 0 else 0
+
+    # Top positions by current value
+    active_sorted = sorted(active, key=lambda p: p.get("currentValue", 0), reverse=True)
+    top_positions = []
+    for p in active_sorted[:10]:
+        top_positions.append({
+            "title": p.get("title", ""),
+            "slug": p.get("slug", ""),
+            "outcome": p.get("outcome", ""),
+            "size": round(p.get("size", 0), 2),
+            "avg_price": round(p.get("avgPrice", 0), 4),
+            "current_price": round(p.get("curPrice", 0), 4),
+            "current_value": round(p.get("currentValue", 0), 2),
+            "pnl": round(p.get("cashPnl", 0), 2),
+            "pnl_pct": round(p.get("percentPnl", 0), 1),
+            "end_date": p.get("endDate", ""),
+            "category": categorize_market(p.get("title", "")),
+        })
+
+    # Biggest winners and losers
+    by_pnl = sorted(positions, key=lambda p: p.get("cashPnl", 0))
+    biggest_losers = [
+        {"title": p.get("title", "")[:60], "pnl": round(p.get("cashPnl", 0), 2), "outcome": p.get("outcome", "")}
+        for p in by_pnl[:3] if (p.get("cashPnl") or 0) < 0
+    ]
+    biggest_winners = [
+        {"title": p.get("title", "")[:60], "pnl": round(p.get("cashPnl", 0), 2), "outcome": p.get("outcome", "")}
+        for p in reversed(by_pnl) if (p.get("cashPnl") or 0) > 0
+    ][:3]
+
+    # Concentration by category
+    category_exposure = defaultdict(float)
+    for p in active:
+        cat = categorize_market(p.get("title", ""))
+        category_exposure[cat] += p.get("currentValue", 0) or 0
+    category_exposure = {k: round(v, 2) for k, v in sorted(category_exposure.items(), key=lambda x: x[1], reverse=True)}
+
+    # Recent activity summary
+    today_trades = []
+    now_ts = datetime.now().astimezone().timestamp()
+    for a in activity[:20]:
+        ts = a.get("timestamp", 0)
+        if now_ts - ts < 86400:  # last 24h
+            today_trades.append({
+                "title": a.get("title", ""),
+                "side": a.get("side", ""),
+                "outcome": a.get("outcome", ""),
+                "size": a.get("size", 0),
+                "usdc": round(a.get("usdcSize", 0), 2),
+                "price": round(a.get("price", 0), 4),
+            })
+
+    # Expiring soon (next 3 days)
+    now_date = date.today()
+    expiring_soon = []
+    for p in active:
+        end_str = p.get("endDate", "")
+        if end_str:
+            try:
+                end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00")).date()
+                days_left = (end_dt - now_date).days
+                if 0 <= days_left <= 3:
+                    expiring_soon.append({
+                        "title": p.get("title", ""),
+                        "outcome": p.get("outcome", ""),
+                        "current_value": round(p.get("currentValue", 0), 2),
+                        "pnl": round(p.get("cashPnl", 0), 2),
+                        "days_left": days_left,
+                        "current_price": round(p.get("curPrice", 0), 4),
+                    })
+            except (ValueError, TypeError):
+                pass
+    expiring_soon.sort(key=lambda x: x["days_left"])
+
+    return {
+        "wallet": positions[0].get("proxyWallet", "") if positions else "",
+        "pseudonym": activity[0].get("pseudonym", "") if activity else "",
+        "active_positions": len(active),
+        "closed_positions": len(closed),
+        "total_positions": len(positions),
+        "total_invested": round(total_initial, 2),
+        "total_current_value": round(total_current, 2),
+        "total_cash_pnl": round(total_cash_pnl, 2),
+        "total_realized_pnl": round(total_realized, 2),
+        "overall_pnl_pct": round(total_cash_pnl / total_initial * 100, 1) if total_initial > 0 else 0,
+        "win_rate": win_rate,
+        "wins": wins,
+        "losses": losses,
+        "top_positions": top_positions,
+        "biggest_winners": biggest_winners,
+        "biggest_losers": biggest_losers,
+        "category_exposure": category_exposure,
+        "today_trades": today_trades,
+        "expiring_soon": expiring_soon,
+    }
+
+
 def run_polymarket_scanner(limit: int = 200) -> dict:
-    """Main entry point: fetch markets and analyze."""
+    """Main entry point: fetch markets and analyze, plus portfolio tracking."""
     markets = fetch_polymarket_markets(limit)
     source = "gamma_api"
 
@@ -571,6 +1327,38 @@ def run_polymarket_scanner(limit: int = 200) -> dict:
     analysis = analyze_markets(markets)
     analysis["data_source"] = source
     analysis["analyzed_at"] = datetime.now().astimezone().isoformat()
+
+    # Portfolio tracking — load wallet from settings
+    settings_path = PROJECT_ROOT / "config" / "settings.json"
+    wallet = ""
+    try:
+        settings = json.loads(settings_path.read_text())
+        wallet = settings.get("polymarket_wallet", "")
+    except Exception:
+        pass
+
+    # Crypto intelligence — Fear & Greed, funding rates, BTC price context
+    crypto_intel = fetch_crypto_intelligence()
+    analysis["crypto_intelligence"] = crypto_intel
+
+    if wallet:
+        positions = fetch_portfolio_positions(wallet)
+        activity = fetch_portfolio_activity(wallet)
+        portfolio = analyze_portfolio(positions, activity)
+        analysis["portfolio"] = portfolio
+        logger.info("Portfolio: %d positions, P&L $%.2f",
+                     portfolio.get("total_positions", 0), portfolio.get("total_cash_pnl", 0))
+
+        # Cross-module contradiction alerts
+        contradictions = generate_contradiction_alerts(portfolio, crypto_intel)
+        analysis["contradiction_alerts"] = contradictions
+        if contradictions:
+            critical = sum(1 for c in contradictions if c["severity"] == "critical")
+            warnings = sum(1 for c in contradictions if c["severity"] == "warning")
+            logger.info("Contradiction alerts: %d critical, %d warnings", critical, warnings)
+    else:
+        analysis["portfolio"] = {}
+        analysis["contradiction_alerts"] = []
 
     return analysis
 

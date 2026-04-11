@@ -15,5 +15,11 @@
   "max_position_pct": 0.15,
   "insider_cluster_threshold": 3,
   "insider_lookback_days": 30,
-  "scenario_pe_percentiles": [25, 50, 75]
+  "scenario_pe_percentiles": [25, 50, 75],
+  "polymarket_wallet": "0xde17f7144fbd0eddb2679132c10ff5e74b120988",
+  "social_intelligence_topics": [
+    "Bitcoin price prediction",
+    "Federal Reserve interest rates",
+    "oil prices crude"
+  ]
 }
