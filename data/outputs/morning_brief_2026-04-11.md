@@ -26,6 +26,8 @@
 - ❌ **CorrHeatmap**: error
 - ❌ **Backtester**: error
 - ✅ **Alerts**: success
+- ⬜ **Last30Days**: missing
+- ❌ **SocialIntel**: error
 
 ## Risk Dashboard — LOW_RISK
 Favorable conditions — lean into high-conviction setups
@@ -145,7 +147,14 @@ Favorable conditions — lean into high-conviction setups
 ## News Sentiment
 
 ## Polymarket Prediction Markets
-*12 markets scanned — Signal: QUIET*
+*12 markets scanned — Signal: VOLATILE*
+
+### Big Movers (24h)
+- 📈 **NYC temperature high above 50°F on March 5?** — +5.0% (Vol: $45,000)
+- 📉 **Will the S&P 500 reach a new all-time high in March?** — -4.0% (Vol: $890,000)
+- 📈 **Will Bitcoin drop below $70,000 in 2026?** — +4.0% (Vol: $1,200,000)
+- 📈 **Will Iran close the Strait of Hormuz by March 31?** — +3.0% (Vol: $2,720,000)
+- 📉 **Will it rain in London on March 5?** — -3.0% (Vol: $28,000)
 
 *Categories: weather: 3 | crypto: 2 | economics: 2 | geopolitics: 1 | markets: 1 | politics: 1*
 
@@ -158,6 +167,7 @@ Favorable conditions — lean into high-conviction setups
 *Market mood: neutral | Most discussed: None*
 
 *No trending tickers*
+
 
 ---
 *This is analysis, not financial advice. All trading decisions are yours.*
