@@ -1,11 +1,25 @@
 #!/bin/bash
-# Daily Morning Brief — runs analysis and opens HTML report
+# Daily Morning Brief — runs full analysis pipeline and opens HTML report
 set -e
 
 PROJECT_DIR="$HOME/projects/morning-brief"
 cd "$PROJECT_DIR"
 
-# Run the analysis
+# Load last30days env (ScrapeCreators key, etc.) so social_intelligence module works
+if [ -f "$HOME/.config/last30days/.env" ]; then
+    set -a
+    source "$HOME/.config/last30days/.env"
+    set +a
+fi
+
+# Load project .env if it exists
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a
+    source "$PROJECT_DIR/.env"
+    set +a
+fi
+
+# Run the full analysis pipeline
 .venv/bin/python scripts/run_all.py
 
 # Open today's HTML brief
