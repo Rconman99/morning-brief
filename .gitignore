@@ -28,3 +28,4 @@ agent/equity_launchd.log
 agent/equity_launchd_err.log
 agent/equity_strategy_params.json
 agent/options_strategy_params.json
+agent/market_data.db

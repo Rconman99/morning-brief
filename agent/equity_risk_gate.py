@@ -11,12 +11,14 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import json
 import logging
+import math
 from datetime import datetime
 
 from agent import equity_config as config
 from agent.equity_db import (
     get_todays_trades, get_open_positions_from_trades,
     check_wash_sale, get_current_drawdown, get_drawdown_pause_until,
+    get_performance_metrics,
 )
 from agent.equity_executor import get_positions, get_account
 
@@ -85,6 +87,93 @@ def _get_portfolio_correlation(ticker: str) -> float | None:
     return max_corr if max_corr > 0 else None
 
 
+def calculate_edge_size(strategy: str, conviction: int, portfolio_value: float) -> float:
+    """Calculate position size using half-Kelly criterion.
+
+    Kelly fraction = (win_rate * avg_win - (1-win_rate) * avg_loss) / avg_win
+    Half-Kelly = Kelly / 2 (more conservative)
+
+    Falls back to conviction-scaled flat sizing if insufficient trade history
+    (fewer than 20 trades for the strategy in the last 60 days).
+    """
+    metrics = get_performance_metrics(days=60)
+
+    strategy_data = metrics.get("by_strategy", {}).get(strategy, {})
+    trade_count = strategy_data.get("count", 0)
+
+    if trade_count < 20:
+        # Fall back to conviction-scaled flat sizing
+        base = portfolio_value * config.MAX_SINGLE_POSITION_PCT  # 5% base
+        scale = min(conviction / 5.0, 1.5)  # 1x at conv=5, 1.5x at conv=7+
+        return min(base * scale, portfolio_value * config.MAX_SINGLE_POSITION_PCT)
+
+    # Pull win/loss stats from the DB for this strategy
+    from agent.equity_db import get_conn
+    from datetime import date, timedelta
+
+    conn = get_conn()
+    cutoff = (date.today() - timedelta(days=60)).isoformat()
+    rows = conn.execute(
+        "SELECT side, price, fill_price, cost_usd FROM trades "
+        "WHERE strategy = ? AND timestamp >= ? "
+        "AND status IN ('paper_filled', 'filled') AND side = 'SELL'",
+        (strategy, cutoff)
+    ).fetchall()
+    conn.close()
+
+    if len(rows) < 10:
+        # Not enough closed trades for Kelly — use flat sizing
+        base = portfolio_value * config.MAX_SINGLE_POSITION_PCT
+        scale = min(conviction / 5.0, 1.5)
+        return min(base * scale, portfolio_value * config.MAX_SINGLE_POSITION_PCT)
+
+    # Calculate win rate and average win/loss from closed trades
+    wins = []
+    losses = []
+    for r in rows:
+        # Positive cost_usd on a SELL means profit (sold above cost)
+        pnl = (r["fill_price"] or r["price"]) - r["price"]
+        if pnl > 0:
+            wins.append(pnl)
+        elif pnl < 0:
+            losses.append(abs(pnl))
+
+    total_closed = len(wins) + len(losses)
+    if total_closed < 10 or not wins or not losses:
+        base = portfolio_value * config.MAX_SINGLE_POSITION_PCT
+        scale = min(conviction / 5.0, 1.5)
+        return min(base * scale, portfolio_value * config.MAX_SINGLE_POSITION_PCT)
+
+    win_rate = len(wins) / total_closed
+    avg_win = sum(wins) / len(wins)
+    avg_loss = sum(losses) / len(losses)
+
+    # Kelly fraction: (win_rate * avg_win - (1-win_rate) * avg_loss) / avg_win
+    kelly = (win_rate * avg_win - (1 - win_rate) * avg_loss) / avg_win
+
+    # Half-Kelly for conservatism
+    half_kelly = kelly / 2.0
+
+    # Clamp: never go negative, never exceed MAX_SINGLE_POSITION_PCT
+    half_kelly = max(0.005, min(half_kelly, config.MAX_SINGLE_POSITION_PCT))
+
+    # Scale by conviction: +-20% around Kelly size
+    conviction_scale = 0.8 + (min(conviction, 7) / 7.0) * 0.4  # 0.8x to 1.2x
+    position_size_usd = portfolio_value * half_kelly * conviction_scale
+
+    # Hard cap at MAX_SINGLE_POSITION_PCT
+    max_size = portfolio_value * config.MAX_SINGLE_POSITION_PCT
+    position_size_usd = min(position_size_usd, max_size)
+
+    logger.info(
+        "Kelly sizing for %s: win_rate=%.2f, avg_win=$%.2f, avg_loss=$%.2f, "
+        "kelly=%.3f, half_kelly=%.3f, conviction=%d, size=$%.0f",
+        strategy, win_rate, avg_win, avg_loss, kelly, half_kelly, conviction, position_size_usd,
+    )
+
+    return position_size_usd
+
+
 def check_proposal(proposal: dict, portfolio_value: float, force: bool = False) -> dict:
     """Check a trade proposal against all risk limits.
 
@@ -97,10 +186,11 @@ def check_proposal(proposal: dict, portfolio_value: float, force: bool = False) 
     sector = proposal.get("sector", "Unknown")
     quantity = proposal.get("quantity_override") or proposal.get("quantity", 0)
 
-    # If no quantity set yet, calculate from position sizing
+    # If no quantity set yet, calculate from edge-based position sizing
     if quantity <= 0 and price > 0:
-        max_position_usd = portfolio_value * config.MAX_SINGLE_POSITION_PCT
-        quantity = max_position_usd / price
+        strategy = proposal.get("strategy", "")
+        edge_size_usd = calculate_edge_size(strategy, conviction, portfolio_value)
+        quantity = edge_size_usd / price
 
     cost = price * quantity if price and quantity else 0
 
@@ -247,8 +337,10 @@ def filter_proposals(proposals: list, portfolio_value: float, force: bool = Fals
             elif "quantity_override" in p:
                 p["quantity"] = p["quantity_override"]
             elif p.get("limit_price", 0) > 0:
-                max_usd = portfolio_value * config.MAX_SINGLE_POSITION_PCT
-                p["quantity"] = round(max_usd / p["limit_price"], 4)
+                edge_usd = calculate_edge_size(
+                    p.get("strategy", ""), p.get("conviction", 0), portfolio_value
+                )
+                p["quantity"] = round(edge_usd / p["limit_price"], 4)
 
             approved.append(p)
             logger.info("APPROVED: %s %s — %s", p["side"], p["ticker"], result["reason"])
