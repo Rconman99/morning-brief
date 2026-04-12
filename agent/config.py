@@ -63,6 +63,16 @@ DEFAULT_STRATEGY_PARAMS = {
     },
 }
 
+# --- MICROSTRUCTURE SETTINGS (from Becker research) ---
+# These inform the market_microstructure.py filter
+
+LONGSHOT_BLOCK_THRESHOLD = 0.15     # Block YES buys below 15 cents
+LONGSHOT_PENALTY_THRESHOLD = 0.35   # Penalize YES buys below 35 cents
+PREFER_NO_SIDE = True               # Prefer NO side in longshot zone (exploits bias)
+MAKER_ONLY = True                   # Always use limit orders (makers win, takers lose)
+CATEGORY_EDGE_ENABLED = True        # Adjust conviction by category
+TIME_OF_DAY_ENABLED = True          # Adjust for informed vs retail flow hours
+
 
 def load_agent_config() -> dict:
     """Load agent config, merging defaults with any saved overrides."""

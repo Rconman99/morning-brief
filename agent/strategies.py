@@ -426,8 +426,9 @@ def run_all_strategies(params: dict) -> list:
     try:
         from agent.probability_engine import scan_probability_arbitrage
         # Feed it the top volume non-extreme markets
+        pm = _load_signal("polymarket.json")
         candidate_markets = [
-            m for m in pm.get("top_volume", [])
+            m for m in (pm or {}).get("top_volume", [])
             if 0.10 < (m.get("yes_price") or 0) < 0.90
         ]
         prob_arb = scan_probability_arbitrage(candidate_markets)
@@ -438,5 +439,36 @@ def run_all_strategies(params: dict) -> list:
         logger.info("Probability Arb: %d proposals", len(prob_arb))
     except Exception as e:
         logger.debug("Probability engine skipped: %s", e)
+
+    # Phase 3: On-chain flow signals — boost conviction for whale-backed markets
+    try:
+        from agent.onchain_flow import get_flow_signals
+        flow = get_flow_signals()
+        whale_slugs = {w.get("slug") for w in flow.get("whale_markets", []) if w.get("slug")}
+        informed_slugs = {i.get("slug") for i in flow.get("informed_flow", []) if i.get("slug")}
+
+        for p in all_proposals:
+            slug = p.get("slug", "")
+            if slug in whale_slugs:
+                p["conviction"] = p.get("conviction", 0) + 1
+                p["onchain_signal"] = "whale_activity"
+                logger.debug("Whale boost: %s +1 conviction", slug)
+            if slug in informed_slugs:
+                p["conviction"] = p.get("conviction", 0) + 1
+                p["onchain_signal"] = "informed_flow"
+                logger.debug("Informed flow boost: %s +1 conviction", slug)
+    except Exception as e:
+        logger.debug("On-chain flow skipped: %s", e)
+
+    # Phase 4: Microstructure filter — longshot bias, category edge, time-of-day
+    try:
+        from agent.market_microstructure import filter_proposals_microstructure
+        pre_count = len(all_proposals)
+        all_proposals = filter_proposals_microstructure(all_proposals)
+        if pre_count != len(all_proposals):
+            logger.info("Microstructure filter: %d → %d proposals",
+                        pre_count, len(all_proposals))
+    except Exception as e:
+        logger.debug("Microstructure filter skipped: %s", e)
 
     return all_proposals

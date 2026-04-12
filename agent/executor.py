@@ -172,6 +172,8 @@ def place_limit_order(
         "strategy": strategy,
         "reason": reason,
         "status": "pending",
+        "order_type": "limit",  # Always limit — makers have positive excess returns (Becker research)
+        "role": "maker",        # Limit orders = maker. GTC ensures we're providing liquidity.
     }
 
     if mode == "paper":
