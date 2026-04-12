@@ -105,11 +105,14 @@ def get_client():
 
     try:
         from py_clob_client.client import ClobClient
+        # signature_type: 0=EOA (bot wallet), 1=Magic/email, 2=Gnosis Safe
+        # The bot wallet (0x0B76...) is a pure EOA — MUST be sig_type 0
+        sig_type = int(os.environ.get("POLYMARKET_SIG_TYPE", "0"))
         client = ClobClient(
             "https://clob.polymarket.com",
             key=key,
             chain_id=137,
-            signature_type=1,  # Magic/email wallet (most Polymarket users)
+            signature_type=sig_type,
             funder=funder or None,
         )
         client.set_api_creds(client.create_or_derive_api_creds())

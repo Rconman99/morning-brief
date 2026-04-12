@@ -161,6 +161,31 @@ def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
             "reason": "Position size less than $1 — not worth transaction cost",
         }
 
+    # 9. Weekly deployment limit — don't deploy more than MAX_WEEKLY_LOSS_PCT * 5 in a week
+    weekly_total = exposure["week_deployed"] + cost
+    weekly_limit = bankroll * config.MAX_WEEKLY_LOSS_PCT * 5
+    if weekly_total > weekly_limit:
+        return {
+            "approved": False,
+            "reason": f"Weekly deployment ${weekly_total:.0f} exceeds limit ${weekly_limit:.0f} — pausing",
+        }
+
+    # 10. Microstructure block — longshot bias filter may have flagged this
+    if proposal.get("microstructure_blocked"):
+        return {
+            "approved": False,
+            "reason": f"Microstructure filter blocked: "
+                      + "; ".join(proposal.get("microstructure_warnings", ["longshot bias"])),
+        }
+
+    # 11. Conviction floor — require minimum conviction score
+    conviction = proposal.get("conviction", 0)
+    if isinstance(conviction, float) and conviction < 0.3:
+        return {
+            "approved": False,
+            "reason": f"Conviction {conviction:.2f} too low (minimum 0.3)",
+        }
+
     return {
         "approved": True,
         "reason": f"Approved: ${cost:.0f} on {strategy}/{category} (exposure {exposure['total_deployed']+cost:.0f}/{max_total:.0f})",

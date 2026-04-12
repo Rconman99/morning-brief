@@ -136,6 +136,7 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
 
     # 5. Execute approved proposals (unless dry run)
     executed = []
+    failed = []
     if not dry_run:
         for p in approved:
             result = place_limit_order(
@@ -150,9 +151,20 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
                 token_hint=p.get("token_hint", "yes"),
             )
             result["category"] = p.get("category", "other")
-            executed.append(result)
+
+            # Only count successful executions — not errors
+            if result.get("status") in ("submitted", "paper_filled"):
+                executed.append(result)
+            else:
+                failed.append(result)
+                logger.warning("EXECUTION FAILED: %s — %s",
+                               p.get("question", "")[:50],
+                               result.get("error", "unknown"))
     else:
         logger.info("DRY RUN — skipping execution")
+
+    if failed:
+        logger.warning("%d / %d executions FAILED", len(failed), len(failed) + len(executed))
 
     # 5. Print summary
     print_summary(proposals, approved, executed, bankroll, mode)
@@ -166,6 +178,7 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
         "proposals": len(proposals),
         "approved": len(approved),
         "executed": len(executed),
+        "failed": len(failed),
         "total_deployed": sum(e.get("cost_usd", 0) for e in executed),
         "strategies": {
             s: len([p for p in proposals if p.get("strategy") == s])
@@ -174,6 +187,28 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     }
     with open(run_log, "a") as f:
         f.write(json.dumps(run_record) + "\n")
+
+    # 7. Send notifications
+    try:
+        from lib.notify import send_telegram, alert_error
+        # Daily summary
+        msg = (
+            f"<b>Polymarket Agent</b>\n"
+            f"Proposals: {len(proposals)} → {len(approved)} approved → {len(executed)} executed\n"
+            f"Failed: {len(failed)}\n"
+            f"Deployed: ${sum(e.get('cost_usd', 0) for e in executed):,.2f}"
+        )
+        if executed:
+            msg += "\n\nTrades:"
+            for e in executed[:5]:
+                msg += f"\n  {e.get('side', '?')} {e.get('slug', '?')[:30]} @ {e.get('price', 0):.2f}"
+        if failed:
+            msg += f"\n\n⚠ {len(failed)} failed:"
+            for f_ in failed[:3]:
+                msg += f"\n  {f_.get('error', 'unknown')[:50]}"
+        send_telegram(msg)
+    except Exception:
+        pass
 
     return run_record
 
