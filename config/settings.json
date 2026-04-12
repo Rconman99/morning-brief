@@ -21,5 +21,12 @@
     "Bitcoin price prediction",
     "Federal Reserve interest rates",
     "oil prices crude"
-  ]
+  ],
+  "equity_trading": {
+    "enabled": true,
+    "mode": "paper",
+    "universe": "watchlist",
+    "eod_run_time": "15:50",
+    "paper_bankroll": 15000
+  }
 }

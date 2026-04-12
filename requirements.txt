@@ -8,3 +8,4 @@ pytest
 anthropic
 edgartools
 pyetrade
+alpaca-py

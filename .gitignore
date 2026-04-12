@@ -21,3 +21,9 @@ agent/eval_history.jsonl
 agent/performance.json
 agent/probability_cache.json
 agent/strategy_params.json
+agent/equity_trades.db
+agent/equity_runs.jsonl
+agent/equity_agent.log
+agent/equity_launchd.log
+agent/equity_launchd_err.log
+agent/equity_strategy_params.json
