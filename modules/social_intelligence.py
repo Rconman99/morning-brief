@@ -156,7 +156,25 @@ def extract_social_signals(raw: dict, topic: str) -> dict:
 
     reddit_takes.sort(key=lambda x: x.get("score", 0), reverse=True)
 
-    # Sentiment heuristic from titles/snippets
+    # Extract X/Twitter hot takes (fastest signal — breaks before Reddit/YouTube)
+    x_takes = []
+    for c in candidates:
+        for item in c.get("source_items", []):
+            if item.get("source") != "x":
+                continue
+            engagement = item.get("engagement", {})
+            likes = engagement.get("likes", 0)
+            reposts = engagement.get("reposts", 0)
+            x_takes.append({
+                "text": (c.get("title") or c.get("snippet") or "")[:200],
+                "author": item.get("author", ""),
+                "likes": likes,
+                "reposts": reposts,
+                "url": item.get("url", ""),
+            })
+    x_takes.sort(key=lambda x: x.get("likes", 0) + x.get("reposts", 0) * 3, reverse=True)
+
+    # Engagement-weighted sentiment — X posts weighted 2x (fastest signal)
     bullish_words = ["bullish", "moon", "rally", "pump", "surge", "breakout", "accumulate", "buy", "long", "higher", "support"]
     bearish_words = ["bearish", "crash", "dump", "plunge", "sell", "short", "lower", "resistance", "collapse", "fear", "recession"]
 
@@ -164,8 +182,14 @@ def extract_social_signals(raw: dict, topic: str) -> dict:
     bear_count = 0
     for c in candidates:
         text = (c.get("title", "") + " " + (c.get("snippet") or "")).lower()
-        bull_count += sum(1 for w in bullish_words if w in text)
-        bear_count += sum(1 for w in bearish_words if w in text)
+        # Determine source for weighting
+        sources = [item.get("source") for item in c.get("source_items", [])]
+        weight = 2 if "x" in sources else 1  # X posts count double
+
+        text_bull = sum(1 for w in bullish_words if w in text)
+        text_bear = sum(1 for w in bearish_words if w in text)
+        bull_count += text_bull * weight
+        bear_count += text_bear * weight
 
     total_sentiment = bull_count + bear_count
     if total_sentiment > 0:
@@ -180,6 +204,10 @@ def extract_social_signals(raw: dict, topic: str) -> dict:
         sentiment = "neutral"
         sentiment_ratio = 0.5
 
+    # X velocity — how fast is X talking about this? (posts per day)
+    x_count = source_counts.get("x", 0)
+    x_velocity = "high" if x_count >= 10 else "medium" if x_count >= 4 else "low" if x_count > 0 else "silent"
+
     return {
         "topic": topic,
         "status": "success",
@@ -191,6 +219,8 @@ def extract_social_signals(raw: dict, topic: str) -> dict:
         "bear_signals": bear_count,
         "top_items": top_items,
         "reddit_takes": reddit_takes[:5],
+        "x_takes": x_takes[:5],
+        "x_velocity": x_velocity,
         "clusters": len(clusters),
         "searched_at": datetime.now().astimezone().isoformat(),
     }

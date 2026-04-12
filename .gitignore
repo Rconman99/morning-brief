@@ -12,3 +12,12 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .gitnexus
+agent/paper_trades.jsonl
+agent/runs.jsonl
+agent/bankroll.json
+agent/agent.log
+agent/launchd.log
+agent/eval_history.jsonl
+agent/performance.json
+agent/probability_cache.json
+agent/strategy_params.json

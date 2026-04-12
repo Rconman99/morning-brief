@@ -1057,6 +1057,21 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
                 if item.get("snippet"):
                     lines.append(f"  > {item['snippet'][:120]}")
 
+            # X takes (fastest signal — breaks before everything else)
+            x_takes = topic_data.get("x_takes", [])
+            if x_takes:
+                x_vel = topic_data.get("x_velocity", "")
+                vel_str = f" | velocity: {x_vel}" if x_vel else ""
+                lines.append("")
+                lines.append(f"**X/Twitter hot takes{vel_str}:**")
+                for xt in x_takes[:3]:
+                    author = xt.get("author", "")
+                    likes = xt.get("likes", 0)
+                    rts = xt.get("reposts", 0)
+                    at = f"@{author}" if author else "X"
+                    eng = f"{likes:,} likes" + (f", {rts} RT" if rts else "")
+                    lines.append(f"- \"{xt['text'][:120]}\" — {at} ({eng})")
+
             # Reddit takes (the real alpha)
             takes = topic_data.get("reddit_takes", [])
             if takes:

@@ -69,6 +69,7 @@ MODULES = [
     ("alert_system", "modules/alert_system.py"),
     ("scorecard", "modules/scorecard.py"),
     ("morning_brief", "modules/morning_brief.py"),
+    ("decision_journal", "modules/decision_journal.py"),
     ("weekly_digest", "modules/weekly_digest.py"),
     ("brief_html", "modules/brief_html.py"),
 ]
