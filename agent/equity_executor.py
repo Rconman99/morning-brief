@@ -124,6 +124,28 @@ def get_positions() -> list[dict]:
         return []
 
 
+def _get_atr_stop(ticker: str, current_price: float, side: str) -> float | None:
+    """Get ATR-based stop loss price from portfolio module data."""
+    from lib.data_envelope import load_envelope
+    portfolio = load_envelope("portfolio.json")
+    if portfolio.get("status") != "success":
+        return None
+
+    for h in portfolio.get("data", {}).get("holdings", []):
+        if h.get("ticker") == ticker and h.get("atr"):
+            atr = h["atr"]
+            # 2x ATR stop for buys, 2x ATR for sells (inverse)
+            if side.upper() == "BUY":
+                return round(current_price - (2.0 * atr), 2)
+            else:
+                return round(current_price + (2.0 * atr), 2)
+
+    # Default: 5% stop if no ATR data
+    if side.upper() == "BUY":
+        return round(current_price * 0.95, 2)
+    return round(current_price * 1.05, 2)
+
+
 def place_order(
     ticker: str,
     side: str,
@@ -134,10 +156,13 @@ def place_order(
     conviction: int = 0,
     sector: str = "",
     run_id: str = "",
+    stop_price: float = None,
+    take_profit: float = None,
 ) -> dict:
-    """Place a limit order via Alpaca. Returns order result dict.
+    """Place an order via Alpaca with optional bracket (stop + take-profit).
 
-    In offline mode (no keys), records as paper trade without hitting Alpaca.
+    For BUY orders, automatically attaches an ATR-based stoploss unless
+    stop_price is explicitly provided or set to 0 to disable.
     """
     mode = get_mode()
     now = datetime.now().astimezone().isoformat()
@@ -163,6 +188,10 @@ def place_order(
         # Round to whole shares for sells to avoid fractional short sell error
         quantity = int(quantity)
 
+    # Auto-calculate ATR stoploss for BUY orders if not provided
+    if side.upper() == "BUY" and stop_price is None and limit_price:
+        stop_price = _get_atr_stop(ticker, limit_price, side)
+
     order_record = {
         "timestamp": now,
         "ticker": ticker,
@@ -177,6 +206,8 @@ def place_order(
         "mode": mode,
         "status": "pending",
         "run_id": run_id,
+        "stop_price": stop_price,
+        "take_profit": take_profit,
     }
 
     client = get_client()
@@ -189,21 +220,49 @@ def place_order(
         order_record["alpaca_order_id"] = f"offline_{int(datetime.now().timestamp())}"
 
         row_id = record_trade(order_record)
+        stop_info = f" stop=${stop_price:.2f}" if stop_price else ""
         logger.info(
-            "[PAPER-OFFLINE] %s %s %.2f shares @ $%.2f ($%.2f) — %s | %s",
+            "[PAPER-OFFLINE] %s %s %.2f shares @ $%.2f ($%.2f)%s — %s | %s",
             side.upper(), ticker, quantity, limit_price or 0,
-            (limit_price or 0) * quantity, strategy, reason[:60],
+            (limit_price or 0) * quantity, stop_info, strategy, reason[:60],
         )
+        # Send notification
+        try:
+            from lib.notify import alert_trade_placed
+            alert_trade_placed(order_record)
+        except Exception:
+            pass
         return order_record
 
     # Alpaca API execution (paper or live)
     try:
-        from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
-        from alpaca.trading.enums import OrderSide, TimeInForce
+        from alpaca.trading.requests import (
+            LimitOrderRequest, MarketOrderRequest, OrderRequest,
+        )
+        from alpaca.trading.enums import OrderSide, TimeInForce, OrderClass
 
         order_side = OrderSide.BUY if side.upper() == "BUY" else OrderSide.SELL
 
-        if limit_price:
+        # Use bracket order if we have stop and/or take-profit
+        has_bracket = side.upper() == "BUY" and (stop_price or take_profit)
+
+        if has_bracket and limit_price:
+            # Bracket order: entry limit + stoploss + optional take-profit
+            order_kwargs = {
+                "symbol": ticker,
+                "qty": round(quantity, 4),
+                "side": order_side,
+                "time_in_force": TimeInForce.DAY,
+                "order_class": OrderClass.BRACKET,
+                "limit_price": round(limit_price, 2),
+            }
+            if stop_price:
+                order_kwargs["stop_loss"] = {"stop_price": round(stop_price, 2)}
+            if take_profit:
+                order_kwargs["take_profit"] = {"limit_price": round(take_profit, 2)}
+
+            req = OrderRequest(**order_kwargs)
+        elif limit_price:
             req = LimitOrderRequest(
                 symbol=ticker,
                 qty=round(quantity, 4),
@@ -212,7 +271,6 @@ def place_order(
                 limit_price=round(limit_price, 2),
             )
         else:
-            # Fallback to market order only if no price given (should be rare)
             req = MarketOrderRequest(
                 symbol=ticker,
                 qty=round(quantity, 4),
@@ -231,10 +289,12 @@ def place_order(
                 abs(float(order.filled_avg_price) - limit_price), 4
             )
 
+        stop_info = f" stop=${stop_price:.2f}" if stop_price else ""
+        tp_info = f" tp=${take_profit:.2f}" if take_profit else ""
         logger.info(
-            "[%s] %s %s %.2f shares @ $%.2f — %s (order %s)",
+            "[%s] %s %s %.2f shares @ $%.2f%s%s — %s (order %s)",
             mode.upper(), side.upper(), ticker, quantity,
-            limit_price or 0, strategy, order.id,
+            limit_price or 0, stop_info, tp_info, strategy, order.id,
         )
 
     except Exception as e:
@@ -244,6 +304,14 @@ def place_order(
 
     # Record every order attempt to SQLite
     record_trade(order_record)
+
+    # Send notification
+    try:
+        from lib.notify import alert_trade_placed
+        alert_trade_placed(order_record)
+    except Exception:
+        pass
+
     return order_record
 
 

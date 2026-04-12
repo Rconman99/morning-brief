@@ -252,6 +252,27 @@ def run_equity_agent(portfolio_value: float = 15000.0, dry_run: bool = False,
     with open(run_log, "a") as f:
         f.write(json.dumps(run_record) + "\n")
 
+    # 9. Send daily summary notification
+    try:
+        from lib.notify import alert_daily_summary, alert_risk_breach
+        run_record["portfolio_value"] = portfolio_value
+        alert_daily_summary(run_record)
+
+        # Check for risk breaches
+        from agent.equity_db import get_current_drawdown, get_drawdown_pause_until
+        drawdown = get_current_drawdown()
+        if drawdown > 0.03:  # Alert at 3% drawdown (pause at 5%)
+            alert_risk_breach(
+                "Drawdown Warning",
+                f"Current drawdown: {drawdown*100:.1f}% (pause at 5%)\n"
+                f"Portfolio: ${portfolio_value:,.2f}"
+            )
+        pause = get_drawdown_pause_until()
+        if pause:
+            alert_risk_breach("Trading Paused", f"Drawdown pause active until {pause}")
+    except Exception as e:
+        logger.debug("Notification failed: %s", e)
+
     return run_record
 
 

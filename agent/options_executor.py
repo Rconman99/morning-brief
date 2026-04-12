@@ -234,6 +234,14 @@ def place_options_order(
         logger.error("Options order failed for %s: %s", occ_symbol, e)
 
     record_trade(order_record)
+
+    # Send notification
+    try:
+        from lib.notify import alert_options_trade
+        alert_options_trade(order_record)
+    except Exception:
+        pass
+
     return order_record
 
 
