@@ -148,6 +148,21 @@ def place_order(
     if limit_price is not None and limit_price <= 0:
         return {"status": "error", "error": f"Invalid price {limit_price}", "timestamp": now}
 
+    # Alpaca doesn't allow fractional short sells — round sells to whole shares
+    # and block sells for stocks we don't hold (no naked shorting)
+    if side.upper() == "SELL" and client is None:
+        pass  # offline mode, allow anything
+    elif side.upper() == "SELL":
+        positions = get_positions()
+        held = {p["ticker"]: p["qty"] for p in positions}
+        if ticker not in held or held[ticker] <= 0:
+            return {"status": "skipped", "error": f"Don't hold {ticker} — skipping sell (no short selling)",
+                    "timestamp": now}
+        # Can only sell what we own
+        quantity = min(quantity, held[ticker])
+        # Round to whole shares for sells to avoid fractional short sell error
+        quantity = int(quantity)
+
     order_record = {
         "timestamp": now,
         "ticker": ticker,

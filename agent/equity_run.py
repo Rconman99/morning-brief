@@ -30,10 +30,13 @@ from datetime import datetime
 from agent.equity_config import load_equity_config
 from agent.equity_db import init_db, record_daily_equity, get_performance_metrics
 from agent.equity_strategies import run_all_equity_strategies
-from agent.equity_risk_gate import filter_proposals, _is_market_hours
+from agent.equity_risk_gate import filter_proposals, filter_options_proposals, _is_market_hours
 from agent.equity_executor import (
     place_order, get_mode, get_account, get_positions, get_balance,
 )
+from agent.options_config import load_options_config
+from agent.options_strategies import run_all_options_strategies
+from agent.options_executor import place_options_order
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +172,50 @@ def run_equity_agent(portfolio_value: float = 15000.0, dry_run: bool = False,
             executed.append(result)
     else:
         logger.info("DRY RUN — skipping execution")
+
+    # 5b. OPTIONS STRATEGIES
+    options_executed = []
+    try:
+        options_params = load_options_config()
+        options_proposals = run_all_options_strategies(options_params)
+        logger.info("Options proposals: %d", len(options_proposals))
+
+        if options_proposals:
+            approved_options = filter_options_proposals(options_proposals, portfolio_value, force=force)
+            logger.info("Options approved: %d / %d", len(approved_options), len(options_proposals))
+
+            # LLM reasoning for options
+            try:
+                from agent.local_signals import generate_trade_reasoning
+                for p in approved_options:
+                    reasoning = generate_trade_reasoning(p)
+                    if reasoning and reasoning != p.get("reason", ""):
+                        p["llm_reasoning"] = reasoning
+            except Exception:
+                pass
+
+            if not dry_run:
+                for p in approved_options:
+                    result = place_options_order(
+                        occ_symbol=p["occ_symbol"],
+                        side=p["side"],
+                        qty=p.get("quantity", 1),
+                        limit_price=p.get("limit_price", 0),
+                        strategy=p.get("strategy", ""),
+                        reason=p.get("llm_reasoning", p.get("reason", "")),
+                        conviction=p.get("conviction", 0),
+                        run_id=run_id,
+                    )
+                    options_executed.append(result)
+            else:
+                logger.info("DRY RUN — skipping options execution")
+
+            # Add options to proposals list for summary
+            proposals.extend(options_proposals)
+            approved.extend(approved_options)
+            executed.extend(options_executed)
+    except Exception as e:
+        logger.warning("Options strategies skipped: %s", e)
 
     # 6. Print summary
     print_summary(proposals, approved, executed, portfolio_value, mode)

@@ -257,3 +257,105 @@ def filter_proposals(proposals: list, portfolio_value: float, force: bool = Fals
                         result["reason"])
 
     return approved
+
+
+# ============================================================
+# OPTIONS-SPECIFIC RISK CHECKS
+# ============================================================
+
+def check_options_proposal(proposal: dict, portfolio_value: float, force: bool = False) -> dict:
+    """Check an options trade proposal against risk limits."""
+    from agent.options_config import (
+        MAX_OPTIONS_BUYING_POWER_PCT, MAX_CONTRACTS_PER_POSITION,
+        MIN_IV_RANK, MIN_OPEN_INTEREST, MIN_BID_ASK_RATIO,
+    )
+
+    occ = proposal.get("occ_symbol", "")
+    side = proposal.get("side", "")
+    qty = proposal.get("quantity", 1)
+    premium = proposal.get("limit_price", 0)
+    iv_rank = proposal.get("iv_rank")
+    conviction = proposal.get("conviction", 0)
+    action = proposal.get("action", "")
+
+    # Management actions (close/roll) get fast-tracked
+    if action in ("close_winner", "close_expiry", "roll"):
+        return {
+            "approved": True,
+            "reason": f"Management action: {action} — {proposal.get('reason', '')}",
+        }
+
+    # Market hours check
+    if not force and not _is_market_hours():
+        return {"approved": False, "reason": "Market closed"}
+
+    # Contract limit per underlying
+    if qty > MAX_CONTRACTS_PER_POSITION:
+        qty = MAX_CONTRACTS_PER_POSITION
+
+    # Cash required check (CSP: strike * 100 * qty)
+    cash_required = proposal.get("cash_required", 0)
+    if not cash_required and proposal.get("contract_type") == "put":
+        cash_required = proposal.get("strike", 0) * 100 * qty
+
+    acct = get_account()
+    buying_power = acct.get("buying_power", 0)
+
+    # Max options allocation
+    max_options_bp = portfolio_value * MAX_OPTIONS_BUYING_POWER_PCT
+    if cash_required > max_options_bp:
+        return {
+            "approved": False,
+            "reason": f"CSP collateral ${cash_required:,.0f} exceeds options limit "
+                      f"${max_options_bp:,.0f} ({MAX_OPTIONS_BUYING_POWER_PCT*100:.0f}%)",
+        }
+
+    # Buying power check
+    if cash_required > buying_power:
+        return {
+            "approved": False,
+            "reason": f"Insufficient buying power: need ${cash_required:,.0f}, "
+                      f"have ${buying_power:,.0f}",
+        }
+
+    # IV rank check (for selling)
+    if side == "SELL" and iv_rank is not None and iv_rank < MIN_IV_RANK:
+        return {
+            "approved": False,
+            "reason": f"IV rank {iv_rank:.0f} below minimum {MIN_IV_RANK}",
+        }
+
+    # Minimum conviction
+    if conviction < 3:
+        return {
+            "approved": False,
+            "reason": f"Conviction {conviction} too low for options (min 3)",
+        }
+
+    return {
+        "approved": True,
+        "reason": f"Approved: {side} {occ} x{qty} @ ${premium:.2f} "
+                  f"(IV rank {iv_rank or '?'}, conviction {conviction})",
+        "adjusted_quantity": qty,
+    }
+
+
+def filter_options_proposals(proposals: list, portfolio_value: float, force: bool = False) -> list:
+    """Run options proposals through the options risk gate."""
+    approved = []
+
+    for p in proposals:
+        result = check_options_proposal(p, portfolio_value, force=force)
+        p["risk_check"] = result
+
+        if result["approved"]:
+            if "adjusted_quantity" in result:
+                p["quantity"] = result["adjusted_quantity"]
+            approved.append(p)
+            logger.info("OPTIONS APPROVED: %s %s — %s",
+                        p["side"], p.get("occ_symbol", p.get("ticker", "?")), result["reason"])
+        else:
+            logger.info("OPTIONS REJECTED: %s %s — %s",
+                        p.get("side", "?"), p.get("occ_symbol", p.get("ticker", "?")), result["reason"])
+
+    return approved
