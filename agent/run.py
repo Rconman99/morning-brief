@@ -188,7 +188,68 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     with open(run_log, "a") as f:
         f.write(json.dumps(run_record) + "\n")
 
-    # 7. Send notifications — ONLY when trades actually execute or fail
+    # 7. Check resolved positions — notify on wins/losses
+    try:
+        from lib.notify import send_telegram
+        from agent.tracker import get_positions as get_pm_positions, load_env as pm_load_env
+        from eth_account import Account
+
+        pm_load_env()
+        pm_key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
+        if pm_key:
+            wallet = Account.from_key(pm_key).address
+            all_positions = get_pm_positions(wallet)
+
+            # Track which resolutions we've already notified about
+            notified_path = PROJECT_ROOT / "agent" / "resolved_notified.json"
+            notified = set()
+            if notified_path.exists():
+                try:
+                    notified = set(json.loads(notified_path.read_text()))
+                except (json.JSONDecodeError, OSError):
+                    pass
+
+            resolved = [p for p in all_positions if (p.get("currentValue") or 0) == 0]
+            new_resolutions = []
+            for p in resolved:
+                # Use a unique key for each position
+                pos_key = f"{p.get('asset', '')}-{p.get('conditionId', '')}"
+                if pos_key in notified or pos_key == "-":
+                    continue
+
+                pnl = p.get("cashPnl", 0)
+                title = p.get("title", "Unknown")[:50]
+                outcome = p.get("outcome", "?")
+                cost = p.get("initialValue", 0)
+                won = pnl > 0
+
+                icon = "W" if won else "L"
+                pnl_str = f"+${pnl:.2f}" if pnl >= 0 else f"-${abs(pnl):.2f}"
+
+                new_resolutions.append(
+                    f"  [{icon}] {title}\n"
+                    f"      {outcome} — Cost ${cost:.2f} → P&L {pnl_str}"
+                )
+                notified.add(pos_key)
+
+            if new_resolutions:
+                wins = sum(1 for p in resolved if p.get("cashPnl", 0) > 0 and
+                          f"{p.get('asset', '')}-{p.get('conditionId', '')}" in notified)
+                total_pnl = sum(p.get("cashPnl", 0) for p in resolved)
+
+                msg = f"<b>Market Resolved!</b>\n\n"
+                msg += "\n".join(new_resolutions[:10])
+                msg += f"\n\nAll-time: {len([p for p in resolved if p.get('cashPnl',0)>0])}W / "
+                msg += f"{len([p for p in resolved if p.get('cashPnl',0)<0])}L"
+                msg += f"\nResolved P&L: ${total_pnl:+.2f}"
+                send_telegram(msg)
+
+                # Save notified set
+                notified_path.write_text(json.dumps(list(notified)))
+    except Exception as e:
+        logger.debug("Resolution check failed: %s", e)
+
+    # 8. Send notifications — ONLY when trades actually execute or fail
     try:
         from lib.notify import send_telegram
         if executed:
