@@ -188,25 +188,27 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     with open(run_log, "a") as f:
         f.write(json.dumps(run_record) + "\n")
 
-    # 7. Send notifications
+    # 7. Send notifications — ONLY when trades actually execute or fail
     try:
-        from lib.notify import send_telegram, alert_error
-        # Daily summary
-        msg = (
-            f"<b>Polymarket Agent</b>\n"
-            f"Proposals: {len(proposals)} → {len(approved)} approved → {len(executed)} executed\n"
-            f"Failed: {len(failed)}\n"
-            f"Deployed: ${sum(e.get('cost_usd', 0) for e in executed):,.2f}"
-        )
+        from lib.notify import send_telegram
         if executed:
-            msg += "\n\nTrades:"
+            msg = (
+                f"<b>Polymarket Agent</b>\n"
+                f"Proposals: {len(proposals)} → {len(approved)} approved → {len(executed)} executed\n"
+                f"Failed: {len(failed)}\n"
+                f"Deployed: ${sum(e.get('cost_usd', 0) for e in executed):,.2f}"
+                f"\n\nTrades:"
+            )
             for e in executed[:5]:
                 msg += f"\n  {e.get('side', '?')} {e.get('slug', '?')[:30]} @ {e.get('price', 0):.2f}"
-        if failed:
-            msg += f"\n\n⚠ {len(failed)} failed:"
+            send_telegram(msg)
+        elif failed:
+            # Only alert on failures, not empty runs
+            msg = f"<b>Polymarket Agent</b>\n⚠ {len(failed)} trades FAILED:"
             for f_ in failed[:3]:
                 msg += f"\n  {f_.get('error', 'unknown')[:50]}"
-        send_telegram(msg)
+            send_telegram(msg)
+        # No message when 0 executed, 0 failed — stay silent
     except Exception:
         pass
 
