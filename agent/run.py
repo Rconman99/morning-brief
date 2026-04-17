@@ -112,6 +112,11 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     # 1. Load strategy params (may have been updated by evaluator)
     params = load_agent_config()
 
+    # Inject bankroll into each strategy's params so sizing can scale with it
+    for strategy_name, strategy_params in params.items():
+        if isinstance(strategy_params, dict):
+            strategy_params["bankroll"] = bankroll
+
     # 2. Run all strategies to get proposals
     proposals = run_all_strategies(params)
     logger.info("Total proposals: %d", len(proposals))

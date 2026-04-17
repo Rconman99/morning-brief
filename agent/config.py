@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # --- HARD LIMITS (agent cannot modify these) ---
 
 MAX_SINGLE_POSITION_PCT = 0.10      # 10% of bankroll on any one market
-MAX_TOTAL_EXPOSURE_PCT = 0.80       # 80% max deployed (20% always cash)
+MAX_TOTAL_EXPOSURE_PCT = 0.95       # 95% max deployed (5% cash buffer)
 MAX_CATEGORY_EXPOSURE_PCT = 0.50    # 50% max in any one category (e.g., BTC)
 MAX_DAILY_LOSS_PCT = 0.05           # 5% daily loss → pause 24h
 MAX_WEEKLY_LOSS_PCT = 0.10          # 10% weekly loss → pause + alert
@@ -43,7 +43,8 @@ DEFAULT_STRATEGY_PARAMS = {
         "weight": 1.0,
         "min_price": 0.92,              # 92%+ probability
         "max_days_to_expiry": 30,
-        "max_position_usd": 500,
+        "max_position_pct": 0.10,       # 10% of bankroll — risk gate enforces same ceiling
+        "max_position_usd": 10,         # Absolute floor cap (used if bankroll not injected)
         "min_volume_24h": 10000,
     },
     "btc_sentiment": {

@@ -119,8 +119,15 @@ def scan_gimme_bets(params: dict) -> list:
 
     min_price = params.get("min_price", 0.92)
     max_days = params.get("max_days_to_expiry", 30)
-    max_pos = params.get("max_position_usd", 500)
     min_vol = params.get("min_volume_24h", 10000)
+
+    # Bankroll-aware sizing: prefer pct of bankroll, fall back to flat USD cap
+    bankroll = params.get("bankroll", 0)
+    max_pct = params.get("max_position_pct")
+    if bankroll and max_pct:
+        max_pos = bankroll * max_pct
+    else:
+        max_pos = params.get("max_position_usd", 10)
 
     proposals = []
     for g in pm.get("gimme_bets", []):
