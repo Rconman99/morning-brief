@@ -3526,3 +3526,910 @@
 2026-03-19 08:00:11,601 [__main__] INFO: Logged 9 new verdicts to /Users/agenticmac/projects/morning-brief/data/scorecard/verdict_log.json
 2026-03-19 08:00:11,916 [__main__] INFO: === Brief HTML Module ===
 2026-03-19 08:00:11,919 [__main__] INFO: HTML brief written to /Users/agenticmac/projects/morning-brief/data/outputs/morning_brief_2026-03-19.html
+2026-04-20 12:45:37,166 [__main__] INFO: API sync unavailable: No module named 'pyetrade'
+2026-04-20 12:45:37,269 [__main__] INFO: === Journal Module ===
+2026-04-20 12:45:37,269 [__main__] INFO: Loading trades from /home/user/morning-brief/data/sample/trades.csv
+2026-04-20 12:45:37,276 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/journal.json
+2026-04-20 12:45:37,277 [__main__] INFO: Journal analysis complete: 30 trades, 63.3% win rate
+2026-04-20 12:45:37,400 [__main__] INFO: === Earnings Module ===
+2026-04-20 12:45:37,401 [__main__] INFO: No transcript for AAPL
+2026-04-20 12:45:37,402 [__main__] INFO: No transcript for NVDA
+2026-04-20 12:45:37,402 [__main__] INFO: No transcript for MSFT
+2026-04-20 12:45:37,403 [__main__] INFO: Used sample transcript as fallback
+2026-04-20 12:45:37,404 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/earnings_tone.json
+2026-04-20 12:45:37,404 [__main__] INFO: Earnings analysis complete: 1 transcripts analyzed
+2026-04-20 12:45:38,546 [__main__] INFO: === Valuation Module ===
+2026-04-20 12:45:38,547 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-04-20 12:45:39,105 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,137 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,137 [lib.api] WARNING: yfinance info error for NVDA: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,138 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-04-20 12:45:39,176 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,207 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,207 [lib.api] WARNING: yfinance info error for AMD: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,208 [__main__] INFO: Compared NVDA vs AMD: cheaper=inconclusive
+2026-04-20 12:45:39,208 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-04-20 12:45:39,237 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,267 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,268 [lib.api] WARNING: yfinance info error for AAPL: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,269 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-04-20 12:45:39,301 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,336 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,336 [lib.api] WARNING: yfinance info error for MSFT: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,336 [__main__] INFO: Compared AAPL vs MSFT: cheaper=inconclusive
+2026-04-20 12:45:39,337 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-04-20 12:45:39,377 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,409 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,410 [lib.api] WARNING: yfinance info error for GOOGL: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,410 [lib.api] INFO: Alpha Vantage key is 'demo', skipping live call for OVERVIEW
+2026-04-20 12:45:39,443 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,472 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,472 [lib.api] WARNING: yfinance info error for META: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,473 [__main__] INFO: Compared GOOGL vs META: cheaper=inconclusive
+2026-04-20 12:45:39,508 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,538 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,538 [lib.api] WARNING: yfinance info error for AAPL: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,572 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,601 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,601 [lib.api] WARNING: yfinance info error for AMD: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,630 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,659 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,659 [lib.api] WARNING: yfinance info error for GOOGL: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,695 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,725 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,725 [lib.api] WARNING: yfinance info error for META: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,756 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,787 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,787 [lib.api] WARNING: yfinance info error for MSFT: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,818 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,848 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,848 [lib.api] WARNING: yfinance info error for NVDA: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,882 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,926 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:39,927 [lib.api] WARNING: yfinance info error for VOO: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:39,928 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/valuation.json
+2026-04-20 12:45:39,928 [__main__] INFO: Valuation analysis complete: 3 pairs compared, 0 scenarios
+2026-04-20 12:45:41,139 [__main__] INFO: === Portfolio Module ===
+2026-04-20 12:45:41,712 [yfinance] ERROR: Failed to get ticker 'NVDA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:41,744 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:41,788 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:41,792 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:41,792 [yfinance] ERROR: ['NVDA']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:41,798 [lib.api] WARNING: No yfinance price data for NVDA
+2026-04-20 12:45:42,009 [yfinance] ERROR: Failed to get ticker 'AAPL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:42,049 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:42,085 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:42,095 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:42,096 [yfinance] ERROR: ['AAPL']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:42,098 [lib.api] WARNING: No yfinance price data for AAPL
+2026-04-20 12:45:42,761 [yfinance] ERROR: Failed to get ticker 'VOO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:42,797 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:42,798 [yfinance] ERROR: ['VOO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:42,802 [lib.api] WARNING: No yfinance price data for VOO
+2026-04-20 12:45:42,806 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/portfolio.json
+2026-04-20 12:45:42,806 [__main__] INFO: Portfolio analysis complete: total P&L = $0.00
+2026-04-20 12:45:44,124 [__main__] INFO: === Technical Signals Module ===
+2026-04-20 12:45:44,679 [yfinance] ERROR: Failed to get ticker 'AAPL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:44,715 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:44,749 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:44,759 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:44,759 [yfinance] ERROR: ['AAPL']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:44,765 [lib.api] WARNING: No yfinance price data for AAPL
+2026-04-20 12:45:44,765 [__main__] WARNING: AAPL: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:44,766 [__main__] WARNING: AAPL: skipped (insufficient data)
+2026-04-20 12:45:44,923 [yfinance] ERROR: Failed to get ticker 'AMD' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:44,958 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:44,989 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:44,998 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:44,998 [yfinance] ERROR: ['AMD']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:45,001 [lib.api] WARNING: No yfinance price data for AMD
+2026-04-20 12:45:45,001 [__main__] WARNING: AMD: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:45,001 [__main__] WARNING: AMD: skipped (insufficient data)
+2026-04-20 12:45:45,238 [yfinance] ERROR: Failed to get ticker 'AMZN' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:45,278 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:45,278 [yfinance] ERROR: ['AMZN']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:45,280 [lib.api] WARNING: No yfinance price data for AMZN
+2026-04-20 12:45:45,281 [__main__] WARNING: AMZN: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:45,281 [__main__] WARNING: AMZN: skipped (insufficient data)
+2026-04-20 12:45:45,487 [yfinance] ERROR: Failed to get ticker 'GOOGL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:45,524 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:45,524 [yfinance] ERROR: ['GOOGL']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:45,528 [lib.api] WARNING: No yfinance price data for GOOGL
+2026-04-20 12:45:45,528 [__main__] WARNING: GOOGL: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:45,528 [__main__] WARNING: GOOGL: skipped (insufficient data)
+2026-04-20 12:45:45,747 [yfinance] ERROR: Failed to get ticker 'META' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:45,781 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:45,782 [yfinance] ERROR: ['META']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:45,785 [lib.api] WARNING: No yfinance price data for META
+2026-04-20 12:45:45,786 [__main__] WARNING: META: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:45,786 [__main__] WARNING: META: skipped (insufficient data)
+2026-04-20 12:45:45,965 [yfinance] ERROR: Failed to get ticker 'MSFT' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:46,006 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:46,006 [yfinance] ERROR: ['MSFT']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:46,009 [lib.api] WARNING: No yfinance price data for MSFT
+2026-04-20 12:45:46,009 [__main__] WARNING: MSFT: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:46,009 [__main__] WARNING: MSFT: skipped (insufficient data)
+2026-04-20 12:45:46,174 [yfinance] ERROR: Failed to get ticker 'NVDA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:46,213 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:46,213 [yfinance] ERROR: ['NVDA']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:46,215 [lib.api] WARNING: No yfinance price data for NVDA
+2026-04-20 12:45:46,216 [__main__] WARNING: NVDA: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:46,216 [__main__] WARNING: NVDA: skipped (insufficient data)
+2026-04-20 12:45:46,425 [yfinance] ERROR: Failed to get ticker 'TSLA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:46,456 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:46,456 [yfinance] ERROR: ['TSLA']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:46,460 [lib.api] WARNING: No yfinance price data for TSLA
+2026-04-20 12:45:46,461 [__main__] WARNING: TSLA: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:46,461 [__main__] WARNING: TSLA: skipped (insufficient data)
+2026-04-20 12:45:46,682 [yfinance] ERROR: Failed to get ticker 'VOO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:46,725 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:46,726 [yfinance] ERROR: ['VOO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:46,728 [lib.api] WARNING: No yfinance price data for VOO
+2026-04-20 12:45:46,729 [__main__] WARNING: VOO: insufficient history (0 rows, need 200+)
+2026-04-20 12:45:46,729 [__main__] WARNING: VOO: skipped (insufficient data)
+2026-04-20 12:45:46,730 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/technical_signals.json
+2026-04-20 12:45:46,730 [__main__] INFO: Technical signals complete: 0 tickers analyzed
+2026-04-20 12:45:47,943 [__main__] INFO: === News Sentiment Module ===
+2026-04-20 12:45:47,944 [__main__] INFO: Fetching RSS feeds for buzz analysis...
+2026-04-20 12:45:48,374 [__main__] WARNING: RSS: failed to fetch MarketWatch: 403 Client Error: Forbidden for url: https://feeds.content.dowjones.io/public/rss/mw_topstories
+2026-04-20 12:45:48,437 [__main__] WARNING: RSS: failed to fetch CNBC: 403 Client Error: Forbidden for url: https://www.cnbc.com/id/100003114/device/rss/rss.html
+2026-04-20 12:45:48,693 [__main__] WARNING: RSS: failed to fetch Yahoo Finance: 403 Client Error: Forbidden for url: https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US
+2026-04-20 12:45:48,739 [__main__] WARNING: RSS: failed to fetch Seeking Alpha: 403 Client Error: Forbidden for url: https://seekingalpha.com/market_currents.xml
+2026-04-20 12:45:48,815 [__main__] WARNING: RSS: failed to fetch Investing.com: 403 Client Error: Forbidden for url: https://www.investing.com/rss/news.rss
+2026-04-20 12:45:48,815 [__main__] INFO: RSS: total 0 articles from 5 feeds
+2026-04-20 12:45:48,817 [__main__] INFO: RSS buzz scores calculated for 9 tickers
+2026-04-20 12:45:49,307 [yfinance] ERROR: AAPL: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,307 [__main__] INFO: AAPL: no news articles found
+2026-04-20 12:45:49,346 [yfinance] ERROR: AMD: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,346 [__main__] INFO: AMD: no news articles found
+2026-04-20 12:45:49,375 [yfinance] ERROR: AMZN: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,375 [__main__] INFO: AMZN: no news articles found
+2026-04-20 12:45:49,406 [yfinance] ERROR: GOOGL: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,406 [__main__] INFO: GOOGL: no news articles found
+2026-04-20 12:45:49,438 [yfinance] ERROR: META: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,438 [__main__] INFO: META: no news articles found
+2026-04-20 12:45:49,472 [yfinance] ERROR: MSFT: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,472 [__main__] INFO: MSFT: no news articles found
+2026-04-20 12:45:49,504 [yfinance] ERROR: NVDA: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,504 [__main__] INFO: NVDA: no news articles found
+2026-04-20 12:45:49,545 [yfinance] ERROR: TSLA: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,545 [__main__] INFO: TSLA: no news articles found
+2026-04-20 12:45:49,579 [yfinance] ERROR: VOO: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:45:49,579 [__main__] INFO: VOO: no news articles found
+2026-04-20 12:45:49,581 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/news_sentiment.json
+2026-04-20 12:45:49,581 [__main__] INFO: News sentiment complete: 0 tickers analyzed, 0 RSS articles fetched
+2026-04-20 12:45:50,796 [__main__] INFO: === Options Module ===
+2026-04-20 12:45:50,797 [__main__] INFO: Analyzing options for NVDA
+2026-04-20 12:45:51,376 [yfinance] ERROR: Failed to get ticker 'NVDA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:51,409 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,446 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,452 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:51,452 [yfinance] ERROR: ['NVDA']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:51,457 [lib.api] WARNING: No yfinance price data for NVDA
+2026-04-20 12:45:51,572 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,606 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,606 [lib.api] WARNING: yfinance info error for NVDA: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:51,606 [__main__] WARNING: Cannot get price for NVDA, skipping options
+2026-04-20 12:45:51,606 [__main__] INFO: Analyzing options for AAPL
+2026-04-20 12:45:51,775 [yfinance] ERROR: Failed to get ticker 'AAPL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:51,805 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,842 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,852 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:51,852 [yfinance] ERROR: ['AAPL']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:51,855 [lib.api] WARNING: No yfinance price data for AAPL
+2026-04-20 12:45:51,947 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,980 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:51,981 [lib.api] WARNING: yfinance info error for AAPL: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:51,981 [__main__] WARNING: Cannot get price for AAPL, skipping options
+2026-04-20 12:45:51,981 [__main__] INFO: Analyzing options for VOO
+2026-04-20 12:45:52,222 [yfinance] ERROR: Failed to get ticker 'VOO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:52,263 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:52,264 [yfinance] ERROR: ['VOO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:52,268 [lib.api] WARNING: No yfinance price data for VOO
+2026-04-20 12:45:52,361 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:52,461 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:52,461 [lib.api] WARNING: yfinance info error for VOO: argument of type 'NoneType' is not iterable
+2026-04-20 12:45:52,462 [__main__] WARNING: Cannot get price for VOO, skipping options
+2026-04-20 12:45:52,463 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/options.json
+2026-04-20 12:45:52,463 [__main__] INFO: Options analysis complete: 3 tickers processed
+2026-04-20 12:45:52,668 [__main__] INFO: === Insider Tracker Module ===
+2026-04-20 12:45:52,670 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/insider_tracker.json
+2026-04-20 12:45:52,670 [__main__] INFO: Insider tracker complete: 9 tickers, 0 with activity
+2026-04-20 12:45:53,786 [__main__] INFO: === Congressional Trading Tracker ===
+2026-04-20 12:45:54,353 [__main__] WARNING: Failed to fetch House trades: 503 Server Error: Service Unavailable for url: https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
+2026-04-20 12:45:54,825 [__main__] WARNING: Failed to fetch Senate trades: 503 Server Error: Service Unavailable for url: https://senate-stock-watcher-data.s3-us-west-2.amazonaws.com/aggregate/all_transactions.json
+2026-04-20 12:45:54,827 [__main__] INFO: Loaded 12 sample congressional trades
+2026-04-20 12:45:54,828 [__main__] INFO: Congressional trades: 12 total from sample_data, checking against 9 watchlist tickers
+2026-04-20 12:45:54,829 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/congress_tracker.json
+2026-04-20 12:45:54,830 [__main__] INFO: Congress tracker complete: 12 trades, 12 watchlist matches, signal=cluster_detected
+2026-04-20 12:45:56,009 [__main__] INFO: === Polymarket Scanner ===
+2026-04-20 12:45:56,071 [__main__] WARNING: Failed to fetch Polymarket markets: 403 Client Error: Forbidden for url: https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume24hr&ascending=false&limit=100
+2026-04-20 12:45:56,073 [__main__] INFO: Loaded 12 sample Polymarket markets
+2026-04-20 12:45:56,074 [__main__] INFO: Polymarket scanner: 12 markets from sample_data
+2026-04-20 12:45:56,482 [__main__] WARNING: Failed to fetch portfolio positions: 403 Client Error: Forbidden for url: https://data-api.polymarket.com/positions?user=0xde17f7144fbd0eddb2679132c10ff5e74b120988&sizeThreshold=0.1
+2026-04-20 12:45:56,542 [__main__] WARNING: Failed to fetch portfolio activity: 403 Client Error: Forbidden for url: https://data-api.polymarket.com/activity?user=0xde17f7144fbd0eddb2679132c10ff5e74b120988&limit=20
+2026-04-20 12:45:56,543 [__main__] INFO: Portfolio: 0 positions, P&L $0.00
+2026-04-20 12:45:56,545 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/polymarket.json
+2026-04-20 12:45:56,545 [__main__] INFO: Polymarket scanner complete: 12 markets, 0 opportunities, signal=volatile
+2026-04-20 12:45:57,722 [__main__] INFO: === Economic Calendar Module ===
+2026-04-20 12:45:57,723 [__main__] INFO: Running for date: 2026-04-20
+2026-04-20 12:45:57,724 [__main__] INFO: Detected 0 events this week
+2026-04-20 12:45:57,724 [__main__] INFO: Signal: calm - No significant economic events this week
+2026-04-20 12:45:57,724 [__main__] INFO: FRED API key not configured, skipping FRED data
+2026-04-20 12:45:57,725 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/economic_calendar.json
+2026-04-20 12:45:57,725 [__main__] INFO: Economic calendar module complete
+2026-04-20 12:45:58,611 [__main__] INFO: === Building Macro Dashboard ===
+2026-04-20 12:45:58,611 [__main__] INFO: Fetching VIX (^VIX)
+2026-04-20 12:45:58,612 [__main__] INFO: Fetching fresh data for VIX (^VIX)
+2026-04-20 12:45:59,340 [yfinance] ERROR: Failed to get ticker '^VIX' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:59,372 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:59,402 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:59,411 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:59,411 [yfinance] ERROR: ['^VIX']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:59,416 [__main__] WARNING: No data for ^VIX
+2026-04-20 12:45:59,417 [__main__] WARNING:   ✗ VIX failed
+2026-04-20 12:45:59,417 [__main__] INFO: Fetching DXY (DX-Y.NYB)
+2026-04-20 12:45:59,418 [__main__] INFO: Fetching fresh data for DXY (DX-Y.NYB)
+2026-04-20 12:45:59,607 [yfinance] ERROR: Failed to get ticker 'DX-Y.NYB' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:59,635 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:59,665 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:45:59,670 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:59,670 [yfinance] ERROR: ['DX-Y.NYB']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:45:59,673 [__main__] WARNING: No data for DX-Y.NYB
+2026-04-20 12:45:59,673 [__main__] WARNING:   ✗ DXY failed
+2026-04-20 12:45:59,673 [__main__] INFO: Fetching US10Y (^TNX)
+2026-04-20 12:45:59,674 [__main__] INFO: Fetching fresh data for US10Y (^TNX)
+2026-04-20 12:45:59,881 [yfinance] ERROR: Failed to get ticker '^TNX' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:45:59,914 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:45:59,914 [yfinance] ERROR: ['^TNX']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:45:59,918 [__main__] WARNING: No data for ^TNX
+2026-04-20 12:45:59,918 [__main__] WARNING:   ✗ US10Y failed
+2026-04-20 12:45:59,919 [__main__] INFO: Fetching OIL (CL=F)
+2026-04-20 12:45:59,920 [__main__] INFO: Fetching fresh data for OIL (CL=F)
+2026-04-20 12:46:00,105 [yfinance] ERROR: Failed to get ticker 'CL=F' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:00,143 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:00,143 [yfinance] ERROR: ['CL=F']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:00,147 [__main__] WARNING: No data for CL=F
+2026-04-20 12:46:00,147 [__main__] WARNING:   ✗ OIL failed
+2026-04-20 12:46:00,147 [__main__] INFO: Fetching GOLD (GC=F)
+2026-04-20 12:46:00,148 [__main__] INFO: Fetching fresh data for GOLD (GC=F)
+2026-04-20 12:46:00,426 [yfinance] ERROR: Failed to get ticker 'GC=F' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:00,464 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:00,464 [yfinance] ERROR: ['GC=F']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:00,467 [__main__] WARNING: No data for GC=F
+2026-04-20 12:46:00,467 [__main__] WARNING:   ✗ GOLD failed
+2026-04-20 12:46:00,468 [__main__] ERROR: All indicators failed to fetch
+2026-04-20 12:46:00,469 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/macro_dashboard.json
+2026-04-20 12:46:00,469 [__main__] INFO: Macro Dashboard complete. Output: /home/user/morning-brief/data/processed/macro_dashboard.json
+2026-04-20 12:46:02,004 [__main__] INFO: === Sector Rotation Tracker ===
+2026-04-20 12:46:02,165 [yfinance] ERROR: Failed to get ticker 'SPY' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:02,193 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:02,244 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:02,251 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:02,251 [yfinance] ERROR: ['SPY']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:02,257 [__main__] WARNING: No data for SPY
+2026-04-20 12:46:02,421 [yfinance] ERROR: Failed to get ticker 'XLK' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:02,452 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:02,480 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:02,486 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:02,486 [yfinance] ERROR: ['XLK']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:02,489 [__main__] WARNING: No data for XLK
+2026-04-20 12:46:02,489 [__main__] WARNING: Failed to fetch XLK
+2026-04-20 12:46:02,709 [yfinance] ERROR: Failed to get ticker 'XLF' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:02,751 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:02,751 [yfinance] ERROR: ['XLF']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:02,753 [__main__] WARNING: No data for XLF
+2026-04-20 12:46:02,754 [__main__] WARNING: Failed to fetch XLF
+2026-04-20 12:46:02,952 [yfinance] ERROR: Failed to get ticker 'XLE' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:02,986 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:02,986 [yfinance] ERROR: ['XLE']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:02,989 [__main__] WARNING: No data for XLE
+2026-04-20 12:46:02,989 [__main__] WARNING: Failed to fetch XLE
+2026-04-20 12:46:03,205 [yfinance] ERROR: Failed to get ticker 'XLV' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:03,246 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:03,247 [yfinance] ERROR: ['XLV']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:03,249 [__main__] WARNING: No data for XLV
+2026-04-20 12:46:03,249 [__main__] WARNING: Failed to fetch XLV
+2026-04-20 12:46:03,499 [yfinance] ERROR: Failed to get ticker 'XLI' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:03,534 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:03,534 [yfinance] ERROR: ['XLI']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:03,537 [__main__] WARNING: No data for XLI
+2026-04-20 12:46:03,537 [__main__] WARNING: Failed to fetch XLI
+2026-04-20 12:46:03,785 [yfinance] ERROR: Failed to get ticker 'XLY' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:03,821 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:03,821 [yfinance] ERROR: ['XLY']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:03,824 [__main__] WARNING: No data for XLY
+2026-04-20 12:46:03,824 [__main__] WARNING: Failed to fetch XLY
+2026-04-20 12:46:04,053 [yfinance] ERROR: Failed to get ticker 'XLP' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:04,091 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:04,091 [yfinance] ERROR: ['XLP']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:04,093 [__main__] WARNING: No data for XLP
+2026-04-20 12:46:04,094 [__main__] WARNING: Failed to fetch XLP
+2026-04-20 12:46:04,295 [yfinance] ERROR: Failed to get ticker 'XLU' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:04,338 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:04,338 [yfinance] ERROR: ['XLU']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:04,341 [__main__] WARNING: No data for XLU
+2026-04-20 12:46:04,341 [__main__] WARNING: Failed to fetch XLU
+2026-04-20 12:46:04,565 [yfinance] ERROR: Failed to get ticker 'XLB' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:04,600 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:04,600 [yfinance] ERROR: ['XLB']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:04,602 [__main__] WARNING: No data for XLB
+2026-04-20 12:46:04,603 [__main__] WARNING: Failed to fetch XLB
+2026-04-20 12:46:04,814 [yfinance] ERROR: Failed to get ticker 'XLRE' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:04,866 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:04,867 [yfinance] ERROR: ['XLRE']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:04,869 [__main__] WARNING: No data for XLRE
+2026-04-20 12:46:04,869 [__main__] WARNING: Failed to fetch XLRE
+2026-04-20 12:46:05,102 [yfinance] ERROR: Failed to get ticker 'XLC' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:05,140 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:05,140 [yfinance] ERROR: ['XLC']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:05,143 [__main__] WARNING: No data for XLC
+2026-04-20 12:46:05,143 [__main__] WARNING: Failed to fetch XLC
+2026-04-20 12:46:05,143 [__main__] ERROR: No sector data available
+2026-04-20 12:46:05,144 [__main__] ERROR: Failed to analyze sectors
+2026-04-20 12:46:05,144 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/sector_rotation.json
+2026-04-20 12:46:06,399 [__main__] INFO: === Opportunity Scanner Module ===
+2026-04-20 12:46:06,948 [yfinance] ERROR: Failed to get ticker 'XLK' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:06,978 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:07,007 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:07,016 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:07,016 [yfinance] ERROR: ['XLK']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:07,021 [lib.api] WARNING: No yfinance price data for XLK
+2026-04-20 12:46:07,022 [__main__] WARNING: XLK: insufficient ETF history
+2026-04-20 12:46:07,189 [yfinance] ERROR: Failed to get ticker 'XLF' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:07,219 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:07,248 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:07,255 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:07,255 [yfinance] ERROR: ['XLF']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:07,258 [lib.api] WARNING: No yfinance price data for XLF
+2026-04-20 12:46:07,258 [__main__] WARNING: XLF: insufficient ETF history
+2026-04-20 12:46:07,477 [yfinance] ERROR: Failed to get ticker 'XLE' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:07,513 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:07,513 [yfinance] ERROR: ['XLE']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:07,516 [lib.api] WARNING: No yfinance price data for XLE
+2026-04-20 12:46:07,517 [__main__] WARNING: XLE: insufficient ETF history
+2026-04-20 12:46:07,724 [yfinance] ERROR: Failed to get ticker 'XLV' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:07,759 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:07,760 [yfinance] ERROR: ['XLV']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:07,762 [lib.api] WARNING: No yfinance price data for XLV
+2026-04-20 12:46:07,763 [__main__] WARNING: XLV: insufficient ETF history
+2026-04-20 12:46:07,983 [yfinance] ERROR: Failed to get ticker 'XLI' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:08,015 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:08,015 [yfinance] ERROR: ['XLI']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:08,018 [lib.api] WARNING: No yfinance price data for XLI
+2026-04-20 12:46:08,018 [__main__] WARNING: XLI: insufficient ETF history
+2026-04-20 12:46:08,232 [yfinance] ERROR: Failed to get ticker 'ARKK' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:08,272 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:08,272 [yfinance] ERROR: ['ARKK']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:08,275 [lib.api] WARNING: No yfinance price data for ARKK
+2026-04-20 12:46:08,275 [__main__] WARNING: ARKK: insufficient ETF history
+2026-04-20 12:46:08,465 [yfinance] ERROR: Failed to get ticker 'AVGO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:08,496 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:08,496 [yfinance] ERROR: ['AVGO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:08,499 [lib.api] WARNING: No yfinance price data for AVGO
+2026-04-20 12:46:08,500 [modules.technical_signals] WARNING: AVGO: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:08,681 [yfinance] ERROR: Failed to get ticker 'CRM' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:08,723 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:08,723 [yfinance] ERROR: ['CRM']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:08,726 [lib.api] WARNING: No yfinance price data for CRM
+2026-04-20 12:46:08,726 [modules.technical_signals] WARNING: CRM: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:08,947 [yfinance] ERROR: Failed to get ticker 'ORCL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:09,001 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:09,001 [yfinance] ERROR: ['ORCL']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:09,004 [lib.api] WARNING: No yfinance price data for ORCL
+2026-04-20 12:46:09,004 [modules.technical_signals] WARNING: ORCL: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:09,235 [yfinance] ERROR: Failed to get ticker 'PLTR' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:09,278 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:09,278 [yfinance] ERROR: ['PLTR']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:09,280 [lib.api] WARNING: No yfinance price data for PLTR
+2026-04-20 12:46:09,281 [modules.technical_signals] WARNING: PLTR: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:09,497 [yfinance] ERROR: Failed to get ticker 'UBER' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:09,534 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:09,534 [yfinance] ERROR: ['UBER']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:09,537 [lib.api] WARNING: No yfinance price data for UBER
+2026-04-20 12:46:09,537 [modules.technical_signals] WARNING: UBER: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:09,714 [yfinance] ERROR: Failed to get ticker 'SHOP' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:09,748 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:09,748 [yfinance] ERROR: ['SHOP']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:09,750 [lib.api] WARNING: No yfinance price data for SHOP
+2026-04-20 12:46:09,751 [modules.technical_signals] WARNING: SHOP: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:09,973 [yfinance] ERROR: Failed to get ticker 'SQ' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:10,012 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:10,012 [yfinance] ERROR: ['SQ']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:10,015 [lib.api] WARNING: No yfinance price data for SQ
+2026-04-20 12:46:10,015 [modules.technical_signals] WARNING: SQ: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:10,204 [yfinance] ERROR: Failed to get ticker 'SNOW' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:10,248 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:10,248 [yfinance] ERROR: ['SNOW']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:10,250 [lib.api] WARNING: No yfinance price data for SNOW
+2026-04-20 12:46:10,251 [modules.technical_signals] WARNING: SNOW: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:10,488 [yfinance] ERROR: Failed to get ticker 'NET' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:10,524 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:10,524 [yfinance] ERROR: ['NET']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:10,526 [lib.api] WARNING: No yfinance price data for NET
+2026-04-20 12:46:10,527 [modules.technical_signals] WARNING: NET: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:10,766 [yfinance] ERROR: Failed to get ticker 'COIN' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:10,822 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:10,823 [yfinance] ERROR: ['COIN']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:10,825 [lib.api] WARNING: No yfinance price data for COIN
+2026-04-20 12:46:10,826 [modules.technical_signals] WARNING: COIN: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:11,010 [yfinance] ERROR: Failed to get ticker 'MRVL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:11,039 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:11,039 [yfinance] ERROR: ['MRVL']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:11,042 [lib.api] WARNING: No yfinance price data for MRVL
+2026-04-20 12:46:11,042 [modules.technical_signals] WARNING: MRVL: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:11,312 [yfinance] ERROR: Failed to get ticker 'QCOM' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:11,347 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:11,347 [yfinance] ERROR: ['QCOM']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:11,351 [lib.api] WARNING: No yfinance price data for QCOM
+2026-04-20 12:46:11,351 [modules.technical_signals] WARNING: QCOM: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:11,602 [yfinance] ERROR: Failed to get ticker 'MU' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:11,636 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:11,636 [yfinance] ERROR: ['MU']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:11,639 [lib.api] WARNING: No yfinance price data for MU
+2026-04-20 12:46:11,639 [modules.technical_signals] WARNING: MU: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:11,832 [yfinance] ERROR: Failed to get ticker 'ASML' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:11,871 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:11,871 [yfinance] ERROR: ['ASML']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:11,874 [lib.api] WARNING: No yfinance price data for ASML
+2026-04-20 12:46:11,874 [modules.technical_signals] WARNING: ASML: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:12,079 [yfinance] ERROR: Failed to get ticker 'KLAC' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:12,122 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:12,122 [yfinance] ERROR: ['KLAC']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:12,125 [lib.api] WARNING: No yfinance price data for KLAC
+2026-04-20 12:46:12,125 [modules.technical_signals] WARNING: KLAC: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:12,306 [yfinance] ERROR: Failed to get ticker 'LRCX' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:12,347 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:12,347 [yfinance] ERROR: ['LRCX']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:12,350 [lib.api] WARNING: No yfinance price data for LRCX
+2026-04-20 12:46:12,351 [modules.technical_signals] WARNING: LRCX: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:12,558 [yfinance] ERROR: Failed to get ticker 'AMAT' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:12,592 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:12,593 [yfinance] ERROR: ['AMAT']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:12,595 [lib.api] WARNING: No yfinance price data for AMAT
+2026-04-20 12:46:12,595 [modules.technical_signals] WARNING: AMAT: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:12,799 [yfinance] ERROR: Failed to get ticker 'SMCI' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:12,839 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:12,840 [yfinance] ERROR: ['SMCI']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:12,842 [lib.api] WARNING: No yfinance price data for SMCI
+2026-04-20 12:46:12,843 [modules.technical_signals] WARNING: SMCI: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:13,045 [yfinance] ERROR: Failed to get ticker 'ARM' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:13,082 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:13,082 [yfinance] ERROR: ['ARM']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:13,085 [lib.api] WARNING: No yfinance price data for ARM
+2026-04-20 12:46:13,085 [modules.technical_signals] WARNING: ARM: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:13,317 [yfinance] ERROR: Failed to get ticker 'MSTR' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:13,360 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:13,360 [yfinance] ERROR: ['MSTR']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:13,363 [lib.api] WARNING: No yfinance price data for MSTR
+2026-04-20 12:46:13,363 [modules.technical_signals] WARNING: MSTR: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:13,558 [yfinance] ERROR: Failed to get ticker 'IONQ' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:13,595 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:13,596 [yfinance] ERROR: ['IONQ']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:13,598 [lib.api] WARNING: No yfinance price data for IONQ
+2026-04-20 12:46:13,598 [modules.technical_signals] WARNING: IONQ: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:13,800 [yfinance] ERROR: Failed to get ticker 'RKLB' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:13,841 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:13,841 [yfinance] ERROR: ['RKLB']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:13,844 [lib.api] WARNING: No yfinance price data for RKLB
+2026-04-20 12:46:13,844 [modules.technical_signals] WARNING: RKLB: insufficient history (0 rows, need 200+)
+2026-04-20 12:46:13,845 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/opportunities.json
+2026-04-20 12:46:13,845 [__main__] INFO: Opportunity scan complete: 0/22 passed filter, 0 surfaced
+2026-04-20 12:46:15,076 [__main__] INFO: === Unusual Options Module ===
+2026-04-20 12:46:15,077 [__main__] INFO: Scanning unusual options for AAPL
+2026-04-20 12:46:15,697 [yfinance] ERROR: Failed to get ticker 'AAPL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:15,731 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:15,763 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:15,772 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:15,772 [yfinance] ERROR: ['AAPL']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:15,777 [lib.api] WARNING: No yfinance price data for AAPL
+2026-04-20 12:46:15,883 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:15,917 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:15,917 [lib.api] WARNING: yfinance info error for AAPL: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:15,917 [__main__] WARNING: Cannot get price for AAPL, skipping
+2026-04-20 12:46:15,917 [__main__] INFO: Scanning unusual options for AMD
+2026-04-20 12:46:16,076 [yfinance] ERROR: Failed to get ticker 'AMD' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:16,106 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:16,133 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:16,137 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:16,137 [yfinance] ERROR: ['AMD']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:16,140 [lib.api] WARNING: No yfinance price data for AMD
+2026-04-20 12:46:16,220 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:16,252 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:16,253 [lib.api] WARNING: yfinance info error for AMD: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:16,253 [__main__] WARNING: Cannot get price for AMD, skipping
+2026-04-20 12:46:16,253 [__main__] INFO: Scanning unusual options for AMZN
+2026-04-20 12:46:16,459 [yfinance] ERROR: Failed to get ticker 'AMZN' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:16,495 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:16,496 [yfinance] ERROR: ['AMZN']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:16,499 [lib.api] WARNING: No yfinance price data for AMZN
+2026-04-20 12:46:16,601 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:16,631 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:16,631 [lib.api] WARNING: yfinance info error for AMZN: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:16,631 [__main__] WARNING: Cannot get price for AMZN, skipping
+2026-04-20 12:46:16,631 [__main__] INFO: Scanning unusual options for GOOGL
+2026-04-20 12:46:16,844 [yfinance] ERROR: Failed to get ticker 'GOOGL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:16,880 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:16,881 [yfinance] ERROR: ['GOOGL']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:16,884 [lib.api] WARNING: No yfinance price data for GOOGL
+2026-04-20 12:46:16,978 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:17,024 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:17,024 [lib.api] WARNING: yfinance info error for GOOGL: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:17,024 [__main__] WARNING: Cannot get price for GOOGL, skipping
+2026-04-20 12:46:17,024 [__main__] INFO: Scanning unusual options for META
+2026-04-20 12:46:17,229 [yfinance] ERROR: Failed to get ticker 'META' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:17,263 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:17,263 [yfinance] ERROR: ['META']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:17,266 [lib.api] WARNING: No yfinance price data for META
+2026-04-20 12:46:17,351 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:17,386 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:17,386 [lib.api] WARNING: yfinance info error for META: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:17,386 [__main__] WARNING: Cannot get price for META, skipping
+2026-04-20 12:46:17,386 [__main__] INFO: Scanning unusual options for MSFT
+2026-04-20 12:46:17,590 [yfinance] ERROR: Failed to get ticker 'MSFT' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:17,627 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:17,627 [yfinance] ERROR: ['MSFT']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:17,630 [lib.api] WARNING: No yfinance price data for MSFT
+2026-04-20 12:46:17,708 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:17,735 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:17,735 [lib.api] WARNING: yfinance info error for MSFT: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:17,735 [__main__] WARNING: Cannot get price for MSFT, skipping
+2026-04-20 12:46:17,735 [__main__] INFO: Scanning unusual options for NVDA
+2026-04-20 12:46:17,910 [yfinance] ERROR: Failed to get ticker 'NVDA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:17,955 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:17,956 [yfinance] ERROR: ['NVDA']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:17,959 [lib.api] WARNING: No yfinance price data for NVDA
+2026-04-20 12:46:18,040 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:18,071 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:18,071 [lib.api] WARNING: yfinance info error for NVDA: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:18,071 [__main__] WARNING: Cannot get price for NVDA, skipping
+2026-04-20 12:46:18,071 [__main__] INFO: Scanning unusual options for TSLA
+2026-04-20 12:46:18,284 [yfinance] ERROR: Failed to get ticker 'TSLA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:18,332 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:18,333 [yfinance] ERROR: ['TSLA']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:18,336 [lib.api] WARNING: No yfinance price data for TSLA
+2026-04-20 12:46:18,420 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:18,458 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:18,458 [lib.api] WARNING: yfinance info error for TSLA: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:18,458 [__main__] WARNING: Cannot get price for TSLA, skipping
+2026-04-20 12:46:18,458 [__main__] INFO: Scanning unusual options for VOO
+2026-04-20 12:46:18,706 [yfinance] ERROR: Failed to get ticker 'VOO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:18,741 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:18,741 [yfinance] ERROR: ['VOO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:18,744 [lib.api] WARNING: No yfinance price data for VOO
+2026-04-20 12:46:18,828 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:18,861 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:18,861 [lib.api] WARNING: yfinance info error for VOO: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:18,861 [__main__] WARNING: Cannot get price for VOO, skipping
+2026-04-20 12:46:18,862 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/unusual_options.json
+2026-04-20 12:46:18,863 [__main__] INFO: Unusual options scan complete: 0 tickers with unusual activity
+2026-04-20 12:46:19,065 [__main__] INFO: === Social Sentiment Module ===
+2026-04-20 12:46:20,560 [yfinance] ERROR: AAPL: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,560 [__main__] INFO: AAPL: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,593 [yfinance] ERROR: AMD: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,594 [__main__] INFO: AMD: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,625 [yfinance] ERROR: AMZN: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,626 [__main__] INFO: AMZN: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,654 [yfinance] ERROR: GOOGL: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,655 [__main__] INFO: GOOGL: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,684 [yfinance] ERROR: META: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,684 [__main__] INFO: META: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,716 [yfinance] ERROR: MSFT: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,716 [__main__] INFO: MSFT: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,747 [yfinance] ERROR: NVDA: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,747 [__main__] INFO: NVDA: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,779 [yfinance] ERROR: TSLA: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,779 [__main__] INFO: TSLA: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,812 [yfinance] ERROR: VOO: Failed to retrieve the news and received faulty response instead.
+2026-04-20 12:46:20,812 [__main__] INFO: VOO: buzz=0, sentiment=0.00, trend=stable, interest=low
+2026-04-20 12:46:20,813 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/social_sentiment.json
+2026-04-20 12:46:20,814 [__main__] INFO: Social sentiment complete: 9 tickers analyzed, 0 with news
+2026-04-20 12:46:21,789 [__main__] INFO: === Social Intelligence (last30days v3) ===
+2026-04-20 12:46:21,790 [__main__] INFO: Researching: Bitcoin price prediction
+2026-04-20 12:46:21,790 [__main__] WARNING: last30days not installed at /root/.claude/skills/last30days/scripts/last30days.py
+2026-04-20 12:46:21,790 [__main__] INFO: Researching: Federal Reserve interest rates
+2026-04-20 12:46:21,791 [__main__] WARNING: last30days not installed at /root/.claude/skills/last30days/scripts/last30days.py
+2026-04-20 12:46:21,791 [__main__] INFO: Researching: oil prices crude
+2026-04-20 12:46:21,791 [__main__] WARNING: last30days not installed at /root/.claude/skills/last30days/scripts/last30days.py
+2026-04-20 12:46:21,792 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/social_intelligence.json
+2026-04-20 12:46:21,792 [__main__] INFO: Social intelligence complete: neutral mood, 3 topics, 0 bull / 0 bear signals
+2026-04-20 12:46:22,718 [__main__] INFO: === Building module: dividend_tracker ===
+2026-04-20 12:46:23,394 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,429 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,429 [__main__] WARNING: yfinance info error for NVDA: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,429 [__main__] WARNING: No data available for NVDA
+2026-04-20 12:46:23,464 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,513 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,513 [__main__] WARNING: yfinance info error for AAPL: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,514 [__main__] WARNING: No data available for AAPL
+2026-04-20 12:46:23,558 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,594 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,594 [__main__] WARNING: yfinance info error for VOO: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,594 [__main__] WARNING: No data available for VOO
+2026-04-20 12:46:23,634 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,666 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,666 [__main__] WARNING: yfinance info error for MSFT: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,666 [__main__] WARNING: No data available for MSFT
+2026-04-20 12:46:23,706 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,745 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,745 [__main__] WARNING: yfinance info error for AMD: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,745 [__main__] WARNING: No data available for AMD
+2026-04-20 12:46:23,777 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,818 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,818 [__main__] WARNING: yfinance info error for GOOGL: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,818 [__main__] WARNING: No data available for GOOGL
+2026-04-20 12:46:23,854 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,892 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,892 [__main__] WARNING: yfinance info error for AMZN: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,892 [__main__] WARNING: No data available for AMZN
+2026-04-20 12:46:23,928 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,975 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:23,975 [__main__] WARNING: yfinance info error for TSLA: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:23,975 [__main__] WARNING: No data available for TSLA
+2026-04-20 12:46:24,023 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:24,062 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:24,062 [__main__] WARNING: yfinance info error for META: argument of type 'NoneType' is not iterable
+2026-04-20 12:46:24,062 [__main__] WARNING: No data available for META
+2026-04-20 12:46:24,063 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/dividend_tracker.json
+2026-04-20 12:46:24,064 [__main__] INFO: Dividend tracker complete: 9 tickers processed
+2026-04-20 12:46:25,357 [__main__] INFO: === Risk Dashboard Module ===
+2026-04-20 12:46:25,923 [yfinance] ERROR: Failed to get ticker '^VIX' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:25,953 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:25,985 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:25,991 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:25,991 [yfinance] ERROR: ['^VIX']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:25,997 [lib.api] WARNING: No yfinance price data for ^VIX
+2026-04-20 12:46:26,149 [yfinance] ERROR: Failed to get ticker '^TNX' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:26,185 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:26,215 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:26,219 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:26,219 [yfinance] ERROR: ['^TNX']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:26,222 [lib.api] WARNING: No yfinance price data for ^TNX
+2026-04-20 12:46:26,314 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:26,344 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:26,377 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:26,377 [__main__] INFO: Risk regime: LOW_RISK (total=0.4, now=0.0, short=0.0, long=1.0)
+2026-04-20 12:46:26,378 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/risk_dashboard.json
+2026-04-20 12:46:26,379 [__main__] INFO: Risk dashboard complete: regime=LOW_RISK, total_risk=0.4
+2026-04-20 12:46:26,586 [__main__] INFO: === Trade Memory Module ===
+2026-04-20 12:46:26,590 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/trade_memory.json
+2026-04-20 12:46:26,590 [__main__] INFO: Trade memory complete: 9 tickers analyzed
+2026-04-20 12:46:26,684 [__main__] INFO: === Position Sizer Module ===
+2026-04-20 12:46:26,687 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/position_sizer.json
+2026-04-20 12:46:26,688 [__main__] INFO: Position sizing complete: 0 tickers, portfolio $15000
+2026-04-20 12:46:27,795 [__main__] INFO: === Starting correlation_heatmap module ===
+2026-04-20 12:46:27,796 [__main__] INFO: Analyzing 9 tickers: ['AAPL', 'AMD', 'AMZN', 'GOOGL', 'META', 'MSFT', 'NVDA', 'TSLA', 'VOO']
+2026-04-20 12:46:27,796 [__main__] INFO: Downloading price history for AAPL
+2026-04-20 12:46:28,303 [yfinance] ERROR: Failed to get ticker 'AAPL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:28,333 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:28,362 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:28,366 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:28,366 [yfinance] ERROR: ['AAPL']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:28,373 [lib.api] WARNING: No yfinance price data for AAPL
+2026-04-20 12:46:28,373 [__main__] WARNING: Failed to get prices for AAPL
+2026-04-20 12:46:28,374 [__main__] INFO: Downloading price history for AMD
+2026-04-20 12:46:28,529 [yfinance] ERROR: Failed to get ticker 'AMD' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:28,564 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:28,596 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:28,605 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:28,605 [yfinance] ERROR: ['AMD']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:28,608 [lib.api] WARNING: No yfinance price data for AMD
+2026-04-20 12:46:28,609 [__main__] WARNING: Failed to get prices for AMD
+2026-04-20 12:46:28,609 [__main__] INFO: Downloading price history for AMZN
+2026-04-20 12:46:28,800 [yfinance] ERROR: Failed to get ticker 'AMZN' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:28,841 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:28,842 [yfinance] ERROR: ['AMZN']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:28,845 [lib.api] WARNING: No yfinance price data for AMZN
+2026-04-20 12:46:28,845 [__main__] WARNING: Failed to get prices for AMZN
+2026-04-20 12:46:28,845 [__main__] INFO: Downloading price history for GOOGL
+2026-04-20 12:46:29,046 [yfinance] ERROR: Failed to get ticker 'GOOGL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:29,091 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:29,091 [yfinance] ERROR: ['GOOGL']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:29,094 [lib.api] WARNING: No yfinance price data for GOOGL
+2026-04-20 12:46:29,095 [__main__] WARNING: Failed to get prices for GOOGL
+2026-04-20 12:46:29,095 [__main__] INFO: Downloading price history for META
+2026-04-20 12:46:29,298 [yfinance] ERROR: Failed to get ticker 'META' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:29,331 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:29,331 [yfinance] ERROR: ['META']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:29,334 [lib.api] WARNING: No yfinance price data for META
+2026-04-20 12:46:29,334 [__main__] WARNING: Failed to get prices for META
+2026-04-20 12:46:29,334 [__main__] INFO: Downloading price history for MSFT
+2026-04-20 12:46:29,533 [yfinance] ERROR: Failed to get ticker 'MSFT' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:29,566 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:29,566 [yfinance] ERROR: ['MSFT']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:29,569 [lib.api] WARNING: No yfinance price data for MSFT
+2026-04-20 12:46:29,570 [__main__] WARNING: Failed to get prices for MSFT
+2026-04-20 12:46:29,570 [__main__] INFO: Downloading price history for NVDA
+2026-04-20 12:46:29,758 [yfinance] ERROR: Failed to get ticker 'NVDA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:29,790 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:29,790 [yfinance] ERROR: ['NVDA']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:29,793 [lib.api] WARNING: No yfinance price data for NVDA
+2026-04-20 12:46:29,793 [__main__] WARNING: Failed to get prices for NVDA
+2026-04-20 12:46:29,794 [__main__] INFO: Downloading price history for TSLA
+2026-04-20 12:46:29,991 [yfinance] ERROR: Failed to get ticker 'TSLA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:30,027 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:30,027 [yfinance] ERROR: ['TSLA']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:30,030 [lib.api] WARNING: No yfinance price data for TSLA
+2026-04-20 12:46:30,030 [__main__] WARNING: Failed to get prices for TSLA
+2026-04-20 12:46:30,031 [__main__] INFO: Downloading price history for VOO
+2026-04-20 12:46:30,261 [yfinance] ERROR: Failed to get ticker 'VOO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:30,295 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:30,295 [yfinance] ERROR: ['VOO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:30,297 [lib.api] WARNING: No yfinance price data for VOO
+2026-04-20 12:46:30,298 [__main__] WARNING: Failed to get prices for VOO
+2026-04-20 12:46:30,298 [__main__] ERROR: No price data retrieved for any ticker
+2026-04-20 12:46:30,298 [__main__] ERROR: Failed to download price data
+2026-04-20 12:46:30,299 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/correlation_heatmap.json
+2026-04-20 12:46:31,478 [__main__] INFO: === Backtester Module ===
+2026-04-20 12:46:31,478 [__main__] WARNING: verdict_log.json not found at /home/user/morning-brief/data/scorecard/verdict_log.json
+2026-04-20 12:46:31,479 [__main__] ERROR: No verdict entries found
+2026-04-20 12:46:31,480 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/backtester.json
+2026-04-20 12:46:31,662 [__main__] INFO: === Alert System Module ===
+2026-04-20 12:46:33,227 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:33,263 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:33,295 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:33,296 [__main__] INFO: Detected 0 critical, 0 high, 1 medium, 0 low alerts
+2026-04-20 12:46:33,297 [__main__] INFO: Saved alert history to /home/user/morning-brief/data/processed/alert_history.json
+2026-04-20 12:46:33,298 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/alert_system.json
+2026-04-20 12:46:33,298 [__main__] INFO: Alert system analysis complete
+2026-04-20 12:46:34,530 [__main__] INFO: === Scorecard Module ===
+2026-04-20 12:46:34,531 [__main__] INFO: No verdict log found — writing empty scorecard
+2026-04-20 12:46:34,532 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/scorecard.json
+2026-04-20 12:46:35,690 [__main__] INFO: === Morning Brief Module ===
+2026-04-20 12:46:35,704 [__main__] INFO: Morning brief written to /home/user/morning-brief/data/outputs/morning_brief_2026-04-20.md
+2026-04-20 12:46:36,281 [yfinance] ERROR: Failed to get ticker 'SPY' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:36,312 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:36,346 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:36,352 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:36,352 [yfinance] ERROR: ['SPY']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:36,358 [lib.api] WARNING: No yfinance price data for SPY
+2026-04-20 12:46:36,517 [yfinance] ERROR: Failed to get ticker 'AAPL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:36,552 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:36,589 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:36,590 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:36,590 [yfinance] ERROR: ['AAPL']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:36,594 [lib.api] WARNING: No yfinance price data for AAPL
+2026-04-20 12:46:36,813 [yfinance] ERROR: Failed to get ticker 'AMD' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:36,848 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:36,848 [yfinance] ERROR: ['AMD']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:36,852 [lib.api] WARNING: No yfinance price data for AMD
+2026-04-20 12:46:37,045 [yfinance] ERROR: Failed to get ticker 'GOOGL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:37,087 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:37,087 [yfinance] ERROR: ['GOOGL']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:37,090 [lib.api] WARNING: No yfinance price data for GOOGL
+2026-04-20 12:46:37,347 [yfinance] ERROR: Failed to get ticker 'META' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:37,384 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:37,385 [yfinance] ERROR: ['META']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:37,387 [lib.api] WARNING: No yfinance price data for META
+2026-04-20 12:46:37,578 [yfinance] ERROR: Failed to get ticker 'MSFT' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:37,621 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:37,621 [yfinance] ERROR: ['MSFT']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:37,624 [lib.api] WARNING: No yfinance price data for MSFT
+2026-04-20 12:46:37,787 [yfinance] ERROR: Failed to get ticker 'NVDA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:37,824 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:37,825 [yfinance] ERROR: ['NVDA']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:37,827 [lib.api] WARNING: No yfinance price data for NVDA
+2026-04-20 12:46:38,031 [yfinance] ERROR: Failed to get ticker 'VOO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:38,067 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:38,068 [yfinance] ERROR: ['VOO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:38,070 [lib.api] WARNING: No yfinance price data for VOO
+2026-04-20 12:46:38,072 [__main__] INFO: Logged 7 new verdicts to /home/user/morning-brief/data/scorecard/verdict_log.json
+2026-04-20 12:46:39,319 [__main__] INFO: === Weekly Digest Module ===
+2026-04-20 12:46:39,859 [yfinance] ERROR: Failed to get ticker 'NVDA' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:39,897 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:39,935 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:39,939 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:39,939 [yfinance] ERROR: ['NVDA']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:39,946 [lib.api] WARNING: No yfinance price data for NVDA
+2026-04-20 12:46:39,946 [__main__] WARNING: No price data for NVDA
+2026-04-20 12:46:40,089 [yfinance] ERROR: Failed to get ticker 'AAPL' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:40,129 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:40,157 [yfinance] ERROR: HTTP Error 403: Host not in allowlist
+2026-04-20 12:46:40,166 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:40,166 [yfinance] ERROR: ['AAPL']: TypeError("argument of type 'NoneType' is not iterable")
+2026-04-20 12:46:40,169 [lib.api] WARNING: No yfinance price data for AAPL
+2026-04-20 12:46:40,169 [__main__] WARNING: No price data for AAPL
+2026-04-20 12:46:40,392 [yfinance] ERROR: Failed to get ticker 'VOO' reason: Expecting value: line 1 column 1 (char 0)
+2026-04-20 12:46:40,432 [yfinance] ERROR: 
+1 Failed download:
+2026-04-20 12:46:40,432 [yfinance] ERROR: ['VOO']: AttributeError("'Response' object has no attribute 'get'")
+2026-04-20 12:46:40,434 [lib.api] WARNING: No yfinance price data for VOO
+2026-04-20 12:46:40,435 [__main__] WARNING: No price data for VOO
+2026-04-20 12:46:40,435 [__main__] INFO: Calculated portfolio performance
+2026-04-20 12:46:40,436 [__main__] INFO: Calculated verdict scorecard
+2026-04-20 12:46:40,439 [__main__] INFO: Extracted key events
+2026-04-20 12:46:40,440 [__main__] INFO: Extracted upcoming catalysts
+2026-04-20 12:46:40,444 [__main__] INFO: Wrote markdown to /home/user/morning-brief/data/outputs/weekly_digest_2026-04-20.md
+2026-04-20 12:46:40,445 [lib.data_envelope] INFO: Saved envelope to /home/user/morning-brief/data/processed/weekly_digest.json
+2026-04-20 12:46:40,445 [__main__] INFO: Weekly digest complete
+2026-04-20 12:46:41,709 [__main__] INFO: === Brief HTML Module ===
