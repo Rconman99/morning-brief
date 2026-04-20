@@ -166,12 +166,30 @@ def place_order(
     """
     mode = get_mode()
     now = datetime.now().astimezone().isoformat()
+    client = get_client()
 
     # Sanity checks
     if quantity <= 0:
         return {"status": "error", "error": f"Invalid quantity {quantity}", "timestamp": now}
     if limit_price is not None and limit_price <= 0:
         return {"status": "error", "error": f"Invalid price {limit_price}", "timestamp": now}
+
+    # Dedupe: skip if an open order already exists for this symbol+side this run.
+    # Reason: twice on April 13 the agent submitted two identical NVDA buys in the
+    # same run because a retry loop didn't check existing state.
+    if client is not None:
+        try:
+            from alpaca.trading.requests import GetOrdersRequest
+            from alpaca.trading.enums import QueryOrderStatus
+            open_req = GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[ticker], limit=50)
+            open_orders = client.get_orders(open_req)
+            for o in open_orders:
+                if o.symbol == ticker and o.side.value.lower() == side.lower():
+                    logger.info("SKIP duplicate: existing open %s order %s for %s", side, o.id, ticker)
+                    return {"status": "skipped", "error": f"open {side} order already exists ({o.id})",
+                            "ticker": ticker, "timestamp": now}
+        except Exception as e:
+            logger.debug("Dedupe check failed (non-fatal): %s", e)
 
     # Alpaca doesn't allow fractional short sells — round sells to whole shares
     # and block sells for stocks we don't hold (no naked shorting)
@@ -209,8 +227,6 @@ def place_order(
         "stop_price": stop_price,
         "take_profit": take_profit,
     }
-
-    client = get_client()
 
     # Offline paper mode — no Alpaca keys, just log it
     if not client:
@@ -279,14 +295,48 @@ def place_order(
             )
 
         order = client.submit_order(req)
-
-        order_record["status"] = "submitted"
         order_record["alpaca_order_id"] = str(order.id)
-        order_record["fill_price"] = float(order.filled_avg_price) if order.filled_avg_price else None
 
-        if order.filled_avg_price and limit_price:
+        # Poll briefly for fast fills (up to 3s). Many limit orders fill immediately
+        # when priced aggressively; otherwise we record the transient state.
+        import time
+        final_order = order
+        for _ in range(6):
+            if final_order.status.value in ("filled", "rejected", "canceled", "expired"):
+                break
+            if final_order.status.value == "partially_filled":
+                break
+            time.sleep(0.5)
+            try:
+                final_order = client.get_order_by_id(order.id)
+            except Exception:
+                break
+
+        # Map Alpaca order.status → our DB status so reconciliation is meaningful
+        alpaca_status = final_order.status.value  # filled/new/accepted/rejected/canceled/expired/partially_filled/pending_new
+        status_map = {
+            "filled": "filled",
+            "partially_filled": "partial_fill",
+            "new": "open",
+            "accepted": "open",
+            "accepted_for_bidding": "open",
+            "pending_new": "open",
+            "pending_cancel": "open",
+            "rejected": "rejected",
+            "canceled": "canceled",
+            "expired": "expired",
+            "suspended": "open",
+            "replaced": "open",
+            "done_for_day": "expired",
+        }
+        order_record["status"] = status_map.get(alpaca_status, "submitted")
+        order_record["alpaca_status"] = alpaca_status
+        order_record["fill_price"] = float(final_order.filled_avg_price) if final_order.filled_avg_price else None
+        order_record["filled_qty"] = float(final_order.filled_qty) if final_order.filled_qty else 0.0
+
+        if final_order.filled_avg_price and limit_price:
             order_record["slippage"] = round(
-                abs(float(order.filled_avg_price) - limit_price), 4
+                abs(float(final_order.filled_avg_price) - limit_price), 4
             )
 
         stop_info = f" stop=${stop_price:.2f}" if stop_price else ""
@@ -343,3 +393,54 @@ def close_all_positions() -> list:
     except Exception as e:
         logger.error("Kill switch failed: %s", e)
         return [{"status": "error", "error": str(e)}]
+
+
+def reconcile_with_alpaca(days: int = 30) -> dict:
+    """Sync DB with Alpaca's authoritative order state.
+
+    Fetches recent Alpaca orders and updates DB rows by alpaca_order_id so that
+    phantom 'submitted' rows get corrected to filled/expired/canceled.
+    """
+    client = get_client()
+    if not client:
+        return {"status": "error", "error": "No client — offline mode"}
+
+    import sqlite3
+    from datetime import timedelta
+    from alpaca.trading.requests import GetOrdersRequest
+    from alpaca.trading.enums import QueryOrderStatus
+    from agent.equity_db import DB_PATH
+
+    after = (datetime.now() - timedelta(days=days)).isoformat()
+    req = GetOrdersRequest(status=QueryOrderStatus.ALL, limit=500, after=after)
+    orders = client.get_orders(req)
+
+    status_map = {
+        "filled": "filled", "partially_filled": "partial_fill",
+        "new": "open", "accepted": "open", "pending_new": "open",
+        "rejected": "rejected", "canceled": "canceled", "expired": "expired",
+        "done_for_day": "expired", "replaced": "open", "suspended": "open",
+    }
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    updated, unknown = 0, 0
+    for o in orders:
+        oid = str(o.id)
+        new_status = status_map.get(o.status.value, "submitted")
+        fill_price = float(o.filled_avg_price) if o.filled_avg_price else None
+        filled_qty = float(o.filled_qty) if o.filled_qty else 0.0
+        row = c.execute("SELECT id, status FROM trades WHERE alpaca_order_id = ?", (oid,)).fetchone()
+        if row:
+            c.execute(
+                "UPDATE trades SET status = ?, fill_price = ?, filled_qty = ? WHERE id = ?",
+                (new_status, fill_price, filled_qty, row[0]),
+            )
+            updated += 1
+        else:
+            unknown += 1
+    conn.commit()
+    conn.close()
+
+    logger.info("Reconciled: %d updated, %d Alpaca orders not in DB", updated, unknown)
+    return {"status": "ok", "updated": updated, "alpaca_only": unknown, "total_alpaca": len(orders)}

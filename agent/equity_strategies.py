@@ -146,11 +146,20 @@ def scan_congressional_conviction(params: dict) -> list:
         if not current_price:
             continue
 
+        # Aggressive limit: 0.3% slippage buffer so the order actually fills.
+        # Reason: April 13-16 runs placed 3 NVDA buys at exact current price and
+        # all expired unfilled because price drifted away before close.
+        SLIPPAGE = 0.003
+        if side == "BUY":
+            limit_price = round(current_price * (1 + SLIPPAGE), 2)
+        else:
+            limit_price = round(current_price * (1 - SLIPPAGE), 2)
+
         proposals.append({
             "strategy": "congressional_conviction",
             "ticker": ticker,
             "side": side,
-            "limit_price": round(current_price, 2),
+            "limit_price": limit_price,
             "conviction": abs(conviction),
             "sector": TICKER_SECTOR.get(ticker, "Unknown"),
             "reason": f"Congressional {direction} + " + "; ".join(reasons[:3]),
@@ -331,7 +340,7 @@ def scan_sector_rotation(params: dict) -> list:
             "strategy": "sector_rotation",
             "ticker": etf,
             "side": "BUY",
-            "limit_price": round(current_price, 2),
+            "limit_price": round(current_price * 1.003, 2),  # 0.3% slippage buffer
             "quantity_override": round(quantity, 2),
             "conviction": conviction,
             "sector": leader.get("sector", TICKER_SECTOR.get(etf, "Unknown")),
@@ -367,7 +376,7 @@ def scan_sector_rotation(params: dict) -> list:
             "strategy": "sector_rotation",
             "ticker": etf,
             "side": "SELL",
-            "limit_price": round(current_price, 2),
+            "limit_price": round(current_price * 0.997, 2),  # 0.3% slippage buffer
             "conviction": conviction,
             "sector": laggard.get("sector", TICKER_SECTOR.get(etf, "Unknown")),
             "reason": f"Sector laggard: {laggard.get('sector', etf)} RS={rs:.1f}, "

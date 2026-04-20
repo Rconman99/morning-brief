@@ -241,7 +241,9 @@ def run_equity_agent(portfolio_value: float = 15000.0, dry_run: bool = False,
         "approved": len(approved),
         "executed": len(executed),
         "total_deployed": sum(
+            # Options contracts have a 100x multiplier (each contract = 100 shares)
             (e.get("price", 0) or 0) * (e.get("quantity", 0) or 0)
+            * (100 if len(e.get("ticker", "")) > 10 else 1)
             for e in executed
         ),
         "strategies": {

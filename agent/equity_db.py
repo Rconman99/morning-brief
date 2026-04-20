@@ -50,7 +50,9 @@ def init_db() -> None:
             mode TEXT DEFAULT 'paper',
             status TEXT DEFAULT 'pending',
             alpaca_order_id TEXT,
-            run_id TEXT
+            run_id TEXT,
+            filled_qty REAL DEFAULT 0,
+            alpaca_status TEXT
         );
 
         CREATE TABLE IF NOT EXISTS daily_equity (
@@ -79,6 +81,14 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades(strategy);
         CREATE INDEX IF NOT EXISTS idx_wash_ticker ON wash_sales(ticker);
     """)
+
+    # Idempotent migrations for columns added after the original schema
+    existing_cols = {r[1] for r in conn.execute("PRAGMA table_info(trades)").fetchall()}
+    for col, decl in [("filled_qty", "REAL DEFAULT 0"), ("alpaca_status", "TEXT")]:
+        if col not in existing_cols:
+            conn.execute(f"ALTER TABLE trades ADD COLUMN {col} {decl}")
+
+    conn.commit()
     conn.close()
     logger.info("Equity DB initialized at %s", DB_PATH)
 
@@ -89,8 +99,9 @@ def record_trade(trade: dict) -> int:
     cursor = conn.execute("""
         INSERT INTO trades (timestamp, ticker, side, quantity, price, fill_price,
                            slippage, commission, cost_usd, strategy, reason,
-                           conviction, sector, mode, status, alpaca_order_id, run_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           conviction, sector, mode, status, alpaca_order_id, run_id,
+                           filled_qty, alpaca_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         trade.get("timestamp", datetime.now().astimezone().isoformat()),
         trade["ticker"],
@@ -109,6 +120,8 @@ def record_trade(trade: dict) -> int:
         trade.get("status", "pending"),
         trade.get("alpaca_order_id"),
         trade.get("run_id"),
+        trade.get("filled_qty", 0),
+        trade.get("alpaca_status"),
     ))
     conn.commit()
     row_id = cursor.lastrowid
