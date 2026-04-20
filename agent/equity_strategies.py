@@ -171,117 +171,126 @@ def scan_congressional_conviction(params: dict) -> list:
 
 
 # ============================================================
-# STRATEGY 2: Technical Mean Reversion
+# STRATEGY 2: Technical Mean Reversion — Connors RSI(2) variant
 # ============================================================
+#
+# Research (April 2026): QuantifiedStrategies shows RSI(2) mean reversion on
+# QQQ with Connors regime filter getting Sharpe 2.85 / 75% win rate / 12.75%
+# CAGR — vs classic RSI(14)+BB which barely beats buy-hold. The three rules:
+#
+#   1. RSI(2) < 10 for buys, > 90 for sells (not RSI(14) @ 30/70)
+#   2. Only take longs when close > SMA(200) — Connors trend filter
+#   3. Only trade when VIX 365-day percentile rank > 50 — elevated vol regime
+#
+# The Fibonacci limit-price logic was removed (overfit pseudo-science and was
+# a contributor to the April 13-16 unfilled-orders problem).
+
+
+def _compute_rsi(close, period: int) -> float | None:
+    """Wilder's RSI for a pandas close series. Returns latest value or None."""
+    try:
+        delta = close.diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
+        avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
+        rs = avg_gain / avg_loss.replace(0, 1e-9)
+        rsi = 100 - (100 / (1 + rs))
+        val = float(rsi.iloc[-1])
+        return val if 0 <= val <= 100 else None
+    except Exception:
+        return None
+
+
+def _get_vix_percentile(lookback_days: int = 365) -> float | None:
+    """Return VIX current percentile rank over the trailing lookback."""
+    try:
+        from lib.api import yahoo_finance_price_history
+        df = yahoo_finance_price_history("^VIX", period="2y")
+        if df is None or df.empty or len(df) < lookback_days:
+            return None
+        tail = df["Close"].tail(lookback_days)
+        current = float(df["Close"].iloc[-1])
+        rank = (tail < current).sum() / len(tail) * 100
+        return float(rank)
+    except Exception:
+        return None
+
 
 def scan_technical_reversion(params: dict) -> list:
-    """Find oversold stocks to buy and overbought stocks to sell.
+    """Connors RSI(2) mean reversion with trend + vol-regime gates."""
+    tickers = params.get("tickers") or ["AAPL", "NVDA", "MSFT", "AMD", "GOOGL",
+                                         "AMZN", "TSLA", "META", "SPY", "QQQ"]
+    rsi_buy = params.get("rsi2_buy_threshold", 10)
+    rsi_sell = params.get("rsi2_sell_threshold", 90)
+    vix_pct_floor = params.get("vix_percentile_floor", 50)
 
-    Uses RSI, composite score, MACD, Bollinger Bands, and Fibonacci levels
-    from the existing technical_signals module.
-    """
-    tech = _load_signal("technical_signals.json")
-    if not tech:
-        logger.info("Technical reversion: no technical signals available")
+    # Regime gate: skip strategy entirely if vol is too low to mean-revert
+    vix_pct = _get_vix_percentile()
+    if vix_pct is None:
+        logger.info("RSI(2): VIX percentile unavailable — proceeding without regime filter")
+    elif vix_pct < vix_pct_floor:
+        logger.info("RSI(2): VIX %.0fth pct < floor %d — skipping all signals", vix_pct, vix_pct_floor)
         return []
 
-    rsi_oversold = params.get("rsi_oversold", 30)
-    rsi_overbought = params.get("rsi_overbought", 70)
-    min_composite_buy = params.get("min_composite_buy", 0.40)
-    max_composite_sell = params.get("max_composite_sell", 0.30)
-    bb_confirm = params.get("bb_confirmation", True)
-
+    from lib.api import yahoo_finance_price_history
     proposals = []
 
-    for r in tech.get("results", []):
-        ticker = r.get("ticker")
-        rsi = r.get("rsi_14")
-        composite = r.get("composite_score")
-        macd_signal = r.get("macd_signal", "")
-        bb_pos = r.get("bb_position", "")
-        vwap = r.get("vwap")
-        fib = r.get("fibonacci", {})
-        stoch_signal = r.get("stochastic_signal", "")
-
-        if not ticker or rsi is None or composite is None:
+    for ticker in tickers:
+        df = yahoo_finance_price_history(ticker, period="1y")
+        if df is None or df.empty or len(df) < 210:
             continue
 
-        conviction = 0
-        reasons = []
+        close = df["Close"]
+        rsi2 = _compute_rsi(close, 2)
+        sma200 = float(close.tail(200).mean())
+        current_price = float(close.iloc[-1])
+
+        if rsi2 is None or current_price <= 0:
+            continue
+
         side = None
-        limit_price = vwap
+        reasons = []
 
-        # --- OVERSOLD BUY ---
-        if rsi < rsi_oversold:
-            conviction += 2
-            reasons.append(f"RSI {rsi:.0f} (oversold)")
+        # BUY: oversold AND price above 200-day SMA (Connors trend filter)
+        if rsi2 < rsi_buy and current_price > sma200:
             side = "BUY"
+            reasons.append(f"RSI(2)={rsi2:.0f} oversold")
+            reasons.append(f"close ${current_price:.2f} > SMA200 ${sma200:.2f}")
 
-            if composite > min_composite_buy:
-                conviction += 1
-                reasons.append(f"composite {composite:.2f}")
-
-            if "bullish" in macd_signal:
-                conviction += 1
-                reasons.append("MACD bullish")
-
-            if bb_confirm and bb_pos == "below_lower":
-                conviction += 1
-                reasons.append("below lower BB")
-
-            if stoch_signal == "oversold":
-                conviction += 1
-                reasons.append("stochastic oversold")
-
-            # Use Fibonacci support for limit price
-            fib_levels = fib.get("levels", {})
-            if fib_levels.get("0.618"):
-                limit_price = fib_levels["0.618"]
-                reasons.append(f"limit at fib 0.618 (${limit_price:.2f})")
-
-        # --- OVERBOUGHT SELL ---
-        elif rsi > rsi_overbought:
-            conviction += 2
-            reasons.append(f"RSI {rsi:.0f} (overbought)")
+        # SELL: overbought AND price below 200-day SMA (downtrend confirmation)
+        elif rsi2 > rsi_sell and current_price < sma200:
             side = "SELL"
+            reasons.append(f"RSI(2)={rsi2:.0f} overbought")
+            reasons.append(f"close ${current_price:.2f} < SMA200 ${sma200:.2f}")
 
-            if composite < max_composite_sell:
-                conviction += 1
-                reasons.append(f"composite {composite:.2f}")
-
-            if "bearish" in macd_signal:
-                conviction += 1
-                reasons.append("MACD bearish")
-
-            if bb_confirm and bb_pos == "above_upper":
-                conviction += 1
-                reasons.append("above upper BB")
-
-            if stoch_signal == "overbought":
-                conviction += 1
-                reasons.append("stochastic overbought")
-
-            # Use Fibonacci resistance for limit price
-            fib_ext = fib.get("extensions", {})
-            if fib_ext.get("1.272"):
-                limit_price = fib_ext["1.272"]
-
-        if not side or conviction < 2:
+        if not side:
             continue
 
-        if not limit_price or limit_price <= 0:
-            continue
+        if vix_pct is not None:
+            reasons.append(f"VIX {vix_pct:.0f}th pct")
+
+        # Conviction scales with how extreme RSI(2) is
+        if side == "BUY":
+            conviction = 5 if rsi2 < 5 else 4 if rsi2 < 8 else 3
+        else:
+            conviction = 5 if rsi2 > 95 else 4 if rsi2 > 92 else 3
+
+        # Marketable limit — 0.3% buffer aligns with congressional strategy
+        slippage = 0.003
+        limit_price = round(current_price * (1 + slippage if side == "BUY" else 1 - slippage), 2)
 
         proposals.append({
             "strategy": "technical_reversion",
             "ticker": ticker,
             "side": side,
-            "limit_price": round(limit_price, 2),
+            "limit_price": limit_price,
             "conviction": conviction,
             "sector": TICKER_SECTOR.get(ticker, "Unknown"),
-            "reason": "; ".join(reasons[:4]),
-            "rsi": rsi,
-            "composite": composite,
+            "reason": "; ".join(reasons),
+            "rsi2": rsi2,
+            "sma200": sma200,
+            "vix_percentile": vix_pct,
         })
 
     proposals.sort(key=lambda x: x["conviction"], reverse=True)
@@ -349,42 +358,93 @@ def scan_sector_rotation(params: dict) -> list:
             "relative_strength": rs,
         })
 
-    # SELL laggards (if we hold any)
-    for laggard in laggards[:top_n]:
-        etf = laggard.get("etf")
-        rs = laggard.get("relative_strength", 0)
-        trend = laggard.get("trend", "")
+    # NOTE: The "SELL laggards" loop was removed in April 2026 research.
+    # Alvarez Quant + QuantPedia data show bottom-3 sector mean-reversion has
+    # NEGATIVE Sharpe historically — laggards keep lagging for months.
+    # We only BUY top momentum now; exits happen when a holding rolls out of
+    # the top-3 (handled on next rebalance, not via active SELLs).
 
-        if not etf:
+    proposals.sort(key=lambda x: x["conviction"], reverse=True)
+    return proposals
+
+
+# ============================================================
+# STRATEGY 4: Overnight Drift on SPY/QQQ
+# ============================================================
+#
+# Research (April 2026): Elm Wealth + arxiv 2025 + Bespoke analysis confirm
+# Q3 2020–Q3 2025 SPY close-to-open returned +47% vs open-to-close +30%.
+# Simple close-to-open capture is the best retail alpha addition: low
+# complexity, Sharpe 0.8–1.2 standalone.
+#
+# Rules:
+#   - Fires only in the pre-close window (15:45–16:00 ET) to buy into close
+#   - Only SPY / QQQ (where the effect is cleanest and liquidity is infinite)
+#   - Skip if VIX spiked >15% intraday (crisis kills the overnight effect)
+#   - Partner SELL happens next morning at open, via tracker close-out logic
+#     (not auto-scheduled here — add later when we have a morning fire tier)
+#
+# This function only surfaces BUYs; the SELL half is managed by holding
+# period logic in the tracker or a future overnight_exit strategy.
+
+
+def scan_overnight_drift(params: dict) -> list:
+    """Pre-close BUYs on SPY/QQQ to capture overnight drift."""
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        now_et = datetime.now(ZoneInfo("America/New_York"))
+    except ImportError:
+        now_et = datetime.now()
+
+    # Only fire in the 15:45–15:59 ET window
+    if not (now_et.hour == 15 and now_et.minute >= 45):
+        if params.get("allow_any_time", False):
+            pass  # backtest / dry-run flag
+        else:
+            return []
+
+    tickers = params.get("tickers") or ["SPY", "QQQ"]
+    vix_spike_floor = params.get("vix_spike_pct", 0.15)
+
+    # Intraday VIX check — skip if crisis-mode spike
+    try:
+        from lib.api import yahoo_finance_price_history
+        vix_df = yahoo_finance_price_history("^VIX", period="5d")
+        if vix_df is not None and not vix_df.empty and len(vix_df) >= 2:
+            vix_today = float(vix_df["Close"].iloc[-1])
+            vix_prev = float(vix_df["Close"].iloc[-2])
+            if vix_today / vix_prev - 1 > vix_spike_floor:
+                logger.info("Overnight drift: VIX +%.1f%% today, > %.1f%% crisis floor — skip",
+                            (vix_today / vix_prev - 1) * 100, vix_spike_floor * 100)
+                return []
+    except Exception:
+        pass  # non-fatal; continue without filter
+
+    proposals = []
+    for ticker in tickers:
+        try:
+            df = yahoo_finance_price_history(ticker, period="5d")
+            if df is None or df.empty:
+                continue
+            current_price = float(df["Close"].iloc[-1])
+        except Exception:
             continue
 
-        # Only sell if actually underperforming
-        if rs > -1.0:
-            continue
-
-        conviction = 3 if rs < -3 else 2 if rs < -2 else 1
-        if trend == "downtrend":
-            conviction += 1
-        if signal in ("defensive_shift", "risk_off"):
-            conviction += 1
-
-        current_price = _get_current_price(etf)
-        if not current_price:
+        if current_price <= 0:
             continue
 
         proposals.append({
-            "strategy": "sector_rotation",
-            "ticker": etf,
-            "side": "SELL",
-            "limit_price": round(current_price * 0.997, 2),  # 0.3% slippage buffer
-            "conviction": conviction,
-            "sector": laggard.get("sector", TICKER_SECTOR.get(etf, "Unknown")),
-            "reason": f"Sector laggard: {laggard.get('sector', etf)} RS={rs:.1f}, "
-                      f"signal={signal}",
-            "relative_strength": rs,
+            "strategy": "overnight_drift",
+            "ticker": ticker,
+            "side": "BUY",
+            "limit_price": round(current_price * 1.001, 2),  # tight buffer, deep liquidity
+            "conviction": 4,
+            "sector": TICKER_SECTOR.get(ticker, "Broad Market"),
+            "reason": f"Overnight drift entry, target exit at tomorrow open",
+            "hold_hours": 17,  # ~close to next open
         })
 
-    proposals.sort(key=lambda x: x["conviction"], reverse=True)
     return proposals
 
 
@@ -422,6 +482,15 @@ def run_all_equity_strategies(params: dict) -> list:
         p["strategy_weight"] = weight
     all_proposals.extend(sector)
     logger.info("Sector Rotation: %d proposals", len(sector))
+
+    # Overnight Drift (SPY/QQQ, pre-close window only)
+    overnight_params = params.get("overnight_drift", {})
+    overnight = scan_overnight_drift(overnight_params)
+    weight = overnight_params.get("weight", 1.0)
+    for p in overnight:
+        p["strategy_weight"] = weight
+    all_proposals.extend(overnight)
+    logger.info("Overnight Drift: %d proposals", len(overnight))
 
     # Deduplicate by ticker — keep highest conviction per ticker
     seen = {}

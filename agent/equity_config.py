@@ -59,13 +59,13 @@ DEFAULT_EQUITY_STRATEGY_PARAMS = {
         "tone_penalty_threshold": -2.0, # Earnings tone < -2 blocks the trade
     },
     "technical_reversion": {
+        # Connors RSI(2) mean reversion — April 2026 research
         "weight": 1.0,
-        "rsi_oversold": 30,             # RSI < 30 = oversold buy signal
-        "rsi_overbought": 70,           # RSI > 70 = overbought sell signal
-        "min_composite_buy": 0.40,      # Composite score floor for buys
-        "max_composite_sell": 0.30,     # Composite score ceiling for sells
-        "bb_confirmation": True,        # Require Bollinger Band confirmation
-        "max_position_usd": 750,        # Conservative start per trade
+        "rsi2_buy_threshold": 10,        # RSI(2) < 10 for buys
+        "rsi2_sell_threshold": 90,       # RSI(2) > 90 for sells
+        "vix_percentile_floor": 50,      # Only trade when vol regime allows
+        "tickers": ["AAPL", "NVDA", "MSFT", "AMD", "GOOGL", "AMZN", "TSLA",
+                     "META", "SPY", "QQQ"],
     },
     "sector_rotation": {
         "weight": 1.0,
@@ -73,6 +73,13 @@ DEFAULT_EQUITY_STRATEGY_PARAMS = {
         "min_relative_strength": 1.0,   # Minimum RS score to be a leader
         "top_n_sectors": 3,             # Overweight top 3 sectors
         "position_per_sector_usd": 500, # $ per sector ETF position
+    },
+    "overnight_drift": {
+        # Elm Wealth / arxiv 2025 — close-to-open captures SPY's +47% 5y drift
+        "weight": 1.0,
+        "tickers": ["SPY", "QQQ"],
+        "vix_spike_pct": 0.15,          # Skip if VIX spikes >15% intraday
+        "allow_any_time": False,        # True = fires any time of day (backtest/testing)
     },
 }
 
