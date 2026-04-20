@@ -124,26 +124,58 @@ def get_positions() -> list[dict]:
         return []
 
 
-def _get_atr_stop(ticker: str, current_price: float, side: str) -> float | None:
-    """Get ATR-based stop loss price from portfolio module data."""
+def _get_atr_value(ticker: str) -> float | None:
+    """Fetch 14-day ATR for a ticker. Portfolio cache first, yfinance fallback."""
     from lib.data_envelope import load_envelope
     portfolio = load_envelope("portfolio.json")
-    if portfolio.get("status") != "success":
+    if portfolio.get("status") == "success":
+        for h in portfolio.get("data", {}).get("holdings", []):
+            if h.get("ticker") == ticker and h.get("atr"):
+                return float(h["atr"])
+
+    try:
+        from lib.api import yahoo_finance_price_history
+        df = yahoo_finance_price_history(ticker, period="2mo")
+        if df is None or df.empty or len(df) < 15:
+            return None
+        high, low, close = df["High"], df["Low"], df["Close"]
+        prev_close = close.shift(1)
+        tr = (high - low).combine((high - prev_close).abs(), max).combine(
+            (low - prev_close).abs(), max)
+        atr = tr.rolling(14).mean().iloc[-1]
+        return float(atr) if atr and atr > 0 else None
+    except Exception:
         return None
 
-    for h in portfolio.get("data", {}).get("holdings", []):
-        if h.get("ticker") == ticker and h.get("atr"):
-            atr = h["atr"]
-            # 2x ATR stop for buys, 2x ATR for sells (inverse)
-            if side.upper() == "BUY":
-                return round(current_price - (2.0 * atr), 2)
-            else:
-                return round(current_price + (2.0 * atr), 2)
 
-    # Default: 5% stop if no ATR data
+def _get_atr_stop(ticker: str, current_price: float, side: str) -> float | None:
+    """Stop price at 2x ATR from entry. Falls back to 5% if no ATR."""
+    atr = _get_atr_value(ticker)
+    if atr:
+        if side.upper() == "BUY":
+            return round(current_price - (2.0 * atr), 2)
+        return round(current_price + (2.0 * atr), 2)
+    # Fallback: 5% stop
     if side.upper() == "BUY":
         return round(current_price * 0.95, 2)
     return round(current_price * 1.05, 2)
+
+
+def _get_atr_take_profit(ticker: str, current_price: float, side: str) -> float | None:
+    """Take-profit at 3x ATR from entry (1.5:1 R:R vs 2x ATR stop).
+
+    Research basis: LuxAlgo, de Prado recommend minimum 1.5:1 R:R for
+    positive expectancy. 3x ATR target + 2x ATR stop = 1.5:1 natural R:R.
+    """
+    atr = _get_atr_value(ticker)
+    if atr:
+        if side.upper() == "BUY":
+            return round(current_price + (3.0 * atr), 2)
+        return round(current_price - (3.0 * atr), 2)
+    # Fallback: 7.5% target (matches 5% stop at 1.5:1)
+    if side.upper() == "BUY":
+        return round(current_price * 1.075, 2)
+    return round(current_price * 0.925, 2)
 
 
 def place_order(
@@ -206,9 +238,15 @@ def place_order(
         # Round to whole shares for sells to avoid fractional short sell error
         quantity = int(quantity)
 
-    # Auto-calculate ATR stoploss for BUY orders if not provided
-    if side.upper() == "BUY" and stop_price is None and limit_price:
-        stop_price = _get_atr_stop(ticker, limit_price, side)
+    # Auto-attach 2x ATR stop + 3x ATR take-profit to every BUY entry.
+    # Positions get protection even if launchd misses a fire (the prior bug where
+    # orders could live for days with no exit plan). Caller can opt out by
+    # passing stop_price=0 and take_profit=0 explicitly.
+    if side.upper() == "BUY" and limit_price:
+        if stop_price is None:
+            stop_price = _get_atr_stop(ticker, limit_price, side)
+        if take_profit is None:
+            take_profit = _get_atr_take_profit(ticker, limit_price, side)
 
     order_record = {
         "timestamp": now,
@@ -253,31 +291,34 @@ def place_order(
     # Alpaca API execution (paper or live)
     try:
         from alpaca.trading.requests import (
-            LimitOrderRequest, MarketOrderRequest, OrderRequest,
+            LimitOrderRequest, MarketOrderRequest,
+            StopLossRequest, TakeProfitRequest,
         )
         from alpaca.trading.enums import OrderSide, TimeInForce, OrderClass
 
         order_side = OrderSide.BUY if side.upper() == "BUY" else OrderSide.SELL
 
-        # Use bracket order if we have stop and/or take-profit
+        # Bracket order if BUY entry has stop and/or take-profit attached.
         has_bracket = side.upper() == "BUY" and (stop_price or take_profit)
 
         if has_bracket and limit_price:
-            # Bracket order: entry limit + stoploss + optional take-profit
-            order_kwargs = {
+            # Proper typed bracket request — LimitOrderRequest + OTO/BRACKET
+            # class + StopLossRequest + TakeProfitRequest. Prior impl used
+            # generic OrderRequest(**kwargs) which alpaca-py 0.43 rejects.
+            bracket_kwargs = {
                 "symbol": ticker,
                 "qty": round(quantity, 4),
                 "side": order_side,
                 "time_in_force": TimeInForce.DAY,
-                "order_class": OrderClass.BRACKET,
                 "limit_price": round(limit_price, 2),
+                "order_class": OrderClass.BRACKET,
             }
             if stop_price:
-                order_kwargs["stop_loss"] = {"stop_price": round(stop_price, 2)}
+                bracket_kwargs["stop_loss"] = StopLossRequest(stop_price=round(stop_price, 2))
             if take_profit:
-                order_kwargs["take_profit"] = {"limit_price": round(take_profit, 2)}
+                bracket_kwargs["take_profit"] = TakeProfitRequest(limit_price=round(take_profit, 2))
 
-            req = OrderRequest(**order_kwargs)
+            req = LimitOrderRequest(**bracket_kwargs)
         elif limit_price:
             req = LimitOrderRequest(
                 symbol=ticker,
