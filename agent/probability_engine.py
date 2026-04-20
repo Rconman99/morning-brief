@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 
 ESTIMATE_CACHE = PROJECT_ROOT / "agent" / "probability_cache.json"
 
+# Opus 4.7 with adaptive thinking at xhigh effort — picked for the +4.3% gain on
+# Anthropic's agentic financial analysis benchmark. Thinking is off by default on
+# 4.7, so we must opt in explicitly or quality silently drops on hard calls.
+PROB_MODEL = os.environ.get("POLYMARKET_PROB_MODEL", "claude-opus-4-7")
+PROB_EFFORT = os.environ.get("POLYMARKET_PROB_EFFORT", "xhigh")
+
 
 def _load_cache() -> dict:
     if ESTIMATE_CACHE.exists():
@@ -82,13 +88,25 @@ Rules:
 - Consider base rates and reference classes
 - Factor in current market conditions from the signal context"""
 
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=200,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        create_kwargs = {
+            "model": PROB_MODEL,
+            "max_tokens": 800,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if PROB_MODEL.startswith("claude-opus-4-7") or PROB_MODEL.startswith("claude-sonnet-4-7"):
+            create_kwargs["thinking"] = {"type": "adaptive"}
+            create_kwargs["output_config"] = {"effort": PROB_EFFORT}
 
-        text = response.content[0].text.strip()
+        try:
+            response = client.messages.create(**create_kwargs)
+        except TypeError:
+            # SDK older than 4.7 params — retry without thinking/output_config
+            create_kwargs.pop("thinking", None)
+            create_kwargs.pop("output_config", None)
+            response = client.messages.create(**create_kwargs)
+
+        # With adaptive thinking, content may include thinking blocks before the text block
+        text = next((b.text for b in response.content if getattr(b, "type", None) == "text"), "").strip()
         # Parse JSON from response
         if text.startswith("{"):
             result = json.loads(text)

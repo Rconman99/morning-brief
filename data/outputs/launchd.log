@@ -200,3 +200,1327 @@ Module               Status         Time
 ----------------------------------------
 Total: 20/20 passed in 3234.9s
 ============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.1s) ---
+
+=== Running: earnings ===
+--- earnings: TIMEOUT (5132.8s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (6.1s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (1.9s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (4.1s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: TIMEOUT (1449.4s) ---
+
+=== Running: options ===
+--- options: PASS (8.6s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (5.1s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (0.5s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (3.1s) ---
+
+=== Running: economic_calendar ===
+Signal: calm
+Events this week: 0
+--- economic_calendar: PASS (0.3s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Mixed macro regime with moderate volatility and elevated yields. Monitor VIX trend and Fed policy shifts for direction.
+--- macro_dashboard: PASS (1.8s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (3.8s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (102.8s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (11.2s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (2.7s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (3367.2s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (1744.6s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (13.5s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (2.1s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (2.9s) ---
+
+=== Running: backtester ===
+--- backtester: TIMEOUT (2667.4s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (2.6s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (3.3s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (2.6s) ---
+
+=== Running: decision_journal ===
+ALERT 1: **AAPL Concentration Risk + Mixed Sentiment**  
+Your history shows a tendency to overconcentrate in single stocks (AAPL is 51% of portfolio), which historically correlates with higher drawdowns during market reversals. Today’s AAPL sentiment is split (6 bullish, 5 bearish signals) amid a broader tech sector death cross. **Action**: Reduce AAPL position by 10% immediately to diversify risk and avoid overexposure to a stock with conflicting signals.  
+
+ALERT 2: **NVDA Stop Breach + Death Cross Trends**  
+Your past trades indicate a pattern of holding positions despite stop breaches (e.g., NVDA is below its trailing stop). Today’s risk dashboard flags NVDA’s stop breach alongside death crosses in AMZN, META, MSFT, and TSLA. **Action**: Exit NVDA immediately to avoid compounding losses from a confirmed bearish trend in major tech stocks.  
+
+ALERT 3: **Overreliance on Bullish Sentiment + Elevated Yields**  
+Your history shows a 63.3% win rate, but this may stem from chasing bullish keywords (e.g., AAPL’s 6-5 signal split). Today’s macro conditions (elevated yields, falling oil, rising gold) suggest a risk-off environment conflicting with AI rally optimism. **Action**: Avoid adding to long positions in growth sectors; instead, allocate to defensive assets like utilities or inverse ETFs to hedge against potential market corrections.
+--- decision_journal: PASS (46.2s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (1.3s) ---
+
+=== Running: brief_html ===
+--- brief_html: PASS (0.3s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.1s
+❌ earnings           TIMEOUT    5132.8s
+✅ valuation          PASS          6.1s
+✅ portfolio          PASS          1.9s
+✅ technical_signals  PASS          4.1s
+❌ news_sentiment     TIMEOUT    1449.4s
+✅ options            PASS          8.6s
+✅ insider_tracker    PASS          5.1s
+✅ congress_tracker   PASS          0.5s
+✅ polymarket_scanner PASS          3.1s
+✅ economic_calendar  PASS          0.3s
+✅ macro_dashboard    PASS          1.8s
+✅ sector_rotation    PASS          3.8s
+✅ opportunity_scanner PASS        102.8s
+✅ unusual_options    PASS         11.2s
+✅ social_sentiment   PASS          2.7s
+❌ social_intelligence TIMEOUT    3367.2s
+❌ last30days_research TIMEOUT    1744.6s
+✅ dividend_tracker   PASS         13.5s
+✅ risk_dashboard     PASS          2.1s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS          2.9s
+❌ backtester         TIMEOUT    2667.4s
+✅ alert_system       PASS          2.6s
+✅ scorecard          PASS          3.3s
+✅ morning_brief      PASS          2.6s
+✅ decision_journal   PASS         46.2s
+✅ weekly_digest      PASS          1.3s
+✅ brief_html         PASS          0.3s
+----------------------------------------
+Total: 25/30 passed in 14588.4s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.0s) ---
+
+=== Running: earnings ===
+--- earnings: TIMEOUT (563.0s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (8.0s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (9.8s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (6.4s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: TIMEOUT (4133.7s) ---
+
+=== Running: options ===
+--- options: PASS (8.7s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (12.7s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (1.5s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (4.7s) ---
+
+=== Running: economic_calendar ===
+Signal: moderate
+Events this week: 2
+--- economic_calendar: PASS (1.1s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Mixed macro regime with high volatility and elevated yields. Monitor VIX trend and Fed policy shifts for direction.
+--- macro_dashboard: PASS (3.2s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (5.0s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (251.7s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (13.1s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (270.1s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (452.9s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (956.0s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (10.1s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (2.0s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (3.3s) ---
+
+=== Running: backtester ===
+--- backtester: PASS (84.4s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (0.9s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (2.9s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (2.9s) ---
+
+=== Running: decision_journal ===
+ALERT 1: **AAPL Over-Concentration Risk**  
+Your history shows a tendency to overallocate to single stocks (e.g., 51% in AAPL), which correlates with today’s high concentration risk. The bullish sentiment on AAPL may tempt you to ignore diversification, but the DEATH CROSS signals on other tech stocks (AMZN, META, etc.) suggest broader sector weakness. **Action**: Reduce AAPL’s position by 10% to rebalance, avoiding the trap of doubling down on a single stock amid mixed macro signals.  
+
+ALERT 2: **DEATH CROSS Ignorance Pattern**  
+Your trade history lacks a clear response to prior DEATH CROSS events (e.g., AMZN, META, MSFT), which today are all signaling bearish trends. The bullish AAPL sentiment may distract from these critical technical warnings. **Action**: Avoid opening long positions in any stock with a DEATH CROSS; instead, consider shorting or hedging these names to align with the technical pattern.  
+
+ALERT 3: **Volatility-Driven Overtrading**  
+Your 63% win rate may mask a pattern of trading during high-volatility environments (e.g., today’s elevated VIX and macro uncertainty). The AAPL sentiment buzz could trigger impulsive trades, ignoring the risk dashboard’s “be selective” warning. **Action**: Use a 2% position size for AAPL and exit any pending orders to prevent overexposure in a volatile, mixed-market regime.
+--- decision_journal: PASS (15.1s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (2.3s) ---
+
+=== Running: brief_html ===
+--- brief_html: PASS (0.3s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.0s
+❌ earnings           TIMEOUT     563.0s
+✅ valuation          PASS          8.0s
+✅ portfolio          PASS          9.8s
+✅ technical_signals  PASS          6.4s
+❌ news_sentiment     TIMEOUT    4133.7s
+✅ options            PASS          8.7s
+✅ insider_tracker    PASS         12.7s
+✅ congress_tracker   PASS          1.5s
+✅ polymarket_scanner PASS          4.7s
+✅ economic_calendar  PASS          1.1s
+✅ macro_dashboard    PASS          3.2s
+✅ sector_rotation    PASS          5.0s
+✅ opportunity_scanner PASS        251.7s
+✅ unusual_options    PASS         13.1s
+✅ social_sentiment   PASS        270.1s
+❌ social_intelligence TIMEOUT     452.9s
+❌ last30days_research TIMEOUT     956.0s
+✅ dividend_tracker   PASS         10.1s
+✅ risk_dashboard     PASS          2.0s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS          3.3s
+✅ backtester         PASS         84.4s
+✅ alert_system       PASS          0.9s
+✅ scorecard          PASS          2.9s
+✅ morning_brief      PASS          2.9s
+✅ decision_journal   PASS         15.1s
+✅ weekly_digest      PASS          2.3s
+✅ brief_html         PASS          0.3s
+----------------------------------------
+Total: 26/30 passed in 6826.0s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.0s) ---
+
+=== Running: earnings ===
+--- earnings: PASS (43.5s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (3.3s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (1.7s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (3.5s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: TIMEOUT (120.0s) ---
+
+=== Running: options ===
+--- options: PASS (4.4s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (4.7s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (0.6s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (3.0s) ---
+
+=== Running: economic_calendar ===
+Signal: moderate
+Events this week: 2
+--- economic_calendar: PASS (0.3s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Inflation concerns — neutral market watching energy costs and Fed policy. Rising oil and elevated yields suggest hawkish expectations.
+--- macro_dashboard: PASS (1.6s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (3.7s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (11.3s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (8.5s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (1.9s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (120.0s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (120.0s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (7.2s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (2.0s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (2.6s) ---
+
+=== Running: backtester ===
+--- backtester: PASS (104.8s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (0.9s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (3.3s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (2.7s) ---
+
+=== Running: decision_journal ===
+ALERT 1: **Overconcentration in AAPL (Pattern: Portfolio Imbalance)**  
+Your 51% allocation to AAPL mirrors past overconcentration risks, which historically correlates with higher drawdowns during market corrections. Today’s sentiment highlights AAPL as a bullish target, but the 4.1% trailing stop breach risk and VOO’s 3.0% stop proximity indicate overexposure. **Action**: Rebalance AAPL to <30% of portfolio by 10:00 AM to mitigate single-stock risk.  
+
+ALERT 2: **NVDA Stop Breach (Pattern: Stop Ignoring)**  
+NVDA’s price ($189.31) is below your trailing stop ($474.86), a clear exit signal. Your history shows a 63% win rate, but stop-loss discipline is critical to protect gains. **Action**: Exit NVDA immediately to avoid further losses from this breached stop.  
+
+ALERT 3: **Death Cross Momentum (Pattern: Trend Ignorance)**  
+AMZN, META, MSFT, and TSLA all show 50-day SMA crossing below 200-day SMA—a death cross—yet your portfolio is long these stocks. This mirrors past patterns where ignoring bearish momentum led to extended losses. **Action**: Avoid buying dips in these names; instead, hedge short-term exposure with options or reduce positions.
+--- decision_journal: PASS (37.3s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (1.4s) ---
+
+=== Running: brief_html ===
+--- brief_html: PASS (0.3s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.0s
+✅ earnings           PASS         43.5s
+✅ valuation          PASS          3.3s
+✅ portfolio          PASS          1.7s
+✅ technical_signals  PASS          3.5s
+❌ news_sentiment     TIMEOUT     120.0s
+✅ options            PASS          4.4s
+✅ insider_tracker    PASS          4.7s
+✅ congress_tracker   PASS          0.6s
+✅ polymarket_scanner PASS          3.0s
+✅ economic_calendar  PASS          0.3s
+✅ macro_dashboard    PASS          1.6s
+✅ sector_rotation    PASS          3.7s
+✅ opportunity_scanner PASS         11.3s
+✅ unusual_options    PASS          8.5s
+✅ social_sentiment   PASS          1.9s
+❌ social_intelligence TIMEOUT     120.0s
+❌ last30days_research TIMEOUT     120.0s
+✅ dividend_tracker   PASS          7.2s
+✅ risk_dashboard     PASS          2.0s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS          2.6s
+✅ backtester         PASS        104.8s
+✅ alert_system       PASS          0.9s
+✅ scorecard          PASS          3.3s
+✅ morning_brief      PASS          2.7s
+✅ decision_journal   PASS         37.3s
+✅ weekly_digest      PASS          1.4s
+✅ brief_html         PASS          0.3s
+----------------------------------------
+Total: 27/30 passed in 614.7s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.0s) ---
+
+=== Running: earnings ===
+--- earnings: TIMEOUT (7295.8s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (946.2s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (0.5s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (1.1s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: PASS (0.4s) ---
+
+=== Running: options ===
+--- options: PASS (0.5s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (2605.7s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (1.1s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (3.7s) ---
+
+=== Running: economic_calendar ===
+Signal: moderate
+Events this week: 2
+--- economic_calendar: PASS (0.3s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Mixed macro regime with moderate volatility and elevated yields. Monitor VIX trend and Fed policy shifts for direction.
+--- macro_dashboard: PASS (1.4s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (3.9s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (12.1s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (906.6s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (0.4s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (1018.1s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (1018.8s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (5.4s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (1.1s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (12.4s) ---
+
+=== Running: backtester ===
+--- backtester: TIMEOUT (120.0s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (0.8s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (8.7s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (2.0s) ---
+
+=== Running: decision_journal ===
+ALERT 1: **Overtrading in High-Conviction Setups**  
+Your 63.33% win rate suggests a tendency to overcommit to trades with moderate confidence. Today’s LOW_RISK regime encourages high-conviction setups, but avoid adding positions in crowded growth sectors (e.g., XLK, XLF) without strict risk parameters. **Action**: Limit trades to only the top 2-3 high-conviction ideas, using fixed-size entries to prevent overexposure.  
+
+ALERT 2: **Ignoring Sector Rotation Momentum**  
+Your history shows underperformance in growth/momentum sectors (e.g., tech, consumer discretionary). Today’s sector rotation favors these leaders, but elevated energy costs (OIL at 92.02) may tempt you to chase laggards. **Action**: Avoid counter-trend bets in XLE/healthcare; instead, allocate capital to today’s leaders with tight stop-losses.  
+
+ALERT 3: **Underestimating Yield-Driven Volatility**  
+Your 10Y yield (4.283%) and mixed macro signals suggest inflation risks. Past trades may have overlooked yield-driven volatility, which could amplify losses in long positions. **Action**: Reduce long exposure in rate-sensitive sectors (e.g., energy) and prioritize options strategies (e.g., iron condors) to hedge yield-related volatility.
+--- decision_journal: PASS (46.7s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (1.3s) ---
+
+=== Running: brief_html ===
+STDERR: 2026-04-15 09:55:24,831 [__main__] INFO: === Brief HTML Module ===
+Traceback (most recent call last):
+  File "/Users/agenticmac/projects/morning-brief/modules/brief_html.py", line 1372, in <module>
+  
+--- brief_html: FAIL (0.3s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.0s
+❌ earnings           TIMEOUT    7295.8s
+✅ valuation          PASS        946.2s
+✅ portfolio          PASS          0.5s
+✅ technical_signals  PASS          1.1s
+✅ news_sentiment     PASS          0.4s
+✅ options            PASS          0.5s
+✅ insider_tracker    PASS       2605.7s
+✅ congress_tracker   PASS          1.1s
+✅ polymarket_scanner PASS          3.7s
+✅ economic_calendar  PASS          0.3s
+✅ macro_dashboard    PASS          1.4s
+✅ sector_rotation    PASS          3.9s
+✅ opportunity_scanner PASS         12.1s
+✅ unusual_options    PASS        906.6s
+✅ social_sentiment   PASS          0.4s
+❌ social_intelligence TIMEOUT    1018.1s
+❌ last30days_research TIMEOUT    1018.8s
+✅ dividend_tracker   PASS          5.4s
+✅ risk_dashboard     PASS          1.1s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS         12.4s
+❌ backtester         TIMEOUT     120.0s
+✅ alert_system       PASS          0.8s
+✅ scorecard          PASS          8.7s
+✅ morning_brief      PASS          2.0s
+✅ decision_journal   PASS         46.7s
+✅ weekly_digest      PASS          1.3s
+❌ brief_html         FAIL          0.3s
+----------------------------------------
+Total: 25/30 passed in 14015.4s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.0s) ---
+
+=== Running: earnings ===
+--- earnings: TIMEOUT (8931.2s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (955.2s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (0.6s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (1.0s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: PASS (0.4s) ---
+
+=== Running: options ===
+--- options: PASS (0.5s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: TIMEOUT (5429.1s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (0.5s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (0.3s) ---
+
+=== Running: economic_calendar ===
+Signal: moderate
+Events this week: 2
+--- economic_calendar: PASS (0.3s) ---
+
+=== Running: macro_dashboard ===
+Signal: unknown
+Regime: Data unavailable
+--- macro_dashboard: PASS (0.5s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (0.8s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (1.5s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (0.7s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (0.4s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (119.8s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (120.0s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (75.7s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (7.9s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (20.2s) ---
+
+=== Running: backtester ===
+--- backtester: TIMEOUT (120.0s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (2.9s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (8.2s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (10.8s) ---
+
+=== Running: decision_journal ===
+ALERT 1: **TSLA Consecutive Losses Pattern**  
+The 4-consecutive-loss history on TSLA demands a 24-hour cooldown, but today’s LOW_RISK conditions might tempt trading it. Avoid TSLA trades today to prevent retriggering the pattern and risking emotional overrides.  
+
+ALERT 2: **Tuesday Win Rate Pattern**  
+Historical 0% win rate on Tuesdays is a red flag, but today’s LOW_RISK regime could create overconfidence. Avoid all trades today (Friday) to prevent Monday/Tuesday carryover bias and maintain discipline.  
+
+ALERT 3: **AAPL Earnings Tone Neutrality**  
+AAPL’s neutral Tone Score (1.5) and embedded risks (regulatory, supply chain) conflict with today’s LOW_RISK regime. Avoid AAPL until the earnings tone stabilizes to prevent conflating market conditions with company-specific risks.
+--- decision_journal: PASS (26.3s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (5.3s) ---
+
+=== Running: brief_html ===
+STDERR: 2026-04-16 10:34:14,349 [__main__] INFO: === Brief HTML Module ===
+Traceback (most recent call last):
+  File "/Users/agenticmac/projects/morning-brief/modules/brief_html.py", line 1372, in <module>
+  
+--- brief_html: FAIL (0.3s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.0s
+❌ earnings           TIMEOUT    8931.2s
+✅ valuation          PASS        955.2s
+✅ portfolio          PASS          0.6s
+✅ technical_signals  PASS          1.0s
+✅ news_sentiment     PASS          0.4s
+✅ options            PASS          0.5s
+❌ insider_tracker    TIMEOUT    5429.1s
+✅ congress_tracker   PASS          0.5s
+✅ polymarket_scanner PASS          0.3s
+✅ economic_calendar  PASS          0.3s
+✅ macro_dashboard    PASS          0.5s
+✅ sector_rotation    PASS          0.8s
+✅ opportunity_scanner PASS          1.5s
+✅ unusual_options    PASS          0.7s
+✅ social_sentiment   PASS          0.4s
+❌ social_intelligence TIMEOUT     119.8s
+❌ last30days_research TIMEOUT     120.0s
+✅ dividend_tracker   PASS         75.7s
+✅ risk_dashboard     PASS          7.9s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS         20.2s
+❌ backtester         TIMEOUT     120.0s
+✅ alert_system       PASS          2.9s
+✅ scorecard          PASS          8.2s
+✅ morning_brief      PASS         10.8s
+✅ decision_journal   PASS         26.3s
+✅ weekly_digest      PASS          5.3s
+❌ brief_html         FAIL          0.3s
+----------------------------------------
+Total: 24/30 passed in 15840.5s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.1s) ---
+
+=== Running: earnings ===
+--- earnings: TIMEOUT (5425.0s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (5.9s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (1.6s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (5.1s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: PASS (86.8s) ---
+
+=== Running: options ===
+--- options: PASS (6.5s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (5.4s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (0.6s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (4.6s) ---
+
+=== Running: economic_calendar ===
+Signal: moderate
+Events this week: 2
+--- economic_calendar: PASS (0.3s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Mixed macro regime with moderate volatility and elevated yields. Monitor VIX trend and Fed policy shifts for direction.
+--- macro_dashboard: PASS (1.7s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (4.5s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (12.5s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (15.3s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (2.1s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (120.0s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (120.0s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (8.5s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (2.3s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (2.6s) ---
+
+=== Running: backtester ===
+--- backtester: PASS (95.1s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (1.0s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (2.9s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (2.8s) ---
+
+=== Running: decision_journal ===
+ALERT 1: **AAPL Concentration Risk + Overbought Momentum**  
+Your history shows a tendency to over-concentrate in single stocks (AAPL is 51% of portfolio), which correlates with today’s high-risk exposure. The positive sentiment on AAPL’s iPhone demand could trigger FOMO, but its 4.6% above trailing stop and 51% portfolio weight create a dangerous mix. **Action**: Avoid adding to AAPL; consider rebalancing to reduce concentration and lock in profits.  
+
+ALERT 2: **RSI Overbought Pullback Trap**  
+Your trade history lacks a clear pattern for overbought RSI (AMD/AMZN at 80/78), but today’s conditions mirror past scenarios where overbought momentum leads to sharp pullbacks. The macro environment’s mixed volatility could amplify this risk. **Action**: Avoid buying AMD/AMZN now; wait for RSI to retreat below 70 before re-entering.  
+
+ALERT 3: **VOO Stop Imminent + Weak Days Pattern**  
+Your history shows no clear pattern for weak days, but today’s VOO is only 2.6% above its trailing stop—a red flag for stop-loss proximity. The macro’s elevated yields and mixed regime could trigger sudden volatility, risking forced exits. **Action**: Tighten VOO’s stop-loss to 1.5% above current price and avoid holding positions near stops during earnings/interest rate volatility.
+--- decision_journal: PASS (15.8s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (1.7s) ---
+
+=== Running: brief_html ===
+--- brief_html: PASS (0.3s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.1s
+❌ earnings           TIMEOUT    5425.0s
+✅ valuation          PASS          5.9s
+✅ portfolio          PASS          1.6s
+✅ technical_signals  PASS          5.1s
+✅ news_sentiment     PASS         86.8s
+✅ options            PASS          6.5s
+✅ insider_tracker    PASS          5.4s
+✅ congress_tracker   PASS          0.6s
+✅ polymarket_scanner PASS          4.6s
+✅ economic_calendar  PASS          0.3s
+✅ macro_dashboard    PASS          1.7s
+✅ sector_rotation    PASS          4.5s
+✅ opportunity_scanner PASS         12.5s
+✅ unusual_options    PASS         15.3s
+✅ social_sentiment   PASS          2.1s
+❌ social_intelligence TIMEOUT     120.0s
+❌ last30days_research TIMEOUT     120.0s
+✅ dividend_tracker   PASS          8.5s
+✅ risk_dashboard     PASS          2.3s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS          2.6s
+✅ backtester         PASS         95.1s
+✅ alert_system       PASS          1.0s
+✅ scorecard          PASS          2.9s
+✅ morning_brief      PASS          2.8s
+✅ decision_journal   PASS         15.8s
+✅ weekly_digest      PASS          1.7s
+✅ brief_html         PASS          0.3s
+----------------------------------------
+Total: 27/30 passed in 5950.8s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.0s) ---
+
+=== Running: earnings ===
+--- earnings: PASS (3022.0s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (1000.7s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (2.0s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: TIMEOUT (1126.2s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: TIMEOUT (1679.4s) ---
+
+=== Running: options ===
+--- options: PASS (1057.6s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (657.6s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (1.9s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (4.1s) ---
+
+=== Running: economic_calendar ===
+Signal: moderate
+Events this week: 2
+--- economic_calendar: PASS (0.6s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Mixed macro regime with moderate volatility and elevated yields. Monitor VIX trend and Fed policy shifts for direction.
+--- macro_dashboard: PASS (2.1s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (5.7s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (13.7s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (840.0s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (2.1s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (1163.0s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (441.1s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (9.3s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (2.1s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (4.4s) ---
+
+=== Running: backtester ===
+--- backtester: TIMEOUT (141.8s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (1.1s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (3.4s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (2.9s) ---
+
+=== Running: decision_journal ===
+--- decision_journal: TIMEOUT (1028.2s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (6.1s) ---
+
+=== Running: brief_html ===
+--- brief_html: PASS (1.1s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.0s
+✅ earnings           PASS       3022.0s
+✅ valuation          PASS       1000.7s
+✅ portfolio          PASS          2.0s
+❌ technical_signals  TIMEOUT    1126.2s
+❌ news_sentiment     TIMEOUT    1679.4s
+✅ options            PASS       1057.6s
+✅ insider_tracker    PASS        657.6s
+✅ congress_tracker   PASS          1.9s
+✅ polymarket_scanner PASS          4.1s
+✅ economic_calendar  PASS          0.6s
+✅ macro_dashboard    PASS          2.1s
+✅ sector_rotation    PASS          5.7s
+✅ opportunity_scanner PASS         13.7s
+✅ unusual_options    PASS        840.0s
+✅ social_sentiment   PASS          2.1s
+❌ social_intelligence TIMEOUT    1163.0s
+❌ last30days_research TIMEOUT     441.1s
+✅ dividend_tracker   PASS          9.3s
+✅ risk_dashboard     PASS          2.1s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS          4.4s
+❌ backtester         TIMEOUT     141.8s
+✅ alert_system       PASS          1.1s
+✅ scorecard          PASS          3.4s
+✅ morning_brief      PASS          2.9s
+❌ decision_journal   TIMEOUT    1028.2s
+✅ weekly_digest      PASS          6.1s
+✅ brief_html         PASS          1.1s
+----------------------------------------
+Total: 24/30 passed in 12220.2s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.0s) ---
+
+=== Running: earnings ===
+--- earnings: PASS (2979.7s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (907.8s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (1.6s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (982.1s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: TIMEOUT (915.5s) ---
+
+=== Running: options ===
+--- options: PASS (7.0s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (5.8s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (0.6s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (3.0s) ---
+
+=== Running: economic_calendar ===
+Signal: moderate
+Events this week: 2
+--- economic_calendar: PASS (0.3s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Mixed macro regime with moderate volatility and elevated yields. Monitor VIX trend and Fed policy shifts for direction.
+--- macro_dashboard: PASS (1.9s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (3.7s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (346.6s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (27.1s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (1.9s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (3852.2s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (1624.6s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (13.2s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (936.3s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (2.8s) ---
+
+=== Running: backtester ===
+--- backtester: TIMEOUT (217.3s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (1.7s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (3.4s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (2.8s) ---
+
+=== Running: decision_journal ===
+--- decision_journal: TIMEOUT (1885.0s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (7.2s) ---
+
+=== Running: brief_html ===
+--- brief_html: PASS (1.5s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.0s
+✅ earnings           PASS       2979.7s
+✅ valuation          PASS        907.8s
+✅ portfolio          PASS          1.6s
+✅ technical_signals  PASS        982.1s
+❌ news_sentiment     TIMEOUT     915.5s
+✅ options            PASS          7.0s
+✅ insider_tracker    PASS          5.8s
+✅ congress_tracker   PASS          0.6s
+✅ polymarket_scanner PASS          3.0s
+✅ economic_calendar  PASS          0.3s
+✅ macro_dashboard    PASS          1.9s
+✅ sector_rotation    PASS          3.7s
+✅ opportunity_scanner PASS        346.6s
+✅ unusual_options    PASS         27.1s
+✅ social_sentiment   PASS          1.9s
+❌ social_intelligence TIMEOUT    3852.2s
+❌ last30days_research TIMEOUT    1624.6s
+✅ dividend_tracker   PASS         13.2s
+✅ risk_dashboard     PASS        936.3s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS          2.8s
+❌ backtester         TIMEOUT     217.3s
+✅ alert_system       PASS          1.7s
+✅ scorecard          PASS          3.4s
+✅ morning_brief      PASS          2.8s
+❌ decision_journal   TIMEOUT    1885.0s
+✅ weekly_digest      PASS          7.2s
+✅ brief_html         PASS          1.5s
+----------------------------------------
+Total: 25/30 passed in 14732.4s
+============================================================
+Using Python: /Users/agenticmac/projects/morning-brief/.venv/bin/python
+============================================================
+
+=== Step 0: Portfolio Sync ===
+No sync source available. Using existing portfolio.json.
+Portfolio synced successfully
+
+=== Running: journal ===
+--- journal: PASS (0.0s) ---
+
+=== Running: earnings ===
+--- earnings: PASS (23.2s) ---
+
+=== Running: valuation ===
+--- valuation: PASS (3.5s) ---
+
+=== Running: portfolio ===
+--- portfolio: PASS (2.1s) ---
+
+=== Running: technical_signals ===
+--- technical_signals: PASS (4.5s) ---
+
+=== Running: news_sentiment ===
+--- news_sentiment: PASS (119.2s) ---
+
+=== Running: options ===
+--- options: PASS (4.8s) ---
+
+=== Running: insider_tracker ===
+--- insider_tracker: PASS (6.1s) ---
+
+=== Running: congress_tracker ===
+--- congress_tracker: PASS (0.6s) ---
+
+=== Running: polymarket_scanner ===
+--- polymarket_scanner: PASS (3.0s) ---
+
+=== Running: economic_calendar ===
+Signal: calm
+Events this week: 0
+--- economic_calendar: PASS (0.3s) ---
+
+=== Running: macro_dashboard ===
+Signal: mixed
+Regime: Mixed macro regime with moderate volatility and elevated yields. Monitor VIX trend and Fed policy shifts for direction.
+--- macro_dashboard: PASS (1.9s) ---
+
+=== Running: sector_rotation ===
+--- sector_rotation: PASS (4.0s) ---
+
+=== Running: opportunity_scanner ===
+--- opportunity_scanner: PASS (15.6s) ---
+
+=== Running: unusual_options ===
+--- unusual_options: PASS (11.5s) ---
+
+=== Running: social_sentiment ===
+--- social_sentiment: PASS (2.2s) ---
+
+=== Running: social_intelligence ===
+--- social_intelligence: TIMEOUT (120.0s) ---
+
+=== Running: last30days_research ===
+--- last30days_research: TIMEOUT (120.0s) ---
+
+=== Running: dividend_tracker ===
+=== dividend_tracker module completed successfully ===
+--- dividend_tracker: PASS (16.5s) ---
+
+=== Running: risk_dashboard ===
+--- risk_dashboard: PASS (2.8s) ---
+
+=== Running: trade_memory ===
+--- trade_memory: PASS (0.0s) ---
+
+=== Running: position_sizer ===
+--- position_sizer: PASS (0.0s) ---
+
+=== Running: correlation_heatmap ===
+--- correlation_heatmap: PASS (3.9s) ---
+
+=== Running: backtester ===
+--- backtester: TIMEOUT (120.0s) ---
+
+=== Running: alert_system ===
+--- alert_system: PASS (1.2s) ---
+
+=== Running: scorecard ===
+--- scorecard: PASS (2.9s) ---
+
+=== Running: morning_brief ===
+--- morning_brief: PASS (5.6s) ---
+
+=== Running: decision_journal ===
+ALERT 1: **AAPL Concentration Risk — Past Overexposure Pattern**  
+Your 51% portfolio allocation to AAPL mirrors historical overconcentration patterns that increased vulnerability to market shifts. Today’s mixed sentiment (bullish keywords but no confirmed price action) risks amplifying losses if AAPL reverses. **Action**: Reduce AAPL’s position to <20% of the portfolio by midday to diversify risk.  
+
+ALERT 2: **NVDA Stop-Breached — Past Inaction Pattern**  
+NVDA’s price is below your trailing stop ($474.97), matching historical instances where you delayed exits during stop breaches. This could trigger further losses if the trend continues. **Action**: Exit NVDA immediately to avoid compounding the risk of a broken stop.  
+
+ALERT 3: **Overbought AMD/AMZN — Past Holding-onto-Overbought Pattern**  
+AMD (RSI 80) and AMZN (RSI 77) are overbought, reflecting a recurring pattern of holding positions during pullbacks. Today’s high volatility (VIX 19.12) increases the likelihood of a sharp correction. **Action**: Take 30% profit on AMD/AMZN now to lock gains before potential RSI-driven retracements.
+--- decision_journal: PASS (17.1s) ---
+
+=== Running: weekly_digest ===
+--- weekly_digest: PASS (1.5s) ---
+
+=== Running: brief_html ===
+--- brief_html: PASS (0.3s) ---
+
+============================================================
+SUMMARY
+============================================================
+Module               Status         Time
+----------------------------------------
+✅ journal            PASS          0.0s
+✅ earnings           PASS         23.2s
+✅ valuation          PASS          3.5s
+✅ portfolio          PASS          2.1s
+✅ technical_signals  PASS          4.5s
+✅ news_sentiment     PASS        119.2s
+✅ options            PASS          4.8s
+✅ insider_tracker    PASS          6.1s
+✅ congress_tracker   PASS          0.6s
+✅ polymarket_scanner PASS          3.0s
+✅ economic_calendar  PASS          0.3s
+✅ macro_dashboard    PASS          1.9s
+✅ sector_rotation    PASS          4.0s
+✅ opportunity_scanner PASS         15.6s
+✅ unusual_options    PASS         11.5s
+✅ social_sentiment   PASS          2.2s
+❌ social_intelligence TIMEOUT     120.0s
+❌ last30days_research TIMEOUT     120.0s
+✅ dividend_tracker   PASS         16.5s
+✅ risk_dashboard     PASS          2.8s
+✅ trade_memory       PASS          0.0s
+✅ position_sizer     PASS          0.0s
+✅ correlation_heatmap PASS          3.9s
+❌ backtester         TIMEOUT     120.0s
+✅ alert_system       PASS          1.2s
+✅ scorecard          PASS          2.9s
+✅ morning_brief      PASS          5.6s
+✅ decision_journal   PASS         17.1s
+✅ weekly_digest      PASS          1.5s
+✅ brief_html         PASS          0.3s
+----------------------------------------
+Total: 27/30 passed in 614.6s
+============================================================

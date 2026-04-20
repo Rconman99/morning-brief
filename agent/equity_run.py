@@ -254,6 +254,22 @@ def run_equity_agent(portfolio_value: float = 15000.0, dry_run: bool = False,
     with open(run_log, "a") as f:
         f.write(json.dumps(run_record) + "\n")
 
+    # 8b. Per-strategy drawdown check — pause individual strategies that lose
+    # >8% of allocated capital over trailing 30 days. Surgical vs account-level.
+    try:
+        from agent.equity_db import check_strategy_drawdown_pause, get_strategy_status
+        all_strategies = set(p.get("strategy") for p in proposals if p.get("strategy"))
+        for s in all_strategies:
+            status = get_strategy_status(s)
+            alloc_pct = status.get("allocated_capital_pct") or 0.2
+            allocated = portfolio_value * alloc_pct
+            paused = check_strategy_drawdown_pause(s, allocated, threshold=-0.08)
+            if paused:
+                logger.warning("PAUSED strategy %s: 30d DD exceeded -8%% of allocated $%.0f",
+                               s, allocated)
+    except Exception as e:
+        logger.debug("Per-strategy DD check failed: %s", e)
+
     # 9. Send daily summary notification
     try:
         from lib.notify import alert_daily_summary, alert_risk_breach

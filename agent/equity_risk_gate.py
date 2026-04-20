@@ -268,6 +268,27 @@ def check_proposal(proposal: dict, portfolio_value: float, force: bool = False) 
         quantity = edge_size_usd / price
 
     cost = price * quantity if price and quantity else 0
+    strategy = proposal.get("strategy", "")
+
+    # --- CHECK 0: Per-strategy pause ---
+    from agent.equity_db import is_strategy_paused, is_strategy_backtest_passed
+    paused, paused_reason = is_strategy_paused(strategy)
+    if paused:
+        return {
+            "approved": False,
+            "reason": f"Strategy '{strategy}' paused: {paused_reason}",
+        }
+
+    # --- CHECK 0b: Walk-forward backtest gate ---
+    # Only reject when explicitly enforced. Default: warn but allow.
+    # Flip REQUIRE_BACKTEST_PASS=True in env once strategies are validated.
+    import os
+    require_bt = os.environ.get("REQUIRE_BACKTEST_PASS", "false").lower() == "true"
+    if require_bt and not is_strategy_backtest_passed(strategy):
+        return {
+            "approved": False,
+            "reason": f"Strategy '{strategy}' has no passing walk-forward backtest on file",
+        }
 
     # --- CHECK 1: Market hours ---
     if not force and not _is_market_hours():

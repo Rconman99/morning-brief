@@ -18,7 +18,6 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
@@ -43,19 +42,17 @@ CLOB_API = "https://clob.polymarket.com"
 # Output file
 OUTPUT_FILE = "onchain_flow.json"
 
-# How many trades to pull per request (Gamma/Data API caps)
-TRADE_FETCH_LIMIT = 200
-
 
 # ============================================================
 # 1. Fetch recent large trades
 # ============================================================
 
-def fetch_recent_large_trades(min_usd: float = 5000, hours: int = 24) -> list[dict]:
+def fetch_recent_large_trades(min_usd: float = 500, hours: int = 24) -> list[dict]:
     """Fetch recent Polymarket trades above a USD threshold.
 
-    Strategy: pull high-volume markets from Gamma API, then check their
-    recent activity via the Data API. We filter client-side for size.
+    Uses the Data API /trades endpoint which returns recent trades globally.
+    The 'size' field is already in USDC. We pull up to 500 trades and filter
+    client-side by minimum size and time window.
 
     Returns list of dicts:
         [{address, side, amount_usd, token_id, market_slug, timestamp, tx_hash}, ...]
@@ -68,45 +65,31 @@ def fetch_recent_large_trades(min_usd: float = 5000, hours: int = 24) -> list[di
         logger.info("Using cached large trades (%d entries)", len(cached))
         return cached
 
-    trades = []
-
-    # Step 1: Get active markets sorted by recent volume
-    markets = _fetch_active_markets(limit=30)
-    if not markets:
-        logger.warning("No active markets returned from Gamma API")
-        return []
-
-    # Step 2: For each high-volume market, fetch recent activity
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    raw_trades = _fetch_global_trades(limit=500)
 
-    for market in markets:
-        slug = market.get("slug", "")
-        condition_id = market.get("conditionId") or market.get("condition_id", "")
-        question = market.get("question", slug)
+    trades = []
+    for item in raw_trades:
+        usd_value = _safe_float(item.get("size")) or 0.0
+        if usd_value < min_usd:
+            continue
 
-        activity = _fetch_market_activity(condition_id, limit=TRADE_FETCH_LIMIT)
+        ts = _parse_timestamp(item)
+        if ts and ts < cutoff:
+            continue
 
-        for item in activity:
-            usd_value = _parse_usd_value(item)
-            if usd_value < min_usd:
-                continue
-
-            ts = _parse_timestamp(item)
-            if ts and ts < cutoff:
-                continue
-
-            trades.append({
-                "address": item.get("proxyWallet") or item.get("user") or item.get("maker", "unknown"),
-                "side": _parse_side(item),
-                "amount_usd": round(usd_value, 2),
-                "token_id": item.get("asset") or item.get("tokenId") or condition_id,
-                "market_slug": slug,
-                "question": question[:120],
-                "timestamp": ts.isoformat() if ts else None,
-                "tx_hash": item.get("transactionHash") or item.get("txHash") or item.get("id", ""),
-                "price": _safe_float(item.get("price")),
-                "type": item.get("type", "unknown"),  # maker vs taker hint
-            })
+        trades.append({
+            "address": item.get("proxyWallet") or item.get("user") or "unknown",
+            "side": _parse_side(item),
+            "amount_usd": round(usd_value, 2),
+            "token_id": item.get("asset") or item.get("conditionId") or "",
+            "market_slug": item.get("slug") or item.get("eventSlug") or "",
+            "question": (item.get("title") or item.get("slug") or "")[:120],
+            "timestamp": ts.isoformat() if ts else None,
+            "tx_hash": item.get("transactionHash") or "",
+            "price": _safe_float(item.get("price")),
+            "outcome": item.get("outcome", ""),
+        })
 
     # Sort by size descending
     trades.sort(key=lambda t: t["amount_usd"], reverse=True)
@@ -149,8 +132,8 @@ def detect_whale_activity(trades: list[dict], threshold_usd: float = 10_000) -> 
             continue
 
         # Determine net direction from this address
-        buy_total = sum(t["amount_usd"] for t in addr_trades if t["side"] in ("buy", "yes", "Buy"))
-        sell_total = sum(t["amount_usd"] for t in addr_trades if t["side"] in ("sell", "no", "Sell"))
+        buy_total = sum(t["amount_usd"] for t in addr_trades if t["side"].lower() in ("buy", "yes"))
+        sell_total = sum(t["amount_usd"] for t in addr_trades if t["side"].lower() in ("sell", "no"))
         direction = "BUY" if buy_total > sell_total else "SELL"
 
         # Volume share: what % of this market's tracked volume is this address?
@@ -235,12 +218,12 @@ def detect_informed_flow(trades: list[dict]) -> list[dict]:
             if price is None:
                 continue
             # Trades at >$0.85 or <$0.15 with large size suggest conviction
-            if (price > 0.85 or price < 0.15) and t["amount_usd"] >= 10_000:
+            if (price > 0.85 or price < 0.15) and t["amount_usd"] >= 1_000:
                 signals.append({
                     "market_slug": slug,
                     "question": question,
                     "signal_type": "conviction_trade",
-                    "confidence": "high" if t["amount_usd"] >= 25_000 else "medium",
+                    "confidence": "high" if t["amount_usd"] >= 5_000 else "medium",
                     "direction": t["side"].upper() if t["side"] else "UNKNOWN",
                     "details": (
                         f"${t['amount_usd']:,.0f} trade at price {price:.2f} "
@@ -251,11 +234,11 @@ def detect_informed_flow(trades: list[dict]) -> list[dict]:
         # --- Signal C: One-sided flow ---
         buy_vol = sum(
             t["amount_usd"] for t in market_trades
-            if t["side"] in ("buy", "yes", "Buy")
+            if t["side"].lower() in ("buy", "yes")
         )
         sell_vol = sum(
             t["amount_usd"] for t in market_trades
-            if t["side"] in ("sell", "no", "Sell")
+            if t["side"].lower() in ("sell", "no")
         )
         total_directional = buy_vol + sell_vol
         if total_directional > 0:
@@ -304,12 +287,12 @@ def get_flow_signals() -> dict:
         }
     """
     try:
-        trades = fetch_recent_large_trades(min_usd=5000, hours=24)
+        trades = fetch_recent_large_trades(min_usd=500, hours=24)
     except Exception as e:
         logger.error("Failed to fetch trades: %s", e)
         trades = []
 
-    whale_markets = detect_whale_activity(trades, threshold_usd=10_000)
+    whale_markets = detect_whale_activity(trades, threshold_usd=2_000)
     informed_flow = detect_informed_flow(trades)
 
     # Volume summary across all fetched trades
@@ -351,117 +334,44 @@ def get_flow_signals() -> dict:
 # Internal helpers — API fetching
 # ============================================================
 
-def _fetch_active_markets(limit: int = 30) -> list[dict]:
-    """Get active markets sorted by 24h volume from Gamma API."""
-    cache_key = make_cache_key("onchain_flow", "active_markets", {"limit": limit})
+def _fetch_global_trades(limit: int = 500) -> list[dict]:
+    """Fetch recent trades from the Data API /trades endpoint.
+
+    This is the most reliable public endpoint — returns all recent trades
+    globally with full metadata (proxyWallet, size in USDC, price, side,
+    slug, title, transactionHash, etc.).
+
+    The /activity endpoint requires a user param; /trades does not.
+    """
+    cache_key = make_cache_key("onchain_flow", "global_trades", {"limit": limit})
     cached = get_cached(cache_key, max_age_hours=1)
     if cached is not None:
         return cached
 
     try:
         resp = requests.get(
-            f"{GAMMA_API}/markets",
-            params={
-                "limit": str(limit),
-                "active": "true",
-                "order": "volumeNum",
-                "ascending": "false",
-            },
-            timeout=15,
+            f"{DATA_API}/trades",
+            params={"limit": str(limit)},
+            timeout=20,
         )
         resp.raise_for_status()
-        markets = resp.json()
-        if isinstance(markets, list):
-            set_cached(cache_key, markets)
-            return markets
-        logger.warning("Gamma /markets returned non-list: %s", type(markets))
+        trades = resp.json()
+        if isinstance(trades, list):
+            set_cached(cache_key, trades)
+            return trades
+        logger.warning("Data API /trades returned non-list: %s", type(trades))
         return []
     except requests.RequestException as e:
-        logger.warning("Gamma API /markets failed: %s", e)
+        logger.warning("Data API /trades failed: %s", e)
         return []
     except (ValueError, KeyError) as e:
-        logger.warning("Gamma API /markets parse error: %s", e)
+        logger.warning("Data API /trades parse error: %s", e)
         return []
-
-
-def _fetch_market_activity(condition_id: str, limit: int = 200) -> list[dict]:
-    """Fetch recent trade activity for a specific market.
-
-    Tries multiple endpoints in order of preference:
-    1. Data API /activity with market filter
-    2. CLOB API /activity
-    3. Gamma API /trades
-    """
-    if not condition_id:
-        return []
-
-    # Try Data API first — most detailed
-    try:
-        resp = requests.get(
-            f"{DATA_API}/activity",
-            params={"market": condition_id, "limit": str(limit)},
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if isinstance(data, list) and data:
-                return data
-    except (requests.RequestException, ValueError):
-        pass
-
-    # Fallback: try without market filter (global activity)
-    try:
-        resp = requests.get(
-            f"{DATA_API}/activity",
-            params={"limit": str(min(limit, 100))},
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if isinstance(data, list):
-                return data
-    except (requests.RequestException, ValueError):
-        pass
-
-    # Last resort: CLOB API
-    try:
-        resp = requests.get(
-            f"{CLOB_API}/activity",
-            params={"limit": str(min(limit, 50))},
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            if isinstance(data, list):
-                return data
-    except (requests.RequestException, ValueError):
-        pass
-
-    logger.debug("No activity data for condition_id=%s", condition_id[:16])
-    return []
 
 
 # ============================================================
 # Internal helpers — parsing & classification
 # ============================================================
-
-def _parse_usd_value(item: dict) -> float:
-    """Extract USD value from a trade/activity record.
-
-    Different API responses use different field names.
-    """
-    for field in ("usdcSize", "size", "amount", "value", "tradeAmount", "collateralAmount"):
-        val = _safe_float(item.get(field))
-        if val and val > 0:
-            return val
-
-    # Sometimes size is in shares and we need to multiply by price
-    shares = _safe_float(item.get("shares") or item.get("matchedAmount"))
-    price = _safe_float(item.get("price") or item.get("avgPrice"))
-    if shares and price:
-        return shares * price
-
-    return 0.0
 
 
 def _parse_side(item: dict) -> str:
@@ -514,8 +424,8 @@ def _safe_float(val) -> float | None:
 
 def _dominant_direction(trades: list[dict]) -> str:
     """Determine whether a set of trades is net BUY or SELL."""
-    buy = sum(t["amount_usd"] for t in trades if t["side"] in ("buy", "yes"))
-    sell = sum(t["amount_usd"] for t in trades if t["side"] in ("sell", "no"))
+    buy = sum(t["amount_usd"] for t in trades if t["side"].lower() in ("buy", "yes"))
+    sell = sum(t["amount_usd"] for t in trades if t["side"].lower() in ("sell", "no"))
     return "BUY" if buy >= sell else "SELL"
 
 

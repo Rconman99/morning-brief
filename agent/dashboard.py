@@ -29,6 +29,10 @@ if env_path.exists():
 
 
 def get_wallet():
+    # Allow read-only viewing via address override (e.g. view bot wallet without holding its key)
+    addr = os.environ.get("POLYMARKET_WALLET_ADDRESS", "").strip()
+    if addr:
+        return addr
     key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
     if not key:
         return ""
@@ -128,33 +132,33 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <meta http-equiv="refresh" content="30">
 <title>Polymarket Agent Dashboard</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 14px; }
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-h1 { color: #00ff88; font-size: 24px; margin-bottom: 5px; }
-.subtitle { color: #666; font-size: 12px; margin-bottom: 20px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
-.card { background: #12121a; border: 1px solid #1e1e2e; border-radius: 8px; padding: 15px; }
-.card-label { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-.card-value { font-size: 28px; font-weight: bold; margin-top: 5px; }
-.green { color: #00ff88; }
-.red { color: #ff4444; }
-.yellow { color: #ffaa00; }
-.blue { color: #4488ff; }
-.section { margin-bottom: 25px; }
-.section-title { color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid #1e1e2e; padding-bottom: 5px; }
-table { width: 100%; border-collapse: collapse; }
-th { text-align: left; color: #555; font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid #1e1e2e; }
-td { padding: 8px 10px; border-bottom: 1px solid #0e0e16; font-size: 13px; }
-tr:hover { background: #15151f; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-.badge-live { background: #002200; color: #00ff88; border: 1px solid #00ff88; }
-.badge-filled { background: #001133; color: #4488ff; border: 1px solid #4488ff; }
-.badge-win { background: #002200; color: #00ff88; }
-.badge-loss { background: #220000; color: #ff4444; }
-.pulse { animation: pulse 2s infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-.footer { color: #333; font-size: 11px; text-align: center; margin-top: 30px; }
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 14px; }}
+.container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
+h1 {{ color: #00ff88; font-size: 24px; margin-bottom: 5px; }}
+.subtitle {{ color: #666; font-size: 12px; margin-bottom: 20px; }}
+.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }}
+.card {{ background: #12121a; border: 1px solid #1e1e2e; border-radius: 8px; padding: 15px; }}
+.card-label {{ color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }}
+.card-value {{ font-size: 28px; font-weight: bold; margin-top: 5px; }}
+.green {{ color: #00ff88; }}
+.red {{ color: #ff4444; }}
+.yellow {{ color: #ffaa00; }}
+.blue {{ color: #4488ff; }}
+.section {{ margin-bottom: 25px; }}
+.section-title {{ color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid #1e1e2e; padding-bottom: 5px; }}
+table {{ width: 100%; border-collapse: collapse; }}
+th {{ text-align: left; color: #555; font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid #1e1e2e; }}
+td {{ padding: 8px 10px; border-bottom: 1px solid #0e0e16; font-size: 13px; }}
+tr:hover {{ background: #15151f; }}
+.badge {{ display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }}
+.badge-live {{ background: #002200; color: #00ff88; border: 1px solid #00ff88; }}
+.badge-filled {{ background: #001133; color: #4488ff; border: 1px solid #4488ff; }}
+.badge-win {{ background: #002200; color: #00ff88; }}
+.badge-loss {{ background: #220000; color: #ff4444; }}
+.pulse {{ animation: pulse 2s infinite; }}
+@keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.5; }} }}
+.footer {{ color: #333; font-size: 11px; text-align: center; margin-top: 30px; }}
 </style>
 </head>
 <body>

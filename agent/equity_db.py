@@ -76,6 +76,20 @@ def init_db() -> None:
             rebuy_window_end TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS strategy_status (
+            strategy TEXT PRIMARY KEY,
+            paused_until TEXT,
+            paused_reason TEXT,
+            last_backtest_at TEXT,
+            backtest_sharpe REAL,
+            backtest_calmar REAL,
+            backtest_max_dd REAL,
+            backtest_passed INTEGER DEFAULT 0,
+            allocated_capital_pct REAL DEFAULT 0.2,
+            strategy_pnl_30d REAL DEFAULT 0,
+            notes TEXT
+        );
+
         CREATE INDEX IF NOT EXISTS idx_trades_ticker ON trades(ticker);
         CREATE INDEX IF NOT EXISTS idx_trades_timestamp ON trades(timestamp);
         CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades(strategy);
@@ -353,3 +367,116 @@ def get_performance_metrics(days: int = 30) -> dict:
         "daily_returns": len(daily_returns),
         "by_strategy": by_strategy,
     }
+
+
+# ============================================================
+# Strategy status — per-strategy pause + backtest gate
+# ============================================================
+
+def get_strategy_status(strategy: str) -> dict:
+    """Return status for a strategy. Empty dict if none on file."""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM strategy_status WHERE strategy = ?", (strategy,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def is_strategy_paused(strategy: str) -> tuple[bool, str]:
+    """Return (is_paused, reason). Paused if paused_until > now."""
+    s = get_strategy_status(strategy)
+    if not s or not s.get("paused_until"):
+        return (False, "")
+    try:
+        until = datetime.fromisoformat(s["paused_until"])
+        if until > datetime.now().astimezone():
+            return (True, s.get("paused_reason", "paused"))
+    except (ValueError, TypeError):
+        pass
+    return (False, "")
+
+
+def set_strategy_pause(strategy: str, until: datetime, reason: str) -> None:
+    """Pause a strategy until the given datetime. Idempotent upsert."""
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO strategy_status (strategy, paused_until, paused_reason)
+           VALUES (?, ?, ?)
+           ON CONFLICT(strategy) DO UPDATE SET
+               paused_until = excluded.paused_until,
+               paused_reason = excluded.paused_reason""",
+        (strategy, until.isoformat(), reason)
+    )
+    conn.commit()
+    conn.close()
+    logger.warning("Strategy %s paused until %s: %s", strategy, until.date(), reason)
+
+
+def set_strategy_backtest(strategy: str, sharpe: float, calmar: float,
+                           max_dd: float, passed: bool) -> None:
+    """Record backtest results for a strategy. Gate: calmar >= 0.5 to pass."""
+    conn = get_conn()
+    conn.execute(
+        """INSERT INTO strategy_status
+           (strategy, last_backtest_at, backtest_sharpe, backtest_calmar,
+            backtest_max_dd, backtest_passed)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(strategy) DO UPDATE SET
+               last_backtest_at = excluded.last_backtest_at,
+               backtest_sharpe = excluded.backtest_sharpe,
+               backtest_calmar = excluded.backtest_calmar,
+               backtest_max_dd = excluded.backtest_max_dd,
+               backtest_passed = excluded.backtest_passed""",
+        (strategy, datetime.now().astimezone().isoformat(),
+         sharpe, calmar, max_dd, 1 if passed else 0)
+    )
+    conn.commit()
+    conn.close()
+
+
+def is_strategy_backtest_passed(strategy: str) -> bool:
+    """True if strategy has a backtest on file and passed. Unknown → False."""
+    s = get_strategy_status(strategy)
+    return bool(s and s.get("backtest_passed"))
+
+
+def compute_strategy_pnl_30d(strategy: str) -> float:
+    """Rolling 30-day realized P&L for a strategy. Negative = losing."""
+    conn = get_conn()
+    cutoff = (datetime.now() - timedelta(days=30)).isoformat()
+    rows = conn.execute(
+        """SELECT side, price, fill_price, quantity, cost_usd FROM trades
+           WHERE strategy = ? AND timestamp >= ?
+           AND status IN ('filled', 'paper_filled')""",
+        (strategy, cutoff)
+    ).fetchall()
+    conn.close()
+
+    pnl = 0.0
+    for r in rows:
+        fp = r["fill_price"] or r["price"] or 0
+        p = r["price"] or 0
+        qty = r["quantity"] or 0
+        # BUY: P&L unknown until matching SELL, use 0 here (unrealized).
+        # SELL: realized pnl = (fill - cost_basis) * qty — cost_basis not stored
+        # per-trade, so approximate from price vs fill_price for now.
+        if r["side"] == "SELL":
+            pnl += (fp - p) * qty  # crude — assumes price was cost basis
+    return round(pnl, 2)
+
+
+def check_strategy_drawdown_pause(strategy: str, allocated_capital: float,
+                                    threshold: float = -0.08) -> bool:
+    """If a strategy is down more than `threshold` (e.g. -0.08 = -8%) of its
+    allocated capital over 30 days, pause it for 7 days. Returns True if paused."""
+    pnl = compute_strategy_pnl_30d(strategy)
+    if allocated_capital <= 0:
+        return False
+    pnl_pct = pnl / allocated_capital
+    if pnl_pct < threshold:
+        until = datetime.now().astimezone() + timedelta(days=7)
+        reason = f"30d drawdown {pnl_pct:.1%} < {threshold:.0%} threshold"
+        set_strategy_pause(strategy, until, reason)
+        return True
+    return False

@@ -303,9 +303,11 @@ def keyword_sentiment(articles: list[dict]) -> dict:
 
 
 def ai_sentiment(ticker: str, articles: list[dict]) -> dict | None:
-    """Use Claude Haiku for nuanced sentiment analysis."""
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
+    """Use local Ollama (free) or Claude Haiku (paid) for nuanced sentiment analysis."""
+    from lib.llm import generate_json, get_provider_status
+
+    status = get_provider_status()
+    if not status["ollama"] and not status["claude"]:
         return None
 
     headlines = "\n".join(
@@ -325,29 +327,13 @@ Headlines:
 {headlines}"""
 
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = response.content[0].text.strip()
-        # Extract JSON from response
-        if text.startswith("{"):
-            result = json.loads(text)
-        else:
-            # Try to find JSON in the response
-            start = text.find("{")
-            end = text.rfind("}") + 1
-            if start >= 0 and end > start:
-                result = json.loads(text[start:end])
-            else:
-                logger.warning("Could not parse AI response for %s", ticker)
-                return None
+        result = generate_json(prompt, max_tokens=300)
+        if result is None:
+            logger.warning("AI sentiment returned no parseable JSON for %s", ticker)
+            return None
 
         result["sentiment_score"] = max(-1.0, min(1.0, float(result.get("sentiment_score", 0))))
-        result["method"] = "claude"
+        result["method"] = "ollama" if status["ollama"] else "claude"
         return result
     except Exception as e:
         logger.warning("AI sentiment failed for %s: %s", ticker, e)

@@ -149,29 +149,15 @@ def analyze_transcript_regex(text: str, ticker: str) -> dict:
 
 
 def analyze_transcript_ai(text: str, ticker: str) -> dict:
-    """Analyze a single earnings transcript using Claude for semantic understanding."""
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    client = anthropic.Anthropic(api_key=api_key)
+    """Analyze a single earnings transcript using local Ollama or Claude."""
+    from lib.llm import generate_json
 
     prompt = EARNINGS_PROMPT.format(ticker=ticker)
+    full_prompt = f"{prompt}\n\nTranscript:\n{text}"
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        messages=[
-            {"role": "user", "content": f"{prompt}\n\nTranscript:\n{text}"}
-        ],
-    )
-
-    response_text = message.content[0].text.strip()
-
-    # Strip markdown code fences if present
-    if response_text.startswith("```"):
-        lines = response_text.split("\n")
-        lines = [l for l in lines if not l.startswith("```")]
-        response_text = "\n".join(lines)
-
-    parsed = json.loads(response_text)
+    parsed = generate_json(full_prompt, max_tokens=1024)
+    if parsed is None:
+        raise ValueError("LLM returned no parseable JSON")
 
     if not _validate_ai_response(parsed):
         raise ValueError("AI response failed schema validation")
@@ -191,16 +177,14 @@ def analyze_transcript_ai(text: str, ticker: str) -> dict:
 def analyze_transcript(text: str, ticker: str) -> dict:
     """Analyze a single earnings transcript for tone and risk factors.
 
-    Uses Claude AI when ANTHROPIC_API_KEY is available, otherwise falls back
-    to regex phrase counting.
+    Uses local Ollama (free) → Claude Haiku (paid) → regex fallback.
     """
-    if HAS_ANTHROPIC and os.environ.get("ANTHROPIC_API_KEY"):
-        try:
-            result = analyze_transcript_ai(text, ticker)
-            logger.info("AI analysis succeeded for %s", ticker)
-            return result
-        except Exception as e:
-            logger.warning("AI analysis failed for %s, falling back to regex: %s", ticker, e)
+    try:
+        result = analyze_transcript_ai(text, ticker)
+        logger.info("AI analysis succeeded for %s", ticker)
+        return result
+    except Exception as e:
+        logger.warning("AI analysis failed for %s, falling back to regex: %s", ticker, e)
 
     return analyze_transcript_regex(text, ticker)
 
