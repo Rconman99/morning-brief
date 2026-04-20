@@ -13,7 +13,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # --- HARD LIMITS (agent cannot modify these) ---
 
-MAX_SINGLE_POSITION_PCT = 0.05      # 5% of portfolio on any one stock
+MAX_SINGLE_POSITION_PCT = 0.05      # 5% of portfolio on any one stock (hard cap)
+RISK_PER_TRADE_PCT = 0.01           # 1% of equity at risk per trade (ATR-normalized sizing)
+ATR_STOP_MULTIPLIER = 2.0           # Stop distance = 2x ATR(14). Canonical default.
 MAX_TOTAL_EXPOSURE_PCT = 0.80       # 80% max invested (20% always cash)
 MAX_SECTOR_EXPOSURE_PCT = 0.30      # 30% max in any one GICS sector
 MAX_DAILY_LOSS_PCT = 0.015          # 1.5% daily loss → pause trading

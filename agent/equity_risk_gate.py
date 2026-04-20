@@ -87,7 +87,74 @@ def _get_portfolio_correlation(ticker: str) -> float | None:
     return max_corr if max_corr > 0 else None
 
 
-def calculate_edge_size(strategy: str, conviction: int, portfolio_value: float) -> float:
+def _get_atr(ticker: str) -> float | None:
+    """Get 14-day ATR for a ticker. Pulls from portfolio module cache first,
+    falls back to yfinance if not cached."""
+    from lib.data_envelope import load_envelope
+    portfolio = load_envelope("portfolio.json")
+    if portfolio.get("status") == "success":
+        for h in portfolio.get("data", {}).get("holdings", []):
+            if h.get("ticker") == ticker and h.get("atr"):
+                return float(h["atr"])
+
+    # Fallback: compute from yfinance (cached by lib.cache)
+    try:
+        from lib.api import yahoo_finance_price_history
+        df = yahoo_finance_price_history(ticker, period="2mo")
+        if df is None or df.empty or len(df) < 15:
+            return None
+        high, low, close = df["High"], df["Low"], df["Close"]
+        prev_close = close.shift(1)
+        tr = (high - low).combine((high - prev_close).abs(), max).combine(
+            (low - prev_close).abs(), max)
+        atr = tr.rolling(14).mean().iloc[-1]
+        return float(atr) if atr and atr > 0 else None
+    except Exception as e:
+        logger.debug("ATR fallback failed for %s: %s", ticker, e)
+        return None
+
+
+def calculate_atr_size(ticker: str, price: float, portfolio_value: float,
+                       conviction: int = 5) -> float:
+    """Risk-parity sizing: position size scales inversely with ticker volatility.
+
+    Formula: shares = (RISK_PER_TRADE_PCT * equity) / (ATR_STOP_MULTIPLIER * ATR)
+    Result: each trade risks exactly RISK_PER_TRADE_PCT of equity if stopped out.
+
+    This is the industry standard for retail algo trading (LuxAlgo, Ernie Chan,
+    de Prado). Replaces flat-% sizing which overweights high-vol names like NVDA
+    relative to low-vol names like KO when measured in risk units.
+    """
+    atr = _get_atr(ticker)
+    if not atr or atr <= 0 or price <= 0:
+        # ATR unavailable — fall back to conviction-scaled flat sizing
+        base = portfolio_value * config.MAX_SINGLE_POSITION_PCT
+        scale = min(conviction / 5.0, 1.5)
+        return min(base * scale, portfolio_value * config.MAX_SINGLE_POSITION_PCT)
+
+    risk_budget_usd = portfolio_value * config.RISK_PER_TRADE_PCT
+    stop_distance = config.ATR_STOP_MULTIPLIER * atr
+    shares = risk_budget_usd / stop_distance
+    position_usd = shares * price
+
+    # Conviction scales 0.5x to 2.0x (capped). Edge estimates are noisy — don't go past 2x.
+    conv_scale = max(0.5, min(conviction / 5.0, 2.0))
+    position_usd *= conv_scale
+
+    # Hard cap at MAX_SINGLE_POSITION_PCT regardless
+    max_size = portfolio_value * config.MAX_SINGLE_POSITION_PCT
+    position_usd = min(position_usd, max_size)
+
+    logger.info(
+        "ATR sizing for %s: price=$%.2f, ATR=$%.2f, stop=$%.2f, "
+        "risk_budget=$%.0f, conv=%d, size=$%.0f",
+        ticker, price, atr, stop_distance, risk_budget_usd, conviction, position_usd,
+    )
+    return position_usd
+
+
+def calculate_edge_size(strategy: str, conviction: int, portfolio_value: float,
+                         ticker: str = "", price: float = 0) -> float:
     """Calculate position size using half-Kelly criterion.
 
     Kelly fraction = (win_rate * avg_win - (1-win_rate) * avg_loss) / avg_win
@@ -102,9 +169,12 @@ def calculate_edge_size(strategy: str, conviction: int, portfolio_value: float) 
     trade_count = strategy_data.get("count", 0)
 
     if trade_count < 20:
-        # Fall back to conviction-scaled flat sizing
+        # Fall back to ATR-normalized sizing if we have ticker/price,
+        # otherwise conviction-scaled flat sizing
+        if ticker and price > 0:
+            return calculate_atr_size(ticker, price, portfolio_value, conviction)
         base = portfolio_value * config.MAX_SINGLE_POSITION_PCT  # 5% base
-        scale = min(conviction / 5.0, 1.5)  # 1x at conv=5, 1.5x at conv=7+
+        scale = min(conviction / 5.0, 1.5)
         return min(base * scale, portfolio_value * config.MAX_SINGLE_POSITION_PCT)
 
     # Pull win/loss stats from the DB for this strategy
@@ -122,7 +192,9 @@ def calculate_edge_size(strategy: str, conviction: int, portfolio_value: float) 
     conn.close()
 
     if len(rows) < 10:
-        # Not enough closed trades for Kelly — use flat sizing
+        # Not enough closed trades for Kelly — use ATR sizing if possible
+        if ticker and price > 0:
+            return calculate_atr_size(ticker, price, portfolio_value, conviction)
         base = portfolio_value * config.MAX_SINGLE_POSITION_PCT
         scale = min(conviction / 5.0, 1.5)
         return min(base * scale, portfolio_value * config.MAX_SINGLE_POSITION_PCT)
@@ -186,10 +258,13 @@ def check_proposal(proposal: dict, portfolio_value: float, force: bool = False) 
     sector = proposal.get("sector", "Unknown")
     quantity = proposal.get("quantity_override") or proposal.get("quantity", 0)
 
-    # If no quantity set yet, calculate from edge-based position sizing
+    # If no quantity set yet, calculate from edge-based position sizing.
+    # Pass ticker + price so ATR-normalized sizing kicks in when Kelly stats
+    # are insufficient (the common case for a young bot).
     if quantity <= 0 and price > 0:
         strategy = proposal.get("strategy", "")
-        edge_size_usd = calculate_edge_size(strategy, conviction, portfolio_value)
+        edge_size_usd = calculate_edge_size(strategy, conviction, portfolio_value,
+                                            ticker=ticker, price=price)
         quantity = edge_size_usd / price
 
     cost = price * quantity if price and quantity else 0
@@ -338,7 +413,8 @@ def filter_proposals(proposals: list, portfolio_value: float, force: bool = Fals
                 p["quantity"] = p["quantity_override"]
             elif p.get("limit_price", 0) > 0:
                 edge_usd = calculate_edge_size(
-                    p.get("strategy", ""), p.get("conviction", 0), portfolio_value
+                    p.get("strategy", ""), p.get("conviction", 0), portfolio_value,
+                    ticker=p.get("ticker", ""), price=p.get("limit_price", 0),
                 )
                 p["quantity"] = round(edge_usd / p["limit_price"], 4)
 
