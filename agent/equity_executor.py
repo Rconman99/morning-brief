@@ -248,6 +248,26 @@ def place_order(
         if take_profit is None:
             take_profit = _get_atr_take_profit(ticker, limit_price, side)
 
+    # Alpaca rejects bracket orders with fractional qty:
+    # "fractional orders must be simple orders". Round down to whole
+    # shares; if that zeros the qty, drop the bracket and let a simple
+    # limit order through instead.
+    if side.upper() == "BUY" and (stop_price or take_profit) and quantity != int(quantity):
+        int_qty = int(quantity)
+        if int_qty >= 1:
+            logger.info(
+                "Bracket requires whole shares — rounding %s qty %.4f → %d",
+                ticker, quantity, int_qty,
+            )
+            quantity = float(int_qty)
+        else:
+            logger.info(
+                "Bracket requires whole shares but %s qty=%.4f rounds to 0 — using simple limit",
+                ticker, quantity,
+            )
+            stop_price = None
+            take_profit = None
+
     order_record = {
         "timestamp": now,
         "ticker": ticker,
