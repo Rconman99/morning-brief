@@ -27,7 +27,7 @@ import logging
 import os
 from datetime import datetime
 
-from agent.config import load_agent_config
+from agent.config import AUTO_EXIT_ENABLED, AUTO_EXIT_PRICE, load_agent_config
 from agent.strategies import run_all_strategies
 from agent.risk_gate import filter_proposals
 from agent.executor import (
@@ -92,6 +92,66 @@ def print_summary(proposals: list, approved: list, executed: list, bankroll: flo
     print(f"{'='*60}\n")
 
 
+def auto_exit_winners(target_price: float, dry_run: bool) -> list:
+    """Place SELL limits on positions whose price has reached target_price.
+
+    Recycles capital instead of holding to resolution. Tracks placed orders in
+    pending_exits.json keyed by token_id so we don't place duplicate sells
+    every 15-min cycle. Stale entries (positions already sold/resolved) are
+    pruned each call.
+    """
+    try:
+        from agent.close_positions import close_position
+        from agent.tracker import load_positions
+        from agent.executor import get_client
+    except ImportError as e:
+        logger.debug("auto_exit_winners skipped — %s", e)
+        return []
+
+    try:
+        positions = load_positions()
+    except Exception as e:
+        logger.warning("auto_exit_winners: load_positions failed — %s", e)
+        return []
+
+    active_token_ids = {p.get("token_id", "") for p in positions if p.get("token_id")}
+
+    pending_path = PROJECT_ROOT / "agent" / "pending_exits.json"
+    pending = set()
+    if pending_path.exists():
+        try:
+            pending = set(json.loads(pending_path.read_text()))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Drop entries for positions we no longer hold (sold/resolved)
+    pending &= active_token_ids
+
+    candidates = [
+        p for p in positions
+        if p.get("current_price", 0) >= target_price
+        and p.get("token_id", "") not in pending
+    ]
+
+    if not candidates:
+        pending_path.write_text(json.dumps(list(pending)))
+        return []
+
+    logger.info("Auto-exit: %d position(s) at >= %.3f — placing SELL limits",
+                len(candidates), target_price)
+
+    client = None if dry_run else get_client()
+    placed = []
+    for p in candidates:
+        result = close_position(client, p, dry_run=dry_run)
+        if result.get("status") in ("submitted", "dry_run"):
+            pending.add(p.get("token_id", ""))
+            placed.append({**result, "question": p.get("question", "")})
+
+    pending_path.write_text(json.dumps(list(pending)))
+    return placed
+
+
 def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     """Main agent loop: scan → propose → risk-check → execute."""
     mode = get_mode()
@@ -116,6 +176,16 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     for strategy_name, strategy_params in params.items():
         if isinstance(strategy_params, dict):
             strategy_params["bankroll"] = bankroll
+
+    # 1.5. Auto-exit: take profit on positions at/above AUTO_EXIT_PRICE
+    # Disabled by default while pre-existing hold-to-resolution positions are open;
+    # flip AUTO_EXIT_ENABLED in config.py once those have settled.
+    if AUTO_EXIT_ENABLED:
+        exits_placed = auto_exit_winners(AUTO_EXIT_PRICE, dry_run=dry_run)
+        if exits_placed:
+            logger.info("Placed %d auto-exit SELL order(s)", len(exits_placed))
+    else:
+        logger.debug("AUTO_EXIT_ENABLED=False — skipping take-profit step")
 
     # 2. Run all strategies to get proposals
     proposals = run_all_strategies(params)
