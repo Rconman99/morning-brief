@@ -113,6 +113,8 @@ def scan_gimme_bets(params: dict) -> list:
 
     Uses the existing polymarket_scanner's gimme_bets detection.
     """
+    from agent.config import AUTO_EXIT_PRICE
+
     pm = _load_signal("polymarket.json")
     if not pm:
         return []
@@ -120,6 +122,7 @@ def scan_gimme_bets(params: dict) -> list:
     min_price = params.get("min_price", 0.92)
     max_days = params.get("max_days_to_expiry", 30)
     min_vol = params.get("min_volume_24h", 10000)
+    min_gross_edge = params.get("min_gross_edge", 0.0)
 
     # Bankroll-aware sizing: prefer pct of bankroll, fall back to flat USD cap
     bankroll = params.get("bankroll", 0)
@@ -143,6 +146,10 @@ def scan_gimme_bets(params: dict) -> list:
         risks = g.get("risks", [])
         if "likely_settled" in risks:
             continue  # Already resolved, no edge
+
+        # Reject if remaining edge to auto-exit can't clear fee+slip floor
+        if (AUTO_EXIT_PRICE - price) < min_gross_edge:
+            continue
 
         profit_per_share = g.get("profit_per_share", 1.0 - price)
         raw_return = g.get("raw_return_pct", 0)
