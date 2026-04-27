@@ -27,7 +27,7 @@ import logging
 import os
 from datetime import datetime
 
-from agent.config import AUTO_EXIT_PRICE, load_agent_config
+from agent.config import AUTO_EXIT_ENABLED, AUTO_EXIT_PRICE, load_agent_config
 from agent.strategies import run_all_strategies
 from agent.risk_gate import filter_proposals
 from agent.executor import (
@@ -178,11 +178,14 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
             strategy_params["bankroll"] = bankroll
 
     # 1.5. Auto-exit: take profit on positions at/above AUTO_EXIT_PRICE
-    # This frees capital BEFORE we scan for new opportunities, so the bankroll
-    # used for sizing reflects what's actually available after recycling.
-    exits_placed = auto_exit_winners(AUTO_EXIT_PRICE, dry_run=dry_run)
-    if exits_placed:
-        logger.info("Placed %d auto-exit SELL order(s)", len(exits_placed))
+    # Disabled by default while pre-existing hold-to-resolution positions are open;
+    # flip AUTO_EXIT_ENABLED in config.py once those have settled.
+    if AUTO_EXIT_ENABLED:
+        exits_placed = auto_exit_winners(AUTO_EXIT_PRICE, dry_run=dry_run)
+        if exits_placed:
+            logger.info("Placed %d auto-exit SELL order(s)", len(exits_placed))
+    else:
+        logger.debug("AUTO_EXIT_ENABLED=False — skipping take-profit step")
 
     # 2. Run all strategies to get proposals
     proposals = run_all_strategies(params)
