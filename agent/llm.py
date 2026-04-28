@@ -1,162 +1,120 @@
-"""Unified LLM client: Ollama (local, free) → Claude (cloud, paid) → None.
+"""LLM client: dual-model ensemble via OpenRouter for better probability calibration.
 
-Usage:
-    from lib.llm import generate_json, generate_text
-
-    result = generate_json(prompt, max_tokens=300)
-    # Tries: Ollama qwen3:8b → Claude Haiku → None
-
-    text = generate_text(prompt, max_tokens=500)
-    # Same fallback chain, returns raw text
+Calls two models independently and returns both estimates.
+When both agree (within 5%), confidence is HIGH.
+When they disagree (15%+), confidence is LOW — skip the trade.
 """
-
-import json
-import logging
-import os
-import urllib.request
-import urllib.error
+import json, logging, os, urllib.request, urllib.error
 
 logger = logging.getLogger(__name__)
 
+OPENROUTER_API = "https://openrouter.ai/api/v1/chat/completions"
+MODEL_A = os.getenv("OPENROUTER_MODEL_A", "google/gemma-4-31b-it:free")
+MODEL_B = os.getenv("OPENROUTER_MODEL_B", "nvidia/nemotron-3-super-120b-a12b:free")
 OLLAMA_API = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
-CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
-
-def _call_ollama(prompt: str, max_tokens: int = 500) -> str | None:
-    """Call local Ollama. Returns response text or None on failure.
-
-    Note: qwen3 uses ~200-400 tokens for internal "thinking" before producing
-    visible output. We add 400 to max_tokens to account for this overhead.
-    """
-    # qwen3 thinking mode needs extra token budget for internal reasoning
-    actual_predict = max_tokens + 400
-
-    payload = json.dumps({
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"num_predict": actual_predict, "temperature": 0.3},
-    }).encode()
-
+def _call_openrouter(prompt, max_tokens=500, model=None):
+    key = os.getenv("OPENROUTER_API_KEY", "")
+    if not key: return None
+    model = model or MODEL_A
+    payload = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens, "temperature": 0.3}).encode()
     try:
-        req = urllib.request.Request(
-            f"{OLLAMA_API}/api/generate",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        req = urllib.request.Request(OPENROUTER_API, data=payload, headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read())
-            text = data.get("response", "").strip()
-            if not text:
-                # qwen3 thinking mode: response may be in 'thinking' field if
-                # token budget was exhausted before generating visible output
-                thinking = data.get("thinking", "").strip()
-                if thinking:
-                    logger.debug("Ollama response empty but thinking present (%d chars)", len(thinking))
-            logger.info("Ollama (%s) responded (%d chars)", OLLAMA_MODEL, len(text))
+            text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            if text: logger.info("OpenRouter (%s) responded (%d chars)", model.split("/")[-1][:20], len(text))
             return text if text else None
-    except (urllib.error.URLError, KeyError, TimeoutError) as e:
-        logger.debug("Ollama unavailable: %s", e)
-        return None
-
-
-def _call_claude(prompt: str, max_tokens: int = 500) -> str | None:
-    """Call Claude Haiku via Anthropic API. Returns response text or None."""
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        return None
-
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = response.content[0].text.strip()
-        logger.info("Claude (%s) responded (%d chars)", CLAUDE_MODEL, len(text))
-        return text
     except Exception as e:
-        logger.warning("Claude failed: %s", e)
+        logger.debug("OpenRouter %s failed: %s", model, e)
         return None
 
-
-def _extract_json(text: str) -> dict | None:
-    """Extract JSON object from a response that might have extra text."""
-    if not text:
-        return None
-    # Try direct parse
+def _call_ollama(prompt, max_tokens=500):
+    payload = json.dumps({"model": OLLAMA_MODEL, "prompt": prompt, "stream": False, "options": {"num_predict": max_tokens + 400, "temperature": 0.3}}).encode()
     try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-    # Try to find JSON in the response
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    if start >= 0 and end > start:
-        try:
-            return json.loads(text[start:end])
-        except json.JSONDecodeError:
-            pass
+        req = urllib.request.Request(f"{OLLAMA_API}/api/generate", data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            text = json.loads(resp.read()).get("response", "").strip()
+            return text if text else None
+    except: return None
+
+def _extract_json(text):
+    if not text: return None
+    try: return json.loads(text)
+    except: pass
+    s, e = text.find("{"), text.rfind("}") + 1
+    if s >= 0 and e > s:
+        try: return json.loads(text[s:e])
+        except: pass
     return None
 
+def generate_text(prompt, max_tokens=500):
+    return _call_openrouter(prompt, max_tokens, MODEL_A) or _call_ollama(prompt, max_tokens)
 
-def generate_text(prompt: str, max_tokens: int = 500) -> str | None:
-    """Generate text via Ollama → Claude fallback chain.
-
-    Returns response text or None if all providers fail.
-    """
-    # Try Ollama first (free, fast, local)
-    result = _call_ollama(prompt, max_tokens)
-    if result:
-        return result
-
-    # Fall back to Claude (paid)
-    result = _call_claude(prompt, max_tokens)
-    if result:
-        return result
-
-    logger.warning("All LLM providers failed for prompt: %s...", prompt[:80])
-    return None
-
-
-def generate_json(prompt: str, max_tokens: int = 500) -> dict | None:
-    """Generate JSON via Ollama → Claude fallback chain.
-
-    Returns parsed dict or None if all providers fail or JSON parsing fails.
-    """
+def generate_json(prompt, max_tokens=500):
     text = generate_text(prompt, max_tokens)
-    if text is None:
-        return None
-
+    if text is None: return None
     parsed = _extract_json(text)
-    if parsed is None:
-        logger.warning("Could not parse JSON from LLM response: %s...", text[:200])
+    if parsed is None: logger.warning("Could not parse JSON: %s...", text[:100])
     return parsed
 
+def ensemble_probability(prompt, max_tokens=300):
+    """Ask two models for a probability estimate independently.
+    
+    Returns: {"probability": float, "confidence": "high"|"medium"|"low",
+              "model_a": float, "model_b": float, "spread": float, "reasoning": str}
+    """
+    result_a = _call_openrouter(prompt, max_tokens, MODEL_A)
+    result_b = _call_openrouter(prompt, max_tokens, MODEL_B)
+    
+    def extract_prob(text):
+        if not text: return None
+        parsed = _extract_json(text)
+        if parsed and "probability" in parsed:
+            return float(parsed["probability"])
+        # Try to find a decimal number
+        import re
+        nums = re.findall(r'0\.\d+', text)
+        if nums: return float(nums[0])
+        pcts = re.findall(r'(\d{1,3})%', text)
+        if pcts: return float(pcts[0]) / 100
+        return None
+    
+    prob_a = extract_prob(result_a)
+    prob_b = extract_prob(result_b)
+    
+    if prob_a is None and prob_b is None:
+        return {"probability": None, "confidence": "none", "model_a": None, "model_b": None, "spread": None, "reasoning": "Both models failed"}
+    
+    if prob_a is None:
+        return {"probability": prob_b, "confidence": "low", "model_a": None, "model_b": prob_b, "spread": None, "reasoning": "Only one model responded"}
+    if prob_b is None:
+        return {"probability": prob_a, "confidence": "low", "model_a": prob_a, "model_b": None, "spread": None, "reasoning": "Only one model responded"}
+    
+    spread = abs(prob_a - prob_b)
+    avg = (prob_a + prob_b) / 2
+    
+    if spread <= 0.05:
+        confidence = "high"  # Models agree closely
+    elif spread <= 0.15:
+        confidence = "medium"
+    else:
+        confidence = "low"  # Models disagree — high uncertainty
+    
+    reasoning_a = (result_a or "")[:100]
+    reasoning_b = (result_b or "")[:100]
+    
+    logger.info("Ensemble: A=%.2f B=%.2f spread=%.2f conf=%s", prob_a, prob_b, spread, confidence)
+    
+    return {
+        "probability": round(avg, 3),
+        "confidence": confidence,
+        "model_a": round(prob_a, 3),
+        "model_b": round(prob_b, 3),
+        "spread": round(spread, 3),
+        "reasoning": f"Gemma: {reasoning_a[:50]} | Llama: {reasoning_b[:50]}",
+    }
 
-def get_provider_status() -> dict:
-    """Check which LLM providers are available."""
-    status = {"ollama": False, "claude": False, "model": None}
-
-    # Check Ollama
-    try:
-        req = urllib.request.Request(f"{OLLAMA_API}/api/tags")
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = json.loads(resp.read())
-            models = [m["name"] for m in data.get("models", [])]
-            if OLLAMA_MODEL in models or any(OLLAMA_MODEL.split(":")[0] in m for m in models):
-                status["ollama"] = True
-                status["model"] = OLLAMA_MODEL
-    except Exception:
-        pass
-
-    # Check Claude
-    if os.getenv("ANTHROPIC_API_KEY"):
-        status["claude"] = True
-        if not status["model"]:
-            status["model"] = CLAUDE_MODEL
-
-    return status
+def get_provider_status():
+    return {"openrouter": bool(os.getenv("OPENROUTER_API_KEY")), "ollama": False, "model": f"{MODEL_A} + {MODEL_B}"}

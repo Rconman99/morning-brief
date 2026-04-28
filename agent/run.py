@@ -242,7 +242,7 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
                 msg += f"\n\nAll-time: {len([p for p in resolved if p.get('cashPnl',0)>0])}W / "
                 msg += f"{len([p for p in resolved if p.get('cashPnl',0)<0])}L"
                 msg += f"\nResolved P&L: ${total_pnl:+.2f}"
-                send_telegram(msg)
+                send_telegram(msg) if any(e.get("status") == "submitted" for e in executed) else None
 
                 # Save notified set
                 notified_path.write_text(json.dumps(list(notified)))
@@ -262,13 +262,13 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
             )
             for e in executed[:5]:
                 msg += f"\n  {e.get('side', '?')} {e.get('slug', '?')[:30]} @ {e.get('price', 0):.2f}"
-            send_telegram(msg)
+            send_telegram(msg) if any(e.get("status") == "submitted" for e in executed) else None
         elif failed:
             # Only alert on failures, not empty runs
             msg = f"<b>Polymarket Agent</b>\n⚠ {len(failed)} trades FAILED:"
             for f_ in failed[:3]:
                 msg += f"\n  {f_.get('error', 'unknown')[:50]}"
-            send_telegram(msg)
+            send_telegram(msg) if any(e.get("status") == "submitted" for e in executed) else None
         # No message when 0 executed, 0 failed — stay silent
     except Exception:
         pass

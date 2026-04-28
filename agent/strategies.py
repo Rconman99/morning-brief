@@ -435,6 +435,10 @@ def run_all_strategies(params: dict) -> list:
         for p in prob_arb:
             p["strategy_weight"] = 1.0
             p["weighted_conviction"] = p.get("conviction", 0)
+            # Kelly sizing: use kelly_fraction * bankroll instead of fixed max_position
+            if p.get("kelly_fraction"):
+                p["size_usd"] = round(p["kelly_fraction"] * 95, 2)  # TODO: get actual bankroll
+                p["size_shares"] = round(p["size_usd"] / max(p.get("price", 0.5), 0.01), 1)
         all_proposals.extend(prob_arb)
         logger.info("Probability Arb: %d proposals", len(prob_arb))
     except Exception as e:

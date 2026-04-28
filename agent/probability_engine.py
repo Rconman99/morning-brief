@@ -1,23 +1,15 @@
-"""AI Probability Engine — estimates true probabilities using Claude.
+"""AI Probability Engine v2 — dual-model ensemble + Bayesian market integration + Kelly sizing.
 
-The $2.2M strategy: use AI to estimate true event probabilities,
-compare against Polymarket prices, and trade the gap.
-
-Example: Claude estimates 68% chance of Fed rate cut. Market prices it at 54%.
-That's a 14-point tradeable gap.
-
-Uses the Claude API (ANTHROPIC_API_KEY from .env).
+The $2.2M strategy upgraded:
+1. Two models estimate probability independently (ensemble)
+2. Bayesian combination: 70% AI + 30% market price
+3. Kelly criterion sizes the bet proportional to edge
+4. Only trades when models agree (spread < 15%)
 """
-
-import sys
+import sys, os, json, logging, re
 from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-
-import json
-import logging
-import os
-from datetime import datetime
 
 from lib.data_envelope import load_envelope
 
@@ -25,200 +17,171 @@ logger = logging.getLogger(__name__)
 
 ESTIMATE_CACHE = PROJECT_ROOT / "agent" / "probability_cache.json"
 
-
-def _load_cache() -> dict:
+def _load_cache():
     if ESTIMATE_CACHE.exists():
-        try:
-            return json.loads(ESTIMATE_CACHE.read_text())
-        except (json.JSONDecodeError, OSError):
-            pass
+        try: return json.loads(ESTIMATE_CACHE.read_text())
+        except: pass
     return {}
 
-
-def _save_cache(cache: dict) -> None:
+def _save_cache(cache):
     ESTIMATE_CACHE.write_text(json.dumps(cache, indent=2))
 
-
-def estimate_probability(question: str, context: str = "") -> dict:
-    """Use Claude to estimate the true probability of a Polymarket question.
-
-    Returns: {"probability": float, "confidence": str, "reasoning": str}
-    """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return {"probability": None, "confidence": "none", "reasoning": "No ANTHROPIC_API_KEY"}
-
-    # Check cache (key by question + date)
-    cache = _load_cache()
-    today = datetime.now().strftime("%Y-%m-%d")
-    cache_key = f"{question[:80]}_{today}"
-    if cache_key in cache:
-        return cache[cache_key]
-
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-
-        # Build context from existing signals
-        signal_context = _build_signal_context()
-
-        prompt = f"""You are a probability estimation engine for prediction markets.
-Estimate the TRUE probability (0.00 to 1.00) that the following event will resolve YES.
-
-Question: {question}
-
-Available context:
-{signal_context}
-
-{f"Additional context: {context}" if context else ""}
-
-Respond with ONLY valid JSON:
-{{"probability": 0.XX, "confidence": "high|medium|low", "reasoning": "1-2 sentence explanation"}}
-
-Rules:
-- Base your estimate on the evidence available, not gut feeling
-- If you don't have enough information, set confidence to "low"
-- Be calibrated: if you say 70%, that event should happen ~70% of the time
-- Consider base rates and reference classes
-- Factor in current market conditions from the signal context"""
-
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=200,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        text = response.content[0].text.strip()
-        # Parse JSON from response
-        if text.startswith("{"):
-            result = json.loads(text)
-        else:
-            # Try to extract JSON from response
-            json_start = text.find("{")
-            json_end = text.rfind("}") + 1
-            if json_start >= 0 and json_end > json_start:
-                result = json.loads(text[json_start:json_end])
-            else:
-                result = {"probability": None, "confidence": "none", "reasoning": "Failed to parse response"}
-
-        # Cache result
-        cache[cache_key] = result
-        _save_cache(cache)
-
-        logger.info("Probability estimate for '%s': %.2f (%s) — %s",
-                     question[:50], result.get("probability", 0),
-                     result.get("confidence", "?"), result.get("reasoning", "")[:80])
-
-        return result
-
-    except Exception as e:
-        logger.warning("Probability estimation failed: %s", e)
-        return {"probability": None, "confidence": "none", "reasoning": str(e)}
-
-
-def _build_signal_context() -> str:
-    """Build context string from existing morning-brief signals."""
+def _build_context():
     parts = []
-
-    # Crypto intelligence
     pm = load_envelope("polymarket.json")
     if pm.get("status") in ("success", "partial"):
         ci = pm.get("data", {}).get("crypto_intelligence", {})
         if ci:
             fng = ci.get("fear_greed", {})
             btc = ci.get("btc_price", {})
-            funding = ci.get("funding_rate", {})
-            parts.append(f"Fear & Greed Index: {fng.get('value', '?')} ({fng.get('label', '?')})")
-            parts.append(f"BTC: ${btc.get('current', 0):,.0f} (7d: {btc.get('change_7d_pct', 0):+.1f}%, 30d: {btc.get('change_30d_pct', 0):+.1f}%)")
-            parts.append(f"Funding rate: {funding.get('current', 0):.4f}% ({funding.get('signal', 'neutral')})")
-
-    # Macro
+            parts.append(f"Fear & Greed: {fng.get('value', '?')} ({fng.get('label', '?')})")
+            parts.append(f"BTC: ${btc.get('current', 0):,.0f} (7d: {btc.get('change_7d_pct', 0):+.1f}%)")
     macro = load_envelope("macro_dashboard.json")
     if macro.get("status") in ("success", "partial"):
-        indicators = macro.get("data", {}).get("indicators", {})
-        for name, data in indicators.items():
-            parts.append(f"{name}: {data.get('value', '?')} (trend: {data.get('trend', '?')}, 5d: {data.get('change_5d', '?')}%)")
+        for name, data in macro.get("data", {}).get("indicators", {}).items():
+            parts.append(f"{name}: {data.get('value', '?')} (trend: {data.get('trend', '?')})")
+    return "\n".join(parts) if parts else "No signal data."
 
-    # Social sentiment
-    social = load_envelope("social_intelligence.json")
-    if social.get("status") in ("success", "partial"):
-        mood = social.get("data", {}).get("overall_mood", "?")
-        parts.append(f"Social sentiment: {mood}")
-
-    return "\n".join(parts) if parts else "No signal data available."
-
-
-def scan_probability_arbitrage(markets: list, min_gap: float = 0.10) -> list:
-    """Scan markets for probability arbitrage opportunities.
-
-    For each market, estimate true probability via Claude and compare
-    against market price. Trade when gap exceeds min_gap.
+def estimate_with_ensemble(question, market_yes_price):
+    """Estimate true probability using dual-model ensemble + Bayesian market integration.
+    
+    Returns: {"probability": float, "confidence": str, "kelly_size": float,
+              "edge": float, "trade_signal": bool, ...}
     """
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        logger.info("Probability engine: no ANTHROPIC_API_KEY — skipping")
+    from datetime import datetime
+    cache = _load_cache()
+    today = datetime.now().strftime("%Y-%m-%d")
+    cache_key = f"{question[:60]}_{today}"
+    if cache_key in cache:
+        return cache[cache_key]
+
+    context = _build_context()
+    prompt = f"""Estimate the TRUE probability (0.00 to 1.00) this event resolves YES.
+
+Question: {question}
+Current market price: {market_yes_price:.2f} (YES)
+
+Context:
+{context}
+
+Return ONLY valid JSON: {{"probability": 0.XX, "reasoning": "1 sentence"}}
+Be calibrated. If unsure, stay close to the market price."""
+
+    try:
+        from agent.llm import ensemble_probability
+        result = ensemble_probability(prompt, max_tokens=200)
+    except Exception as e:
+        logger.warning("Ensemble failed: %s", e)
+        return {"probability": None, "confidence": "none", "trade_signal": False}
+    
+    ai_prob = result.get("probability")
+    confidence = result.get("confidence", "none")
+    spread = result.get("spread", 1.0)
+    
+    if ai_prob is None:
+        return {"probability": None, "confidence": "none", "trade_signal": False}
+    
+    # Bayesian market integration: 70% AI + 30% market
+    AI_W = float(os.getenv("AI_WEIGHT", "0.70"))
+    MKT_W = float(os.getenv("MARKET_WEIGHT", "0.30"))
+    combined_prob = AI_W * ai_prob + MKT_W * market_yes_price
+    
+    # Edge calculation
+    edge = combined_prob - market_yes_price  # Positive = YES underpriced
+    abs_edge = abs(edge)
+    
+    # Kelly criterion: f = (p*b - (1-p)) / b where b = (1/price - 1) for binary
+    if edge > 0:
+        # Buy YES
+        b = (1.0 / market_yes_price) - 1 if market_yes_price > 0 else 0
+        side = "yes"
+        price = market_yes_price
+    else:
+        # Buy NO
+        no_price = 1 - market_yes_price
+        b = (1.0 / no_price) - 1 if no_price > 0 else 0
+        side = "no"
+        price = no_price
+        combined_prob = 1 - combined_prob  # Flip for NO side
+    
+    KELLY_FRAC = float(os.getenv("KELLY_FRACTION", "0.15"))
+    if b > 0 and combined_prob > 0:
+        kelly_full = (combined_prob * b - (1 - combined_prob)) / b
+        kelly_size = max(0, kelly_full * KELLY_FRAC)
+    else:
+        kelly_size = 0
+    
+    # Trade signal: only trade if edge > 5% AND models agree (spread < 15%)
+    trade_signal = abs_edge >= 0.05 and confidence in ("high", "medium") and kelly_size > 0
+    
+    output = {
+        "probability": round(combined_prob, 3),
+        "ai_raw": round(ai_prob, 3),
+        "market_price": round(market_yes_price, 3),
+        "combined": round(AI_W * ai_prob + MKT_W * market_yes_price, 3),
+        "edge": round(edge, 3),
+        "abs_edge": round(abs_edge, 3),
+        "kelly_size": round(kelly_size, 4),
+        "confidence": confidence,
+        "model_a": result.get("model_a"),
+        "model_b": result.get("model_b"),
+        "spread": round(spread, 3),
+        "side": side,
+        "price": round(price, 4),
+        "trade_signal": trade_signal,
+        "reasoning": result.get("reasoning", ""),
+    }
+    
+    cache[cache_key] = output
+    _save_cache(cache)
+    
+    logger.info("Ensemble prob: AI=%.2f Mkt=%.2f Combined=%.2f Edge=%.1f%% Kelly=%.3f Conf=%s Signal=%s",
+                ai_prob, market_yes_price, combined_prob, abs_edge*100, kelly_size, confidence, trade_signal)
+    
+    return output
+
+
+def scan_probability_arbitrage(markets, min_gap=0.05):
+    """Scan markets for probability arbitrage using dual-model ensemble."""
+    if not os.environ.get("OPENROUTER_API_KEY"):
         return []
-
+    
     proposals = []
-
-    for m in markets[:15]:  # Limit API calls
+    for m in markets[:10]:  # Limit API calls
         question = m.get("question", "")
-        if not question:
-            continue
-
         yes_price = m.get("yes_price", 0)
-        no_price = m.get("no_price", 0)
-        if yes_price <= 0.05 or yes_price >= 0.95:
-            continue  # Skip extreme prices — no room for edge
-
-        # Estimate true probability
-        estimate = estimate_probability(question)
-        est_prob = estimate.get("probability")
-        confidence = estimate.get("confidence", "low")
-
-        if est_prob is None or confidence == "none":
+        if not question or yes_price <= 0.10 or yes_price >= 0.90:
             continue
-
-        # Calculate gap
-        gap = est_prob - yes_price
-
-        if abs(gap) < min_gap:
+        
+        est = estimate_with_ensemble(question, yes_price)
+        if not est.get("trade_signal"):
             continue
-
-        # Determine trade direction
-        if gap > 0:
-            # Market underprices YES → buy YES
-            side = "BUY"
-            token_hint = "yes"
-            price = yes_price
-            edge = gap
-        else:
-            # Market overprices YES → buy NO
-            side = "BUY"
-            token_hint = "no"
-            price = no_price
-            edge = abs(gap)
-
-        # Size based on confidence and edge
-        confidence_mult = {"high": 1.0, "medium": 0.6, "low": 0.3}.get(confidence, 0.3)
-        edge_mult = min(edge / 0.20, 1.0)  # 20% edge = max
-        conviction = round(confidence_mult * edge_mult, 2)
-
+        
+        # Kelly-based sizing (fraction of bankroll)
+        kelly = est["kelly_size"]
+        # Cap at config max
+        max_pct = float(os.getenv("KELLY_MAX_BET_PCT", "0.10"))
+        kelly = min(kelly, max_pct)
+        
         proposals.append({
             "strategy": "probability_arb",
             "question": question,
             "slug": m.get("slug", ""),
-            "side": side,
-            "token_hint": token_hint,
-            "price": round(price, 4),
-            "estimated_probability": round(est_prob, 3),
-            "market_price": round(yes_price, 3),
-            "gap_pct": round(edge * 100, 1),
-            "confidence": confidence,
-            "conviction": conviction,
+            "side": "BUY",
+            "token_hint": est["side"],
+            "price": est["price"],
+            "kelly_fraction": kelly,
+            "edge_pct": round(est["abs_edge"] * 100, 1),
+            "confidence": est["confidence"],
+            "conviction": round(kelly * 10, 2),  # Normalize for display
             "category": m.get("category", "other"),
-            "reasoning": estimate.get("reasoning", ""),
-            "reason": f"Claude estimates {est_prob:.0%} vs market {yes_price:.0%} = {edge*100:.1f}% gap ({confidence})",
+            "ai_probability": est["ai_raw"],
+            "market_price": est["market_price"],
+            "combined_probability": est["combined"],
+            "model_spread": est["spread"],
+            "reasoning": est["reasoning"],
+            "reason": f"Ensemble: AI {est['ai_raw']:.0%} vs Mkt {est['market_price']:.0%} = {est['abs_edge']*100:.1f}% edge ({est['confidence']}, Kelly {kelly:.1%})",
         })
-
-    proposals.sort(key=lambda x: x.get("gap_pct", 0), reverse=True)
+    
+    proposals.sort(key=lambda x: x.get("edge_pct", 0), reverse=True)
     return proposals[:5]

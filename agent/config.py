@@ -22,6 +22,15 @@ MIN_LIQUIDITY = 2000                # $2K minimum liquidity
 ORDER_TYPE = "limit"                # Limit orders only — never market orders
 MAX_SLIPPAGE = 0.03                 # 3% max slippage from target price
 
+# --- KELLY CRITERION (fractional Kelly for position sizing) ---
+KELLY_FRACTION = 0.15               # 15% Kelly — conservative, avoids ruin
+KELLY_MIN_EDGE = 0.05               # 5% minimum edge to use Kelly (below = fixed size)
+KELLY_MAX_BET_PCT = 0.10            # Never bet more than 10% even if Kelly says so
+
+# --- BAYESIAN MARKET INTEGRATION ---
+AI_WEIGHT = 0.70                    # 70% weight to AI probability estimate
+MARKET_WEIGHT = 0.30                # 30% weight to market price (wisdom of crowds)
+
 # --- STRATEGY WEIGHTS (Darwinian loop can modify these within bounds) ---
 
 STRATEGY_WEIGHT_MIN = 0.3
