@@ -123,6 +123,8 @@ def scan_gimme_bets(params: dict) -> list:
     max_days = params.get("max_days_to_expiry", 30)
     min_vol = params.get("min_volume_24h", 10000)
     min_gross_edge = params.get("min_gross_edge", 0.0)
+    min_shares = params.get("min_shares", 5)             # Polymarket CLOB rejects orders < 5 shares
+    skip_categories = set(params.get("skip_categories", ["sports"]))  # Sports = neg-risk; py-clob-client 0.34.6 returns order_version_mismatch
 
     # Bankroll-aware sizing: prefer pct of bankroll, fall back to flat USD cap
     bankroll = params.get("bankroll", 0)
@@ -141,6 +143,8 @@ def scan_gimme_bets(params: dict) -> list:
             continue
         if g.get("days_to_expiry") is not None and g["days_to_expiry"] > max_days:
             continue
+        if g.get("category", "other") in skip_categories:
+            continue  # neg-risk markets fail with order_version_mismatch in current py-clob-client
 
         # Skip if risks are too high
         risks = g.get("risks", [])
@@ -154,9 +158,15 @@ def scan_gimme_bets(params: dict) -> list:
         profit_per_share = g.get("profit_per_share", 1.0 - price)
         raw_return = g.get("raw_return_pct", 0)
 
-        # Size: fixed per gimme bet, smaller since edge is small
+        # Size: fixed per gimme bet, smaller since edge is small.
+        # Floor at min_shares to clear Polymarket's 5-share order minimum.
         size_usd = min(max_pos, max_pos * (raw_return / 10.0))
         shares = size_usd / price
+        if shares < min_shares:
+            shares = min_shares
+            size_usd = shares * price
+            if size_usd > max_pos:
+                continue  # Can't satisfy min-shares without exceeding position cap — skip
 
         proposals.append({
             "strategy": "gimme_bets",
