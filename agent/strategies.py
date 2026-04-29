@@ -125,6 +125,7 @@ def scan_gimme_bets(params: dict) -> list:
     min_gross_edge = params.get("min_gross_edge", 0.0)
     min_shares = params.get("min_shares", 5)             # Polymarket CLOB rejects orders < 5 shares
     skip_categories = set(params.get("skip_categories", ["sports"]))  # Sports = neg-risk; py-clob-client 0.34.6 returns order_version_mismatch
+    skip_neg_risk = params.get("skip_neg_risk", True)    # Multi-outcome markets fail with order_version_mismatch — needs scanner v2 to populate
 
     # Bankroll-aware sizing: prefer pct of bankroll, fall back to flat USD cap
     bankroll = params.get("bankroll", 0)
@@ -145,6 +146,8 @@ def scan_gimme_bets(params: dict) -> list:
             continue
         if g.get("category", "other") in skip_categories:
             continue  # neg-risk markets fail with order_version_mismatch in current py-clob-client
+        if skip_neg_risk and g.get("neg_risk"):
+            continue  # primary defense: scanner-passthrough flag from gamma-api
 
         # Skip if risks are too high
         risks = g.get("risks", [])

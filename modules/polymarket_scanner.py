@@ -433,6 +433,9 @@ def scan_gimme_bets(markets: list) -> list:
                     "days_to_expiry": days_to_expiry,
                     "risks": risks,
                     "category": categorize_market(question),
+                    # neg_risk = multi-outcome / winner-take-all contract.
+                    # py-clob-client 0.34.6 fails these with order_version_mismatch.
+                    "neg_risk": bool(m.get("negRisk", False)),
                 })
 
     # Sort by annualized yield (None last)
