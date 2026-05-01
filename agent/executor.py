@@ -209,6 +209,27 @@ def place_limit_order(
         logger.error("Cannot place live order — no client")
         return order_record
 
+    # Pre-flight: skip neg-risk markets — gamma-api negRisk is unreliable, but
+    # the CLOB's own /neg-risk endpoint is authoritative. py-clob-client 0.34.6
+    # builds the wrong order version for these and gets order_version_mismatch.
+    try:
+        import requests
+        nr_resp = requests.get(
+            f"https://clob.polymarket.com/neg-risk?token_id={resolved_token}",
+            timeout=5,
+        )
+        if nr_resp.ok and nr_resp.json().get("neg_risk"):
+            order_record["status"] = "skipped_neg_risk"
+            order_record["error"] = "neg-risk market — py-clob-client 0.34.6 incompatible"
+            logger.warning("SKIPPED neg-risk market: %s (slug=%s)",
+                           market_question[:50], slug)
+            with open(PAPER_TRADE_LOG, "a") as f:
+                f.write(json.dumps(order_record) + "\n")
+            return order_record
+    except Exception as e:
+        # Pre-flight check failed — log but proceed (worst case: same fail as before)
+        logger.debug("neg-risk pre-flight check failed: %s — proceeding anyway", e)
+
     try:
         from py_clob_client.clob_types import OrderArgs, OrderType
         from py_clob_client.order_builder.constants import BUY, SELL
