@@ -65,7 +65,7 @@ DEFAULT_STRATEGY_PARAMS = {
         "max_days_to_expiry": 7,        # Only short-cycle markets (was 30 — locked capital too long)
         "max_position_pct": 0.10,       # 10% of bankroll — risk gate enforces same ceiling
         "max_position_usd": 10,         # Absolute floor cap (used if bankroll not injected)
-        "min_volume_24h": 50000,        # Need depth to exit at target (was 10K)
+        "min_volume_24h": 25000,        # Was 50K — too tight, finding ~zero non-event-ladder candidates. 25K still gives enough depth for $5-10 fills.
         "min_gross_edge": 0.03,         # Skip cycles below 3% gross — fees eat smaller edges
     },
     "btc_sentiment": {
