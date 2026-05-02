@@ -126,6 +126,7 @@ def scan_gimme_bets(params: dict) -> list:
     min_shares = params.get("min_shares", 5)             # Polymarket CLOB rejects orders < 5 shares
     skip_categories = set(params.get("skip_categories", ["sports"]))  # Sports = neg-risk; py-clob-client 0.34.6 returns order_version_mismatch
     skip_neg_risk = params.get("skip_neg_risk", True)    # Multi-outcome markets fail with order_version_mismatch — needs scanner v2 to populate
+    skip_grouped = params.get("skip_grouped", True)      # Event-ladder markets ALSO fail order_version_mismatch even when negRisk=False (e.g. "↓ 74,000" within "what price will BTC hit?")
 
     # Bankroll-aware sizing: prefer pct of bankroll, fall back to flat USD cap
     bankroll = params.get("bankroll", 0)
@@ -148,6 +149,8 @@ def scan_gimme_bets(params: dict) -> list:
             continue  # neg-risk markets fail with order_version_mismatch in current py-clob-client
         if skip_neg_risk and g.get("neg_risk"):
             continue  # primary defense: scanner-passthrough flag from gamma-api
+        if skip_grouped and (g.get("group_size", 0) > 0 or g.get("group_title", "")):
+            continue  # event-ladder markets fail order_version_mismatch despite negRisk=False
 
         # Skip if risks are too high
         risks = g.get("risks", [])

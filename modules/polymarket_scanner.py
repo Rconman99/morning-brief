@@ -436,6 +436,12 @@ def scan_gimme_bets(markets: list) -> list:
                     # neg_risk = multi-outcome / winner-take-all contract.
                     # py-clob-client 0.34.6 fails these with order_version_mismatch.
                     "neg_risk": bool(m.get("negRisk", False)),
+                    # group_size = part of an event-ladder (e.g. "↓ 74,000" within
+                    # "what price will BTC hit?"). Even when negRisk reports False,
+                    # grouped outcomes ALSO trigger order_version_mismatch on POST /order.
+                    # Authoritative indicator: groupItemThreshold > 0 OR groupItemTitle != ''.
+                    "group_size": int(m.get("groupItemThreshold", 0) or 0),
+                    "group_title": m.get("groupItemTitle", "") or "",
                 })
 
     # Sort by annualized yield (None last)
