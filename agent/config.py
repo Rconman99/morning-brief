@@ -61,7 +61,7 @@ DEFAULT_STRATEGY_PARAMS = {
     },
     "gimme_bets": {
         "weight": 1.0,
-        "min_price": 0.94,              # 94%+ probability (tighter floor for fast cycling)
+        "min_price": 0.92,              # Was 0.94 — bot found ~zero candidates after group_size + vol25K filters. 0.92 doubles the candidate pool while still maintaining 8%+ profit room before auto-exit at 0.985.
         "max_days_to_expiry": 7,        # Only short-cycle markets (was 30 — locked capital too long)
         "max_position_pct": 0.10,       # 10% of bankroll — risk gate enforces same ceiling
         "max_position_usd": 10,         # Absolute floor cap (used if bankroll not injected)
