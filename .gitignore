@@ -30,3 +30,10 @@ agent/equity_strategy_params.json
 agent/options_strategy_params.json
 agent/market_data.db
 agent/resolved_notified.json
+
+# Generated logs in data/outputs/ — briefs (.md/.html) stay tracked per CLAUDE.md,
+# but rotating logs must not be tracked (their constant churn blocks `git pull`
+# on the VPS, which silently fails because vps_run.sh uses --quiet 2>/dev/null).
+data/outputs/run.log
+data/outputs/launchd.log
+data/outputs/*launchd*.log
