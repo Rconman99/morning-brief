@@ -25,7 +25,7 @@ MAX_SLIPPAGE = 0.03                 # 3% max slippage from target price
 # --- AUTO-EXIT (capital recycling) ---
 # Take profit on any open position once price reaches this threshold.
 # Applied every agent cycle BEFORE scanning new opportunities.
-AUTO_EXIT_ENABLED = False           # Master switch — flip to True after Apr 30 resolutions clear
+AUTO_EXIT_ENABLED = True            # Apr 30 positions resolved — flipped 2026-05-09 to recycle capital
 AUTO_EXIT_PRICE = 0.985             # Sell when bid >= 98.5% (capture ~75% of edge, free capital)
 
 # --- COPY TRADING (opt-in; disabled by default for safety) ---
