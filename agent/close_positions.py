@@ -30,36 +30,45 @@ logger = logging.getLogger(__name__)
 
 
 def list_candidates(positions, threshold):
-    candidates = [p for p in positions if p.get("current_price", 0) >= threshold]
+    candidates = [p for p in positions if p.get("curPrice", 0) >= threshold]
     print(f"\nPositions at or above {threshold:.0%}:\n")
     if not candidates:
         print("  (none)")
         return candidates
     for p in candidates:
-        q = p.get("question", "")[:55]
-        print(f"  {q:<57} {p['side']:<4} {p['shares']:>6.1f}sh  "
-              f"@ {p['current_price']:.4f}  = ${p['current_price']*p['shares']:>6.2f}")
-    total = sum(p["current_price"] * p["shares"] for p in candidates)
+        title = p.get("title", "")[:55]
+        side = p.get("outcome", "?")
+        shares = p.get("size", 0)
+        cur = p.get("curPrice", 0)
+        print(f"  {title:<57} {side:<4} {shares:>6.1f}sh  "
+              f"@ {cur:.4f}  = ${cur*shares:>6.2f}")
+    total = sum(p.get("curPrice", 0) * p.get("size", 0) for p in candidates)
     print(f"\n  Total cash freed if all closed: ~${total:.2f}")
     return candidates
 
 
 def close_position(client, position, dry_run=False):
-    """Place a SELL limit order one cent below current price."""
+    """Place a SELL limit order one cent below current price.
+
+    Position dict comes from the Polymarket data-api: keys `asset` (token_id),
+    `size` (shares), `curPrice`, `title`. The 0.90 floor prevents fat-finger
+    sells on positions that crashed (e.g., a NO bet now showing big losses).
+    """
     from py_clob_client.clob_types import OrderArgs, OrderType
 
-    token_id = position["token_id"]
-    shares = position["shares"]
-    target = max(0.90, position["current_price"] - 0.01)  # one tick below, never below $0.90
+    asset = position["asset"]
+    shares = position.get("size", 0)
+    cur_price = position.get("curPrice", 0)
+    target = max(0.90, cur_price - 0.01)  # one tick below, never below $0.90
 
-    print(f"\n→ SELL {shares:.1f} @ {target:.4f}  ({position.get('question', '')[:60]})")
+    print(f"\n→ SELL {shares:.1f} @ {target:.4f}  ({position.get('title', '')[:60]})")
     if dry_run:
         print("  [dry-run — no order sent]")
         return {"status": "dry_run"}
 
     try:
         order_args = OrderArgs(
-            token_id=token_id,
+            token_id=asset,
             price=target,
             size=shares,
             side="SELL",
