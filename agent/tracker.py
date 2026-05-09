@@ -53,6 +53,23 @@ def get_activity(wallet: str, limit: int = 50) -> list:
     return resp.json() if resp.status_code == 200 else []
 
 
+def load_positions() -> list:
+    """Return ACTIVE positions for the wallet derived from POLYMARKET_PRIVATE_KEY.
+
+    Imported by agent/close_positions.py and agent.run.auto_exit_winners — both
+    expected this helper to exist. Filters to currentValue > 0 so already-redeemed
+    positions don't get spurious SELL orders placed on them.
+    """
+    load_env()
+    key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
+    if not key:
+        return []
+    from eth_account import Account
+    wallet = Account.from_key(key).address
+    positions = get_positions(wallet)
+    return [p for p in positions if (p.get("currentValue") or 0) > 0]
+
+
 def main():
     load_env()
 

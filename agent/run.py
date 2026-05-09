@@ -96,16 +96,19 @@ def auto_exit_winners(target_price: float, dry_run: bool) -> list:
     """Place SELL limits on positions whose price has reached target_price.
 
     Recycles capital instead of holding to resolution. Tracks placed orders in
-    pending_exits.json keyed by token_id so we don't place duplicate sells
+    pending_exits.json keyed by asset id so we don't place duplicate sells
     every 15-min cycle. Stale entries (positions already sold/resolved) are
     pruned each call.
+
+    Field names match the Polymarket data-api response: `asset` (token_id),
+    `curPrice` (current mid), `title` (market question), `currentValue`.
     """
     try:
         from agent.close_positions import close_position
         from agent.tracker import load_positions
         from agent.executor import get_client
     except ImportError as e:
-        logger.debug("auto_exit_winners skipped — %s", e)
+        logger.warning("auto_exit_winners skipped — %s", e)
         return []
 
     try:
@@ -114,7 +117,7 @@ def auto_exit_winners(target_price: float, dry_run: bool) -> list:
         logger.warning("auto_exit_winners: load_positions failed — %s", e)
         return []
 
-    active_token_ids = {p.get("token_id", "") for p in positions if p.get("token_id")}
+    active_asset_ids = {p.get("asset", "") for p in positions if p.get("asset")}
 
     pending_path = PROJECT_ROOT / "agent" / "pending_exits.json"
     pending = set()
@@ -125,28 +128,30 @@ def auto_exit_winners(target_price: float, dry_run: bool) -> list:
             pass
 
     # Drop entries for positions we no longer hold (sold/resolved)
-    pending &= active_token_ids
+    pending &= active_asset_ids
 
     candidates = [
         p for p in positions
-        if p.get("current_price", 0) >= target_price
-        and p.get("token_id", "") not in pending
+        if p.get("curPrice", 0) >= target_price
+        and p.get("asset", "") not in pending
     ]
+
+    logger.info("Auto-exit: %d active positions, %d candidates at >= %.3f",
+                len(positions), len(candidates), target_price)
 
     if not candidates:
         pending_path.write_text(json.dumps(list(pending)))
         return []
 
-    logger.info("Auto-exit: %d position(s) at >= %.3f — placing SELL limits",
-                len(candidates), target_price)
+    logger.info("Auto-exit: placing SELL limits on %d position(s)", len(candidates))
 
     client = None if dry_run else get_client()
     placed = []
     for p in candidates:
         result = close_position(client, p, dry_run=dry_run)
         if result.get("status") in ("submitted", "dry_run"):
-            pending.add(p.get("token_id", ""))
-            placed.append({**result, "question": p.get("question", "")})
+            pending.add(p.get("asset", ""))
+            placed.append({**result, "title": p.get("title", "")})
 
     pending_path.write_text(json.dumps(list(pending)))
     return placed
