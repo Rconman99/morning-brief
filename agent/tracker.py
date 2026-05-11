@@ -26,13 +26,29 @@ def load_env():
 
 
 def get_client():
+    """py-clob-client-v2 client used by tracker.main()'s `client.get_orders()` call.
+
+    Two-step init pattern required by v2: build an L1-only client to derive
+    API creds, then a full L1 + L2 client for authenticated requests.
+    """
     key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
     if not key:
         return None
-    from py_clob_client.client import ClobClient
-    client = ClobClient("https://clob.polymarket.com", key=key, chain_id=137, signature_type=0)
-    client.set_api_creds(client.create_or_derive_api_creds())
-    return client
+    from py_clob_client_v2 import ClobClient
+    boot = ClobClient(
+        host="https://clob.polymarket.com",
+        chain_id=137,
+        key=key,
+        signature_type=0,
+    )
+    creds = boot.create_or_derive_api_key()
+    return ClobClient(
+        host="https://clob.polymarket.com",
+        chain_id=137,
+        key=key,
+        creds=creds,
+        signature_type=0,
+    )
 
 
 def get_positions(wallet: str) -> list:
