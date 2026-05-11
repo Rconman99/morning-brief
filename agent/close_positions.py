@@ -51,8 +51,13 @@ def close_position(client, position, dry_run=False):
     """Place a SELL limit order one cent below current price.
 
     Position dict comes from the Polymarket data-api: keys `asset` (token_id),
-    `size` (shares), `curPrice`, `title`. The 0.90 floor prevents fat-finger
-    sells on positions that crashed (e.g., a NO bet now showing big losses).
+    `size` (shares), `curPrice`, `title`, `negativeRisk`. The 0.90 floor
+    prevents fat-finger sells on positions that crashed.
+
+    Skips neg-risk markets: py-clob-client 0.34.6 builds the wrong order
+    version for those and the CLOB rejects with `order_version_mismatch`.
+    Manual redemption via polymarket.com is the workaround until the
+    py-clob-client version is bumped.
     """
     from py_clob_client.clob_types import OrderArgs, OrderType
 
@@ -60,6 +65,14 @@ def close_position(client, position, dry_run=False):
     shares = position.get("size", 0)
     cur_price = position.get("curPrice", 0)
     target = max(0.90, cur_price - 0.01)  # one tick below, never below $0.90
+
+    if position.get("negativeRisk"):
+        print(f"\n  [SKIP neg-risk] {position.get('title', '')[:60]}")
+        print(f"                  redeem manually on polymarket.com — py-clob-client 0.34.6 incompatible")
+        return {
+            "status": "skipped_neg_risk",
+            "error": "neg-risk market — py-clob-client 0.34.6 incompatible",
+        }
 
     print(f"\n→ SELL {shares:.1f} @ {target:.4f}  ({position.get('title', '')[:60]})")
     if dry_run:

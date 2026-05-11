@@ -130,14 +130,20 @@ def auto_exit_winners(target_price: float, dry_run: bool) -> list:
     # Drop entries for positions we no longer hold (sold/resolved)
     pending &= active_asset_ids
 
+    # Filter out neg-risk markets — py-clob-client 0.34.6 builds the wrong
+    # order version and the CLOB rejects with `order_version_mismatch`.
+    # Until the SDK is upgraded, these have to be redeemed manually via UI.
+    eligible = [p for p in positions if not p.get("negativeRisk")]
+    skipped_neg_risk = len(positions) - len(eligible)
+
     candidates = [
-        p for p in positions
+        p for p in eligible
         if p.get("curPrice", 0) >= target_price
         and p.get("asset", "") not in pending
     ]
 
-    logger.info("Auto-exit: %d active positions, %d candidates at >= %.3f",
-                len(positions), len(candidates), target_price)
+    logger.info("Auto-exit: %d active positions (%d neg-risk skipped), %d candidates at >= %.3f",
+                len(positions), skipped_neg_risk, len(candidates), target_price)
 
     if not candidates:
         pending_path.write_text(json.dumps(list(pending)))
