@@ -54,12 +54,14 @@ def close_position(client, position, dry_run=False):
     `size` (shares), `curPrice`, `title`, `negativeRisk`. The 0.90 floor
     prevents fat-finger sells on positions that crashed.
 
-    Skips neg-risk markets: py-clob-client 0.34.6 builds the wrong order
-    version for those and the CLOB rejects with `order_version_mismatch`.
-    Manual redemption via polymarket.com is the workaround until the
-    py-clob-client version is bumped.
+    The neg-risk skip is preserved as a safety belt during the v2 rollout —
+    v2 should handle neg-risk markets correctly, but we keep the skip until
+    one cycle of v2 has confirmed non-neg-risk SELLs land cleanly. Remove
+    in a follow-up once verified.
     """
-    from py_clob_client.clob_types import OrderArgs, OrderType
+    from py_clob_client_v2 import (
+        OrderArgs, OrderType, Side, PartialCreateOrderOptions,
+    )
 
     asset = position["asset"]
     shares = position.get("size", 0)
@@ -68,10 +70,10 @@ def close_position(client, position, dry_run=False):
 
     if position.get("negativeRisk"):
         print(f"\n  [SKIP neg-risk] {position.get('title', '')[:60]}")
-        print(f"                  redeem manually on polymarket.com — py-clob-client 0.34.6 incompatible")
+        print(f"                  redeem manually on polymarket.com (v2 untested on neg-risk)")
         return {
             "status": "skipped_neg_risk",
-            "error": "neg-risk market — py-clob-client 0.34.6 incompatible",
+            "error": "neg-risk market — v2 SDK rollout safety skip (remove after one clean cycle)",
         }
 
     print(f"\n→ SELL {shares:.1f} @ {target:.4f}  ({position.get('title', '')[:60]})")
@@ -80,14 +82,16 @@ def close_position(client, position, dry_run=False):
         return {"status": "dry_run"}
 
     try:
-        order_args = OrderArgs(
-            token_id=asset,
-            price=target,
-            size=shares,
-            side="SELL",
+        resp = client.create_and_post_order(
+            order_args=OrderArgs(
+                token_id=asset,
+                price=target,
+                size=shares,
+                side=Side.SELL,
+            ),
+            options=PartialCreateOrderOptions(tick_size="0.01"),
+            order_type=OrderType.GTC,
         )
-        signed = client.create_order(order_args)
-        resp = client.post_order(signed, OrderType.GTC)
         print(f"  ✓ {resp}")
         return {"status": "submitted", "response": resp}
     except Exception as e:

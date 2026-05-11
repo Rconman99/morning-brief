@@ -9,3 +9,7 @@ anthropic
 edgartools
 pyetrade
 alpaca-py
+# Polymarket CLOB Python SDK. Switched from py-clob-client (0.34.x) to v2
+# after Polymarket's late-April 2026 CLOB v2 migration broke order signing
+# on 0.34.6 (every POST /order returned `order_version_mismatch`).
+py-clob-client-v2>=1.0.1

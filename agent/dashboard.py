@@ -61,9 +61,21 @@ def get_open_orders():
     if not key:
         return []
     try:
-        from py_clob_client.client import ClobClient
-        client = ClobClient("https://clob.polymarket.com", key=key, chain_id=137, signature_type=0)
-        client.set_api_creds(client.create_or_derive_api_creds())
+        from py_clob_client_v2 import ClobClient
+        boot = ClobClient(
+            host="https://clob.polymarket.com",
+            chain_id=137,
+            key=key,
+            signature_type=0,
+        )
+        creds = boot.create_or_derive_api_key()
+        client = ClobClient(
+            host="https://clob.polymarket.com",
+            chain_id=137,
+            key=key,
+            creds=creds,
+            signature_type=0,
+        )
         orders = client.get_orders()
         return orders if isinstance(orders, list) else []
     except:

@@ -89,9 +89,14 @@ _cached_client = None
 
 
 def get_client():
-    """Create an authenticated py-clob-client instance. Returns None if no key.
+    """Create an authenticated py-clob-client-v2 instance. Returns None if no key.
 
     Caches the client to avoid re-deriving API creds on every order.
+
+    Switched to py-clob-client-v2 after the CLOB v2 migration (late Apr 2026)
+    rendered py-clob-client 0.34.x broken — every POST /order returned
+    `order_version_mismatch`. The v2 client uses two-step init: derive API
+    creds with an L1-only client, then build the fully-authenticated client.
     """
     global _cached_client
     if _cached_client is not None:
@@ -104,18 +109,31 @@ def get_client():
         return None
 
     try:
-        from py_clob_client.client import ClobClient
+        from py_clob_client_v2 import ClobClient
         # signature_type: 0=EOA (bot wallet), 1=Magic/email, 2=Gnosis Safe
         # The bot wallet (0x0B76...) is a pure EOA — MUST be sig_type 0
         sig_type = int(os.environ.get("POLYMARKET_SIG_TYPE", "0"))
-        client = ClobClient(
-            "https://clob.polymarket.com",
-            key=key,
+
+        # Step 1: L1-auth-only client used solely to derive API creds
+        boot = ClobClient(
+            host="https://clob.polymarket.com",
             chain_id=137,
+            key=key,
             signature_type=sig_type,
             funder=funder or None,
         )
-        client.set_api_creds(client.create_or_derive_api_creds())
+        creds = boot.create_or_derive_api_key()
+
+        # Step 2: fully-authenticated (L1 + L2) client used for orders
+        client = ClobClient(
+            host="https://clob.polymarket.com",
+            chain_id=137,
+            key=key,
+            creds=creds,
+            signature_type=sig_type,
+            funder=funder or None,
+            retry_on_error=True,  # transparently retry on schema-version updates
+        )
         _cached_client = client
         return client
     except Exception as e:
@@ -231,18 +249,21 @@ def place_limit_order(
         logger.debug("neg-risk pre-flight check failed: %s — proceeding anyway", e)
 
     try:
-        from py_clob_client.clob_types import OrderArgs, OrderType
-        from py_clob_client.order_builder.constants import BUY, SELL
-
-        order_side = BUY if side.upper() == "BUY" else SELL
-        order = OrderArgs(
-            token_id=resolved_token,
-            price=round(price, 2),
-            size=round(size, 2),
-            side=order_side,
+        from py_clob_client_v2 import (
+            OrderArgs, OrderType, Side, PartialCreateOrderOptions,
         )
-        signed = client.create_order(order)
-        resp = client.post_order(signed, OrderType.GTC)
+
+        order_side = Side.BUY if side.upper() == "BUY" else Side.SELL
+        resp = client.create_and_post_order(
+            order_args=OrderArgs(
+                token_id=resolved_token,
+                price=round(price, 2),
+                size=round(size, 2),
+                side=order_side,
+            ),
+            options=PartialCreateOrderOptions(tick_size="0.01"),
+            order_type=OrderType.GTC,
+        )
 
         order_record["status"] = "submitted"
         order_record["response"] = resp if isinstance(resp, dict) else str(resp)
