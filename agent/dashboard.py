@@ -76,7 +76,7 @@ def get_open_orders():
             creds=creds,
             signature_type=0,
         )
-        orders = client.get_orders()
+        orders = client.get_open_orders()
         return orders if isinstance(orders, list) else []
     except:
         return []

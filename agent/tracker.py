@@ -26,7 +26,7 @@ def load_env():
 
 
 def get_client():
-    """py-clob-client-v2 client used by tracker.main()'s `client.get_orders()` call.
+    """py-clob-client-v2 client used by tracker.main()'s `client.get_open_orders()` call.
 
     Two-step init pattern required by v2: build an L1-only client to derive
     API creds, then a full L1 + L2 client for authenticated requests.
@@ -102,7 +102,7 @@ def main():
     # Open orders via CLOB
     client = get_client()
     if client:
-        orders = client.get_orders()
+        orders = client.get_open_orders()
         if isinstance(orders, list) and orders:
             print(f"OPEN ORDERS ({len(orders)})")
             for o in orders:
