@@ -143,12 +143,21 @@ def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
             "reason": f"Daily deployment ${daily_total:.0f} exceeds limit — pausing",
         }
 
-    # 7. Duplicate detection — don't buy the same market twice in 24h
+    # 7. Duplicate detection — don't buy the same market twice in 24h.
+    # Only a SUCCESSFULLY PLACED order counts as a duplicate. Failed/skipped
+    # attempts (status "error"/"skipped_neg_risk") must NOT block a retry —
+    # otherwise one failed attempt (e.g. an unfunded-wallet error) permanently
+    # locks the market out for the rest of the day.
+    PLACED_STATUSES = {"submitted", "paper_filled", "matched", "filled"}
     slug = proposal.get("slug", "")
     if slug:
         today = datetime.now().date().isoformat()
         for t in trades:
-            if t.get("slug") == slug and t.get("timestamp", "")[:10] == today:
+            if (
+                t.get("slug") == slug
+                and t.get("timestamp", "")[:10] == today
+                and t.get("status") in PLACED_STATUSES
+            ):
                 return {
                     "approved": False,
                     "reason": f"Already traded {slug} today — skipping duplicate",
