@@ -29,15 +29,10 @@ if env_path.exists():
 
 
 def get_wallet():
-    # Allow read-only viewing via address override (e.g. view bot wallet without holding its key)
-    addr = os.environ.get("POLYMARKET_WALLET_ADDRESS", "").strip()
-    if addr:
-        return addr
-    key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
-    if not key:
-        return ""
-    from eth_account import Account
-    return Account.from_key(key).address
+    # POLYMARKET_WALLET (Deposit Wallet) → POLYMARKET_WALLET_ADDRESS (read-only
+    # override) → address derived from the signer key.
+    from agent.pm_client import get_wallet_address
+    return get_wallet_address()
 
 
 def get_positions(wallet):
@@ -57,28 +52,10 @@ def get_activity(wallet, limit=20):
 
 
 def get_open_orders():
-    key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
-    if not key:
-        return []
     try:
-        from py_clob_client_v2 import ClobClient
-        boot = ClobClient(
-            host="https://clob.polymarket.com",
-            chain_id=137,
-            key=key,
-            signature_type=0,
-        )
-        creds = boot.create_or_derive_api_key()
-        client = ClobClient(
-            host="https://clob.polymarket.com",
-            chain_id=137,
-            key=key,
-            creds=creds,
-            signature_type=0,
-        )
-        orders = client.get_orders()
-        return orders if isinstance(orders, list) else []
-    except:
+        from agent.pm_client import list_open_orders
+        return list_open_orders()
+    except Exception:
         return []
 
 

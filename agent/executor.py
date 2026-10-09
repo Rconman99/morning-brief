@@ -2,9 +2,9 @@
 
 Supports two modes:
 - PAPER: logs what it would do, no real orders (default)
-- LIVE: places real orders via py-clob-client
+- LIVE: places real orders via the official `polymarket` SDK (see agent/pm_client.py)
 
-Set POLYMARKET_PRIVATE_KEY in .env to enable live trading.
+Set POLYMARKET_PRIVATE_KEY (and POLYMARKET_WALLET) in .env to enable live trading.
 """
 
 import sys
@@ -32,12 +32,24 @@ _token_cache: dict[str, dict] = {}
 
 
 def resolve_token_ids(slug: str) -> dict:
-    """Resolve a market slug to CLOB token IDs via Gamma API.
+    """Resolve a market slug to the CLOB asset IDs used for orders.
 
-    Returns: {"yes": "token_id", "no": "token_id", "condition_id": "0x..."}
+    Returns: {"yes": "id", "no": "id", "condition_id": "0x...", "question": ...}
+
+    Prefers the SDK (version-aware: V2 markets order by position_id, V1 by
+    token_id); falls back to the raw Gamma API when the SDK is unavailable.
     """
     if slug in _token_cache:
         return _token_cache[slug]
+
+    try:
+        from agent.pm_client import resolve_order_asset
+        result = resolve_order_asset(slug)
+        if result:
+            _token_cache[slug] = result
+            return result
+    except Exception as e:
+        logger.debug("SDK market resolution failed for %s: %s", slug, e)
 
     if not _requests:
         return {}
@@ -85,60 +97,17 @@ def get_mode() -> str:
     return "paper"
 
 
-_cached_client = None
-
-
 def get_client():
-    """Create an authenticated py-clob-client-v2 instance. Returns None if no key.
+    """Authenticated Polymarket ``SecureClient`` (cached) or None if no key.
 
-    Caches the client to avoid re-deriving API creds on every order.
-
-    Switched to py-clob-client-v2 after the CLOB v2 migration (late Apr 2026)
-    rendered py-clob-client 0.34.x broken — every POST /order returned
-    `order_version_mismatch`. The v2 client uses two-step init: derive API
-    creds with an L1-only client, then build the fully-authenticated client.
+    History: py-clob-client 0.34.x broke with CLOB v2 (Apr 2026,
+    `order_version_mismatch`); py-clob-client-v2 then broke on 2026-06-28 when
+    the bot moved to a fresh wallet, because V2 rejects orders from
+    non-grandfathered EOAs (`maker address not allowed, please use the deposit
+    wallet flow`). The official SDK handles the Deposit Wallet flow.
     """
-    global _cached_client
-    if _cached_client is not None:
-        return _cached_client
-
-    key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
-    funder = os.environ.get("POLYMARKET_FUNDER", "")
-
-    if not key:
-        return None
-
-    try:
-        from py_clob_client_v2 import ClobClient
-        # signature_type: 0=EOA (bot wallet), 1=Magic/email, 2=Gnosis Safe
-        # The bot wallet (0x0B76...) is a pure EOA — MUST be sig_type 0
-        sig_type = int(os.environ.get("POLYMARKET_SIG_TYPE", "0"))
-
-        # Step 1: L1-auth-only client used solely to derive API creds
-        boot = ClobClient(
-            host="https://clob.polymarket.com",
-            chain_id=137,
-            key=key,
-            signature_type=sig_type,
-            funder=funder or None,
-        )
-        creds = boot.create_or_derive_api_key()
-
-        # Step 2: fully-authenticated (L1 + L2) client used for orders
-        client = ClobClient(
-            host="https://clob.polymarket.com",
-            chain_id=137,
-            key=key,
-            creds=creds,
-            signature_type=sig_type,
-            funder=funder or None,
-            retry_on_error=True,  # transparently retry on schema-version updates
-        )
-        _cached_client = client
-        return client
-    except Exception as e:
-        logger.error("Failed to create CLOB client: %s", e)
-        return None
+    from agent.pm_client import get_client as _get
+    return _get()
 
 
 def place_limit_order(
@@ -227,52 +196,34 @@ def place_limit_order(
         logger.error("Cannot place live order — no client")
         return order_record
 
-    # Pre-flight: skip neg-risk markets — gamma-api negRisk is unreliable, but
-    # the CLOB's own /neg-risk endpoint is authoritative. py-clob-client 0.34.6
-    # builds the wrong order version for these and gets order_version_mismatch.
+    # The SDK fetches tick size and neg-risk status per asset itself, so the
+    # old neg-risk skip and hard-coded tick_size are gone.
     try:
-        import requests
-        nr_resp = requests.get(
-            f"https://clob.polymarket.com/neg-risk?token_id={resolved_token}",
-            timeout=5,
-        )
-        if nr_resp.ok and nr_resp.json().get("neg_risk"):
-            order_record["status"] = "skipped_neg_risk"
-            order_record["error"] = "neg-risk market — py-clob-client 0.34.6 incompatible"
-            logger.warning("SKIPPED neg-risk market: %s (slug=%s)",
-                           market_question[:50], slug)
-            with open(PAPER_TRADE_LOG, "a") as f:
-                f.write(json.dumps(order_record) + "\n")
-            return order_record
-    except Exception as e:
-        # Pre-flight check failed — log but proceed (worst case: same fail as before)
-        logger.debug("neg-risk pre-flight check failed: %s — proceeding anyway", e)
-
-    try:
-        from py_clob_client_v2 import (
-            OrderArgs, OrderType, Side, PartialCreateOrderOptions,
+        resp = client.place_limit_order(
+            asset_id=resolved_token,
+            price=round(price, 2),
+            size=round(size, 2),
+            side="BUY" if side.upper() == "BUY" else "SELL",
         )
 
-        order_side = Side.BUY if side.upper() == "BUY" else Side.SELL
-        resp = client.create_and_post_order(
-            order_args=OrderArgs(
-                token_id=resolved_token,
-                price=round(price, 2),
-                size=round(size, 2),
-                side=order_side,
-            ),
-            options=PartialCreateOrderOptions(tick_size="0.01"),
-            order_type=OrderType.GTC,
-        )
-
-        order_record["status"] = "submitted"
-        order_record["response"] = resp if isinstance(resp, dict) else str(resp)
-        order_record["order_id"] = resp.get("orderID", "") if isinstance(resp, dict) else ""
-
-        logger.info(
-            "[LIVE] %s %.0f shares @ %.2f ($%.2f) — %s",
-            side, size, price, price * size, market_question[:50],
-        )
+        if getattr(resp, "ok", False):
+            order_record["status"] = "submitted"
+            order_record["order_id"] = resp.order_id
+            order_record["response"] = {
+                "status": str(resp.status),
+                "making_amount": str(resp.making_amount),
+                "taking_amount": str(resp.taking_amount),
+                "trade_ids": list(resp.trade_ids),
+            }
+            logger.info(
+                "[LIVE] %s %.0f shares @ %.2f ($%.2f) — %s | order %s (%s)",
+                side, size, price, price * size, market_question[:50],
+                resp.order_id[:12], resp.status,
+            )
+        else:
+            order_record["status"] = "error"
+            order_record["error"] = f"{getattr(resp, 'code', 'rejected')}: {getattr(resp, 'message', resp)}"
+            logger.error("Order rejected: %s", order_record["error"])
 
     except Exception as e:
         order_record["status"] = "error"
@@ -300,16 +251,8 @@ def get_balance() -> float:
                 pass
         return 1000.0  # Default $1K paper bankroll
 
-    client = get_client()
-    if not client:
-        return 0.0
-
-    try:
-        # The CLOB client doesn't have a direct balance check,
-        # so we sum current position values + estimate from trade history
-        return 0.0  # TODO: implement via on-chain USDC balance check
-    except Exception:
-        return 0.0
+    from agent.pm_client import get_collateral_balance
+    return get_collateral_balance()
 
 
 def get_paper_trades() -> list:

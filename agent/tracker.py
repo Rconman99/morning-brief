@@ -26,29 +26,15 @@ def load_env():
 
 
 def get_client():
-    """py-clob-client-v2 client used by tracker.main()'s `client.get_orders()` call.
+    """Authenticated Polymarket SDK client (shared, cached). See agent/pm_client.py."""
+    from agent.pm_client import get_client as _get
+    return _get()
 
-    Two-step init pattern required by v2: build an L1-only client to derive
-    API creds, then a full L1 + L2 client for authenticated requests.
-    """
-    key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
-    if not key:
-        return None
-    from py_clob_client_v2 import ClobClient
-    boot = ClobClient(
-        host="https://clob.polymarket.com",
-        chain_id=137,
-        key=key,
-        signature_type=0,
-    )
-    creds = boot.create_or_derive_api_key()
-    return ClobClient(
-        host="https://clob.polymarket.com",
-        chain_id=137,
-        key=key,
-        creds=creds,
-        signature_type=0,
-    )
+
+def get_wallet() -> str:
+    """The account wallet (Deposit Wallet) that holds funds and positions."""
+    from agent.pm_client import get_wallet_address
+    return get_wallet_address()
 
 
 def get_positions(wallet: str) -> list:
@@ -77,11 +63,9 @@ def load_positions() -> list:
     positions don't get spurious SELL orders placed on them.
     """
     load_env()
-    key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
-    if not key:
+    wallet = get_wallet()
+    if not wallet:
         return []
-    from eth_account import Account
-    wallet = Account.from_key(key).address
     positions = get_positions(wallet)
     return [p for p in positions if (p.get("currentValue") or 0) > 0]
 
@@ -89,10 +73,7 @@ def load_positions() -> list:
 def main():
     load_env()
 
-    from eth_account import Account
-    key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
-    acct = Account.from_key(key)
-    wallet = acct.address
+    wallet = get_wallet()
 
     print(f"\n{'='*60}")
     print(f"  POLYMARKET AGENT TRACKER — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -102,7 +83,8 @@ def main():
     # Open orders via CLOB
     client = get_client()
     if client:
-        orders = client.get_orders()
+        from agent.pm_client import list_open_orders
+        orders = list_open_orders()
         if isinstance(orders, list) and orders:
             print(f"OPEN ORDERS ({len(orders)})")
             for o in orders:

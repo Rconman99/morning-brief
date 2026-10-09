@@ -59,22 +59,15 @@ def close_position(client, position, dry_run=False):
     one cycle of v2 has confirmed non-neg-risk SELLs land cleanly. Remove
     in a follow-up once verified.
     """
-    from py_clob_client_v2 import (
-        OrderArgs, OrderType, Side, PartialCreateOrderOptions,
-    )
-
     asset = position["asset"]
     shares = position.get("size", 0)
     cur_price = position.get("curPrice", 0)
     target = max(0.90, cur_price - 0.01)  # one tick below, never below $0.90
 
-    if position.get("negativeRisk"):
-        print(f"\n  [SKIP neg-risk] {position.get('title', '')[:60]}")
-        print(f"                  redeem manually on polymarket.com (v2 untested on neg-risk)")
-        return {
-            "status": "skipped_neg_risk",
-            "error": "neg-risk market — v2 SDK rollout safety skip (remove after one clean cycle)",
-        }
+    import os
+    if position.get("negativeRisk") and os.environ.get("POLYMARKET_SKIP_NEG_RISK", "").strip() in ("1", "true", "yes"):
+        print(f"\n  [SKIP neg-risk] {position.get('title', '')[:60]} (POLYMARKET_SKIP_NEG_RISK set)")
+        return {"status": "skipped_neg_risk", "error": "neg-risk market — skipped by POLYMARKET_SKIP_NEG_RISK"}
 
     print(f"\n→ SELL {shares:.1f} @ {target:.4f}  ({position.get('title', '')[:60]})")
     if dry_run:
@@ -82,18 +75,19 @@ def close_position(client, position, dry_run=False):
         return {"status": "dry_run"}
 
     try:
-        resp = client.create_and_post_order(
-            order_args=OrderArgs(
-                token_id=asset,
-                price=target,
-                size=shares,
-                side=Side.SELL,
-            ),
-            options=PartialCreateOrderOptions(tick_size="0.01"),
-            order_type=OrderType.GTC,
+        resp = client.place_limit_order(
+            asset_id=asset,
+            price=round(target, 2),
+            size=round(shares, 2),
+            side="SELL",
         )
-        print(f"  ✓ {resp}")
-        return {"status": "submitted", "response": resp}
+        if getattr(resp, "ok", False):
+            print(f"  ✓ order {resp.order_id} ({resp.status})")
+            return {"status": "submitted", "order_id": resp.order_id,
+                    "response": {"status": str(resp.status)}}
+        err = f"{getattr(resp, 'code', 'rejected')}: {getattr(resp, 'message', resp)}"
+        print(f"  ✗ {err}")
+        return {"status": "error", "error": err}
     except Exception as e:
         print(f"  ✗ {e}")
         return {"status": "error", "error": str(e)}

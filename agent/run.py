@@ -130,10 +130,13 @@ def auto_exit_winners(target_price: float, dry_run: bool) -> list:
     # Drop entries for positions we no longer hold (sold/resolved)
     pending &= active_asset_ids
 
-    # Filter out neg-risk markets — py-clob-client 0.34.6 builds the wrong
-    # order version and the CLOB rejects with `order_version_mismatch`.
-    # Until the SDK is upgraded, these have to be redeemed manually via UI.
-    eligible = [p for p in positions if not p.get("negativeRisk")]
+    # Neg-risk markets: the official SDK builds the right order for these, so
+    # they're exited like any other position. Set POLYMARKET_SKIP_NEG_RISK=1 to
+    # restore the old skip if a neg-risk SELL ever misbehaves.
+    if os.environ.get("POLYMARKET_SKIP_NEG_RISK", "").strip() in ("1", "true", "yes"):
+        eligible = [p for p in positions if not p.get("negativeRisk")]
+    else:
+        eligible = list(positions)
     skipped_neg_risk = len(positions) - len(eligible)
 
     candidates = [
@@ -278,12 +281,11 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     try:
         from lib.notify import send_telegram
         from agent.tracker import get_positions as get_pm_positions, load_env as pm_load_env
-        from eth_account import Account
+        from agent.pm_client import get_wallet_address
 
         pm_load_env()
-        pm_key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
-        if pm_key:
-            wallet = Account.from_key(pm_key).address
+        wallet = get_wallet_address()
+        if wallet:
             all_positions = get_pm_positions(wallet)
 
             # Track which resolutions we've already notified about
