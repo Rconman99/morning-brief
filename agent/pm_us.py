@@ -355,7 +355,9 @@ def load_positions() -> list[dict]:
                     "size": size,
                     "available": abs(float(p.get("qtyAvailableDecimal") or p.get("qtyAvailable") or net)),
                     "avgPrice": from_wire_price(outcome, _amt(p.get("avgPx"))),
-                    "initialValue": abs(cost),
+                    # cost in outcome terms; exchange cost convention for shorts is
+                    # unconfirmed, so derive it from the (converted) average price.
+                    "initialValue": round(from_wire_price(outcome, _amt(p.get("avgPx"))) * size, 4) if _amt(p.get("avgPx")) else abs(cost),
                     "currentValue": abs(_amt(p.get("cashValue"))),
                     "cashPnl": _amt(p.get("realized")),
                     "title": f"{meta.get('title', '')} — {meta.get('outcome', '')}".strip(" —"),

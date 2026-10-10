@@ -357,6 +357,12 @@ def price_markets(cal_all: dict) -> dict:
             remaining = floor
         # Brackets must tile the whole line (… or below, a to b, …, or above) with
         # no gaps; otherwise renormalizing would invent edge. Skip the city/day.
+        seen, uniq = set(), []
+        for m, b in items:  # the list endpoint can repeat a market across pages
+            if m["slug"] not in seen:
+                seen.add(m["slug"])
+                uniq.append((m, b))
+        items = uniq
         bks = sorted(b for _, b in items)
         tiled = (bks and bks[0][0] <= -1e5 and bks[-1][1] >= 1e5
                  and all(abs(bks[i + 1][0] - (bks[i][1] + 1)) < 1e-9 for i in range(len(bks) - 1)))

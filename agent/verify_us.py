@@ -90,8 +90,19 @@ def main():
     res = pm_us.preview_limit(slug, "BUY", "yes", price, 1)
     if res.get("ok"):
         o = res.get("preview") or {}
-        print(f"preview ACCEPTED:   state={o.get('state')} price={o.get('price')} qty={o.get('quantity')} intent={o.get('intent')}")
-        print("\nOK — the exchange validates orders from this key. The bot can trade live.")
+        print(f"preview YES ACCEPTED: state={o.get('state')} price={o.get('price')} qty={o.get('quantity')} intent={o.get('intent')}")
+        # NO side: a NO bid far below market (NO at 0.02 => wire YES price 0.98? no — NO at
+        # (1 - yes_ask) - margin). We bid NO at half its current bid so it would never fill,
+        # and confirm the exchange echoes the YES-terms wire price we expect.
+        no_bid = max(0.01, round((1 - (bbo.get("yes_ask") or 0.95)) * 0.5, 3))
+        res_no = pm_us.preview_limit(slug, "BUY", "no", no_bid, 1)
+        if not res_no.get("ok"):
+            print(f"preview NO REJECTED: {res_no.get('error')}  request={json.dumps(res_no.get('request'))}")
+            return 1
+        on = res_no.get("preview") or {}
+        sent = res_no["request"]["price"]["value"]
+        print(f"preview NO  ACCEPTED: NO bid {no_bid} sent as YES-terms {sent}; exchange echoed price={on.get('price')} intent={on.get('intent')}")
+        print("\nOK — the exchange validates YES and NO orders from this key. The bot can trade live.")
         return 0
     print(f"preview REJECTED:   {res.get('error')}")
     print(f"request was:        {json.dumps(res.get('request'))}")
