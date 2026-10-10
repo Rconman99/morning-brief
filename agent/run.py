@@ -170,6 +170,24 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     """Main agent loop: scan → propose → risk-check → execute."""
     mode = get_mode()
     logger.info("=== Polymarket Agent [%s mode] ===", mode.upper())
+    # Live on Polymarket US: never size off more money than the account really has.
+    if mode == "live":
+        try:
+            from agent.pm_us import is_us, account_equity
+            if is_us():
+                eq = account_equity()
+                if eq is None:
+                    logger.warning("Cannot read account equity — skipping this cycle")
+                    return {"proposals": 0, "approved": 0, "executed": 0}
+                if eq < bankroll:
+                    logger.info("Bankroll capped to account equity: $%.2f (configured $%.2f)", eq, bankroll)
+                    bankroll = eq
+                if bankroll < 5:
+                    logger.warning("Account equity $%.2f too small to trade (unfunded?) — skipping", bankroll)
+                    return {"proposals": 0, "approved": 0, "executed": 0}
+        except Exception as e:
+            logger.warning("equity check failed (%s) — skipping this cycle", e)
+            return {"proposals": 0, "approved": 0, "executed": 0}
     logger.info("Bankroll: $%.2f", bankroll)
 
     # Initialize paper bankroll if needed
@@ -204,7 +222,9 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     # 1.5. Auto-exit: take profit on positions at/above AUTO_EXIT_PRICE
     # Disabled by default while pre-existing hold-to-resolution positions are open;
     # flip AUTO_EXIT_ENABLED in config.py once those have settled.
-    if AUTO_EXIT_ENABLED:
+    if AUTO_EXIT_ENABLED and mode != "live":
+        logger.info("Auto-exit skipped: %s mode (exits only ever run live)", mode)
+    elif AUTO_EXIT_ENABLED:
         exits_placed = auto_exit_winners(AUTO_EXIT_PRICE, dry_run=dry_run)
         if exits_placed:
             logger.info("Placed %d auto-exit SELL order(s)", len(exits_placed))

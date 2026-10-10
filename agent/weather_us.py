@@ -261,8 +261,13 @@ def bracket_probs(forecast: float, cal: dict, lead: int, brackets: list[tuple], 
     # Same day: the day's high = max(observed so far, what's still to come).
     # Remaining-hours uncertainty shrinks with the fraction of the day left.
     if lead == 0 and floor is not None and remaining is not None:
-        scen = [max(floor, remaining + r * max(day_frac_left, 0.15)) for r in res]
-        k = max(0.6, k * max(day_frac_left, 0.3))
+        # `remaining` is the raw blend; residuals carry the bias. Apply the bias
+        # once, scale only the zero-mean part by the fraction of day left.
+        # Hourly METAR maxima understate the CLI high (whole-degC rounding,
+        # 5-min peaks), so the observed floor is centred ~0.5F higher.
+        mb = sum(res) / len(res)
+        scen = [max(floor + 0.5, remaining + mb + (r - mb) * max(day_frac_left, 0.25)) for r in res]
+        k = max(1.0, k * max(day_frac_left, 0.4))
     else:
         scen = [forecast + r for r in res]
 
@@ -340,7 +345,9 @@ def price_markets(cal_all: dict) -> dict:
         if fct is None or lead < 0 or lead > 1:
             continue
         fc, spread, remaining = fct
-        cal = cal_all.get("cities", {}).get(code, {}).get(str(lead), {})
+        # Same-day markets use the day-before error distribution: archived same-day
+        # runs are near-analyses for past hours and understate real forecast error.
+        cal = cal_all.get("cities", {}).get(code, {}).get("1", {})
         floor = observed_max_so_far(stn, offh, day) if lead == 0 else None
         bias = cal.get("bias", 0.0)
         # fraction of the "heating day" (7am-7pm LST) still ahead
@@ -348,8 +355,16 @@ def price_markets(cal_all: dict) -> dict:
         day_frac_left = min(1.0, max(0.0, (19 - hrs) / 12))
         if lead == 0 and remaining is not None and remaining < (floor or -1e9) - 3 and day_frac_left <= 0:
             remaining = floor
+        # Brackets must tile the whole line (… or below, a to b, …, or above) with
+        # no gaps; otherwise renormalizing would invent edge. Skip the city/day.
+        bks = sorted(b for _, b in items)
+        tiled = (bks and bks[0][0] <= -1e5 and bks[-1][1] >= 1e5
+                 and all(abs(bks[i + 1][0] - (bks[i][1] + 1)) < 1e-9 for i in range(len(bks) - 1)))
+        if not tiled:
+            logger.warning("skip %s %s: brackets don't cover the full range (%d listed)", code, day, len(bks))
+            continue
         probs = bracket_probs(fc, cal, lead, [b for _, b in items], floor, spread,
-                              remaining + bias if remaining is not None else None, day_frac_left)
+                              remaining, day_frac_left)
         total = sum(probs) or 1.0
         probs = [p / total for p in probs]  # brackets are exhaustive
         for (m, b), p_yes in zip(items, probs):

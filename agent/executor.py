@@ -268,12 +268,9 @@ def _place_limit_order_us(side, price, size, market_question, strategy, reason,
     outcome = (token_hint or "yes").lower()
     if outcome not in ("yes", "no"):
         outcome = "yes"
+    # Exact US slug only. (Fuzzy text matching was removed after audit: it could
+    # map a proposal onto a different strike/date/outcome.)
     us_slug = slug if (slug and pm_us.get_market(slug)) else ""
-    if not us_slug and market_question:
-        m = pm_us.find_market(market_question)
-        if m:
-            us_slug = m.get("slug", "")
-            logger.info("Matched %r -> US market %s (score %.2f)", market_question[:50], us_slug, m.get("match_score", 0))
 
     order_record = {
         "timestamp": now,

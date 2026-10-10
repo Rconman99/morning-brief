@@ -27,12 +27,26 @@ except ImportError:
     _has_local_llm = False
 
 
-def _load_signal(filename: str) -> dict:
-    """Load a processed signal file, returning empty data on failure."""
+def _load_signal(filename: str, max_age_min: float | None = None) -> dict:
+    """Load a processed signal file, returning empty data on failure.
+
+    max_age_min: if set, ignore the file when it is older than that (a crashed
+    scanner must never cause yesterday's proposals to be traded again).
+    """
     envelope = load_envelope(filename)
-    if envelope.get("status") in ("success", "partial"):
-        return envelope.get("data", {})
-    return {}
+    if envelope.get("status") not in ("success", "partial"):
+        return {}
+    if max_age_min is not None:
+        try:
+            gen = datetime.fromisoformat(envelope.get("generated_at"))
+            age = (datetime.now(gen.tzinfo) - gen).total_seconds() / 60
+        except (TypeError, ValueError):
+            logger.warning("%s has no valid generated_at — ignoring", filename)
+            return {}
+        if age > max_age_min:
+            logger.warning("%s is %.0f min old (> %s) — ignoring stale signals", filename, age, max_age_min)
+            return {}
+    return envelope.get("data", {})
 
 
 # ============================================================
@@ -119,7 +133,7 @@ def scan_gimme_bets(params: dict) -> list:
     # Venue switch: on Polymarket US the candidates come from agent/us_scanner.py
     # (same shape, US market slugs, venue="us") instead of the polymarket.com scanner.
     if os.environ.get("POLYMARKET_VENUE", "").strip().lower() == "us":
-        pm = _load_signal("polymarket_us.json")
+        pm = _load_signal("polymarket_us.json", max_age_min=30)
     else:
         pm = _load_signal("polymarket.json")
     if not pm:
@@ -166,10 +180,11 @@ def scan_gimme_bets(params: dict) -> list:
         # Weather-model veto: a "safe-looking" temperature bracket the forecast disagrees with.
         if g.get("venue") == "us" and str(g.get("slug", "")).startswith("tc-temp-"):
             view = wx_view.get(g.get("slug"))
-            if view is not None:
-                side_p = view if g.get("side", "").upper() == "YES" else 1 - view
-                if side_p < price + 0.02:
-                    continue
+            if view is None:
+                continue  # no fresh forecast for this bracket: don't trade it blind
+            side_p = view if g.get("side", "").upper() == "YES" else 1 - view
+            if side_p < price + 0.02:
+                continue
 
         # Skip if risks are too high
         risks = g.get("risks", [])
@@ -222,7 +237,7 @@ def scan_gimme_bets(params: dict) -> list:
 
 def _weather_us_view() -> dict:
     """{slug: p_yes} from agent/weather_us.py's latest pricing (fresh within 2h)."""
-    env = _load_signal("weather_us.json")
+    env = _load_signal("weather_us.json", max_age_min=30)
     out = {}
     for r in (env or {}).get("rows", []):
         out[r["slug"]] = r.get("p_yes")
@@ -239,7 +254,7 @@ def scan_weather_us(params: dict) -> list:
     import os
     if os.environ.get("POLYMARKET_VENUE", "").strip().lower() != "us":
         return []
-    data = _load_signal("weather_us.json")
+    data = _load_signal("weather_us.json", max_age_min=30)
     if not data:
         return []
     bankroll = params.get("bankroll", 0) or 0
@@ -594,5 +609,16 @@ def run_all_strategies(params: dict) -> list:
                         pre_count, len(all_proposals))
     except Exception as e:
         logger.debug("Microstructure filter skipped: %s", e)
+
+    # Polymarket US venue: only proposals built from US markets may trade. Legacy
+    # polymarket.com strategies (weather_edge, btc_sentiment, probability_arb)
+    # carry foreign slugs and would otherwise be fuzzy-matched to the wrong market.
+    import os
+    if os.environ.get("POLYMARKET_VENUE", "").strip().lower() == "us":
+        dropped = [p for p in all_proposals if p.get("venue") != "us"]
+        if dropped:
+            logger.info("US venue: dropping %d non-US proposal(s) from %s", len(dropped),
+                        sorted({p.get("strategy", "?") for p in dropped}))
+        all_proposals = [p for p in all_proposals if p.get("venue") == "us"]
 
     return all_proposals

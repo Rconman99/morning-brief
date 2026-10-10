@@ -76,7 +76,13 @@ def close_position(client, position, dry_run=False):
 
     if position.get("venue") == "us":
         # Polymarket US: sell what we hold (YES = SELL_LONG, NO = SELL_SHORT) by slug.
+        # Prices here are in terms of the outcome held; pm_us converts to the
+        # exchange's YES-terms convention at the wire. Never sell in paper mode.
         from agent import pm_us
+        from agent.executor import get_mode
+        if get_mode() != "live":
+            print("  [paper mode — no SELL sent]")
+            return {"status": "dry_run"}
         res = pm_us.place_limit(position["slug"], "SELL", position.get("outcome", "yes"),
                                 target, int(position.get("available", shares) or shares), post_only=False)
         if res.get("ok"):

@@ -63,8 +63,10 @@ def calculate_strategy_performance(trades: list, days: int = None) -> dict:
             "wins": v["wins"],
             "losses": v["losses"],
             "win_rate": v["win_rate"],
-            "avg_return": v["roi"],
-            "sharpe": v["sharpe"],
+            # Rank and reward on the conservative (taker-bound) ROI: paper maker
+            # fills are assumed, so the optimistic number must not move capital.
+            "avg_return": v["roi_taker_bound"],
+            "sharpe": v["sharpe"] if v["roi_taker_bound"] > 0 else min(v["sharpe"], 0.0),
             "pnl": v["pnl"],
             "pnl_taker_bound": v["pnl_taker_bound"],
         }

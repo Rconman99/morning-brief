@@ -18,7 +18,13 @@ export POLYMARKET_VENUE="${POLYMARKET_VENUE:-us}"
 BANKROLL="${POLYMARKET_BANKROLL:-95}"
 LOG="$PROJECT_DIR/agent/vps.log"
 
-git pull origin main --quiet 2>/dev/null
+# One cycle at a time (a slow cycle must not overlap the next timer tick).
+exec 9>/tmp/polymarket-agent.lock
+flock -n 9 || { echo "--- $(date) --- previous cycle still running, skipping" >> "$LOG"; exit 0; }
+
+# No automatic `git pull` here any more (audit 2026-10-10): code that trades
+# with live keys only changes through an explicit deploy:
+#   cd /opt/morning-brief && git pull --ff-only && git log --oneline -1
 
 .venv/bin/python3 agent/us_scanner.py >> "$LOG" 2>&1
 .venv/bin/python3 agent/weather_us.py >> "$LOG" 2>&1

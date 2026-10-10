@@ -101,7 +101,80 @@ def strategy_budgets(bankroll: float, active: set) -> dict:
     return {s: round(deployable * w[s] / total, 2) for s in active}
 
 
-def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
+def _live_us() -> bool:
+    try:
+        from agent.pm_us import is_us
+        return is_us() and get_mode() == "live"
+    except Exception:
+        return False
+
+
+def _exchange_exposure(trades: list) -> dict | None:
+    """Live Polymarket US: open exposure from the exchange itself (positions +
+    resting BUY orders), not from the local trade log. Paper rows are ignored.
+    Strategy attribution comes from the trade log by slug. None on failure."""
+    try:
+        from agent import pm_us
+        positions = pm_us.load_positions()
+        orders = pm_us.list_open_orders()
+    except Exception as e:
+        logger.warning("exchange exposure unavailable: %s", e)
+        return None
+    strat_by_slug = {t.get("slug"): t.get("strategy", "unknown") for t in trades if t.get("status") == "submitted"}
+    cat_by_slug = {t.get("slug"): t.get("category", "other") for t in trades if t.get("status") == "submitted"}
+    exp = _calculate_exposure([t for t in trades if t.get("status") != "paper_filled"])
+    exp.update({"total_deployed": 0.0, "by_category": {}, "by_strategy": {}, "groups": {}})
+    items = [(p["slug"], p.get("initialValue") or p.get("avgPrice", 0) * p.get("size", 0)) for p in positions]
+    items += [(o["slug"], o["price"] * max(0.0, o["original_size"] - o["size_matched"]))
+              for o in orders if o.get("side") == "BUY"]
+    for slug, cost in items:
+        strat = strat_by_slug.get(slug, "existing")
+        cat = cat_by_slug.get(slug, "other")
+        exp["total_deployed"] += cost
+        exp["by_strategy"][strat] = exp["by_strategy"].get(strat, 0) + cost
+        exp["by_category"][cat] = exp["by_category"].get(cat, 0) + cost
+        g = _group({"slug": slug})
+        exp["groups"][g] = exp["groups"].get(g, 0) + 1
+    return exp
+
+
+def realized_loss_check(bankroll: float) -> str | None:
+    """Pause new entries after realized losses (from settled trades in the ledger).
+
+    Daily: P&L of trades opened in the last 24h that have settled < -MAX_DAILY_LOSS_PCT * bankroll.
+    Weekly: same over 7 days with MAX_WEEKLY_LOSS_PCT. Live mode counts live fills only.
+    """
+    try:
+        from agent.ledger import build
+        rows, _ = build(refresh_settlements=False)
+    except Exception as e:
+        logger.warning("loss check unavailable: %s", e)
+        return None
+    live = _live_us()
+    now = datetime.now().astimezone()
+    def pnl_since(hours):
+        tot = 0.0
+        for r in rows:
+            if not r.get("resolved") or (live and r.get("paper")):
+                continue
+            try:
+                ts = datetime.fromisoformat(r["timestamp"])
+                if ts.tzinfo is None:
+                    ts = ts.astimezone()
+            except (KeyError, ValueError):
+                continue
+            if (now - ts).total_seconds() <= hours * 3600:
+                tot += r.get("pnl", 0.0)
+        return tot
+    d, w = pnl_since(24), pnl_since(24 * 7)
+    if d < -config.MAX_DAILY_LOSS_PCT * bankroll:
+        return f"Daily realized loss ${-d:.2f} > {config.MAX_DAILY_LOSS_PCT:.0%} of bankroll — paused 24h"
+    if w < -config.MAX_WEEKLY_LOSS_PCT * bankroll:
+        return f"Weekly realized loss ${-w:.2f} > {config.MAX_WEEKLY_LOSS_PCT:.0%} of bankroll — paused"
+    return None
+
+
+def check_proposal(proposal: dict, bankroll: float, trades: list, exposure: dict | None = None) -> dict:
     """Check a trade proposal against risk limits.
 
     Returns: {"approved": bool, "reason": str, "adjusted_size": float}
@@ -110,7 +183,8 @@ def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
     category = proposal.get("category", "other")
     strategy = proposal.get("strategy", "unknown")
 
-    exposure = _calculate_exposure(trades)
+    if exposure is None:
+        exposure = _calculate_exposure(trades)
 
     # --- HARD LIMIT CHECKS ---
 
@@ -252,6 +326,15 @@ def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
             "reason": f"Conviction {conviction:.2f} too low (minimum 0.3)",
         }
 
+    # 12. After all down-sizing, the order must still meet the exchange minimum
+    #     (whole shares, >= min_shares) — otherwise skip rather than send a dust order.
+    price = max(proposal.get("price", 0.5), 0.01)
+    shares = int(proposal.get("size_usd", cost) / price + 1e-9)
+    if shares < 5:
+        return {"approved": False, "reason": f"Sized down to {shares} shares (< 5 minimum) — skipping"}
+    proposal["size_shares"] = shares
+    proposal["size_usd"] = round(shares * price, 2)
+
     return {
         "approved": True,
         "reason": f"Approved: ${cost:.0f} on {strategy}/{category} (exposure {exposure['total_deployed']+cost:.0f}/{max_total:.0f})",
@@ -264,7 +347,22 @@ def filter_proposals(proposals: list, bankroll: float) -> list:
     trades = list(get_paper_trades())
     approved = []
 
-    exposure = _calculate_exposure(trades)
+    paused = realized_loss_check(bankroll)
+    if paused:
+        logger.warning("RISK PAUSE: %s", paused)
+        for p in proposals:
+            p["risk_check"] = {"approved": False, "reason": paused}
+        return []
+
+    live = _live_us()
+    exposure = _exchange_exposure(trades) if live else _calculate_exposure(trades)
+    if exposure is None:
+        logger.warning("RISK PAUSE: cannot read live exposure from the exchange — no new entries this cycle")
+        return []
+    if live:
+        # Paper history must not count against (or for) live limits.
+        trades = [t for t in trades if t.get("status") != "paper_filled"]
+
     active = {p.get("strategy", "unknown") for p in proposals} | set(exposure["by_strategy"].keys())
     budgets = strategy_budgets(bankroll, active)
     if budgets:
@@ -272,22 +370,24 @@ def filter_proposals(proposals: list, bankroll: float) -> list:
 
     for p in proposals:
         p["_budgets"] = budgets
-        result = check_proposal(p, bankroll, trades)
+        result = check_proposal(p, bankroll, trades, exposure)
         p.pop("_budgets", None)
         p["risk_check"] = result
 
         if result["approved"]:
             approved.append(p)
             # Count this approval against limits for the rest of the run.
-            trades.append({
-                "timestamp": datetime.now().isoformat(),
-                "status": "paper_filled",
-                "cost_usd": p.get("size_usd", 0),
-                "strategy": p.get("strategy", "unknown"),
-                "category": p.get("category", "other"),
-                "slug": p.get("slug", ""),
-                "group": _group(p),
-            })
+            cost = p.get("size_usd", 0)
+            strat, cat, g = p.get("strategy", "unknown"), p.get("category", "other"), _group(p)
+            exposure["total_deployed"] += cost
+            exposure["by_strategy"][strat] = exposure["by_strategy"].get(strat, 0) + cost
+            exposure["by_category"][cat] = exposure["by_category"].get(cat, 0) + cost
+            exposure["groups"][g] = exposure["groups"].get(g, 0) + 1
+            exposure["today_deployed"] += cost
+            exposure["week_deployed"] += cost
+            trades.append({"timestamp": datetime.now().isoformat(), "status": "paper_filled",
+                           "cost_usd": cost, "strategy": strat, "category": cat,
+                           "slug": p.get("slug", ""), "group": g})
             logger.info("APPROVED: %s — %s", p.get("question", "")[:50], result["reason"])
         else:
             logger.info("REJECTED: %s — %s", p.get("question", "")[:50], result["reason"])

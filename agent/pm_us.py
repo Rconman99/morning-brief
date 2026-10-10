@@ -277,6 +277,25 @@ def get_balance() -> float:
         return 0.0
 
 
+def account_equity() -> float | None:
+    """Cash available + cash in resting orders + cost of open positions (USD). None on error."""
+    c = get_client()
+    if not c:
+        return None
+    try:
+        bals = c.account.balances().get("balances", [])
+        b = bals[0] if bals else {}
+        cash = float(b.get("buyingPower") or 0) + float(b.get("openOrders") or 0)
+    except Exception as e:
+        logger.warning("equity lookup failed: %s", e)
+        return None
+    try:
+        held = sum(p.get("initialValue") or p.get("avgPrice", 0) * p.get("size", 0) for p in load_positions())
+    except Exception:
+        held = 0.0
+    return round(cash + held, 2)
+
+
 def list_open_orders() -> list[dict]:
     """Open orders normalized to the shape the tracker/dashboard print."""
     c = get_client()
@@ -289,9 +308,10 @@ def list_open_orders() -> list[dict]:
             out.append({
                 "id": o.get("id", ""),
                 "slug": o.get("marketSlug", ""),
-                "side": "BUY" if o.get("side", "").endswith("BUY") else "SELL",
+                "side": "BUY" if "_BUY_" in o.get("intent", "") else "SELL",
+                "outcome": "no" if o.get("intent", "").endswith("SHORT") else "yes",
                 "intent": o.get("intent", ""),
-                "price": _amt(o.get("price")),
+                "price": from_wire_price("no" if o.get("intent", "").endswith("SHORT") else "yes", _amt(o.get("price"))),
                 "original_size": qty,
                 "size": qty,
                 "size_matched": float(o.get("cumQuantity") or 0),
@@ -334,7 +354,7 @@ def load_positions() -> list[dict]:
                     "outcome": outcome,
                     "size": size,
                     "available": abs(float(p.get("qtyAvailableDecimal") or p.get("qtyAvailable") or net)),
-                    "avgPrice": _amt(p.get("avgPx")),
+                    "avgPrice": from_wire_price(outcome, _amt(p.get("avgPx"))),
                     "initialValue": abs(cost),
                     "currentValue": abs(_amt(p.get("cashValue"))),
                     "cashPnl": _amt(p.get("realized")),
@@ -369,21 +389,42 @@ INTENT = {("BUY", "yes"): "ORDER_INTENT_BUY_LONG", ("SELL", "yes"): "ORDER_INTEN
           ("BUY", "no"): "ORDER_INTENT_BUY_SHORT", ("SELL", "no"): "ORDER_INTENT_SELL_SHORT"}
 
 
+def to_wire_price(outcome: str, price: float) -> float:
+    """Polymarket US: price.value ALWAYS refers to the YES (long) side, for every
+    intent. "To trade the NO side at any price X, set price.value = 1.00 - X."
+    (docs.polymarket.us/api-reference/orders/overview). Everything inside the bot
+    works in the price of the outcome we hold; convert only at the wire."""
+    return 1.0 - price if (outcome or "yes").lower() == "no" else price
+
+
+def from_wire_price(outcome: str, wire_price: float) -> float:
+    """Inverse of to_wire_price: exchange (YES-terms) price -> price of `outcome`."""
+    if not wire_price:
+        return 0.0
+    return 1.0 - wire_price if (outcome or "yes").lower() == "no" else wire_price
+
+
 def build_order(slug: str, side: str, outcome: str, price: float, qty: float,
                 post_only: bool = True) -> dict:
-    """CreateOrderParams for a GTC limit order. qty rounded down to whole shares."""
+    """CreateOrderParams for a GTC limit order. `price` is in terms of `outcome`
+    (e.g. NO at 0.93); it is converted to the exchange's YES-terms convention.
+    qty rounded down to whole shares."""
     m = get_market(slug)
     tick = float(m.get("orderPriceMinTickSize") or 0.001)
-    intent = INTENT[(side.upper(), (outcome or "yes").lower())]
+    outcome = (outcome or "yes").lower()
+    intent = INTENT[(side.upper(), outcome)]
+    outcome_px = round_to_tick(price, tick)
+    wire_px = round_to_tick(to_wire_price(outcome, outcome_px), tick)
     return {
         "marketSlug": slug,
         "intent": intent,
         "type": "ORDER_TYPE_LIMIT",
-        "price": _usd(round_to_tick(price, tick)),
+        "price": _usd(wire_px),
         "quantity": int(qty),
         "tif": "TIME_IN_FORCE_GOOD_TILL_CANCEL",
         "participateDontInitiate": bool(post_only),
         "manualOrderIndicator": "MANUAL_ORDER_INDICATOR_AUTOMATIC",
+        "synchronousExecution": True,
     }
 
 
@@ -407,6 +448,8 @@ def place_limit(slug: str, side: str, outcome: str, price: float, qty: float,
         if ex.get("type") == "EXECUTION_TYPE_REJECTED":
             reject = ex.get("orderRejectReason") or ex.get("text") or "rejected"
         state = (ex.get("order") or {}).get("state", state) or state
+    if not reject and state == "ORDER_STATE_REJECTED":
+        reject = "rejected"
     if reject:
         return {"ok": False, "order_id": r.get("id", ""), "state": state, "error": reject, "request": params}
     return {"ok": True, "order_id": r.get("id", ""), "state": state or "ORDER_STATE_NEW",
@@ -420,6 +463,7 @@ def preview_limit(slug: str, side: str, outcome: str, price: float, qty: float) 
     if not c:
         return {"ok": False, "error": "No Polymarket US client (keys missing)"}
     params = build_order(slug, side, outcome, price, qty, post_only=True)
+    params.pop("synchronousExecution", None)
     try:
         r = c.orders.preview({"request": params})
         return {"ok": True, "preview": r.get("order", r), "request": params}
@@ -448,9 +492,11 @@ def get_order_fill(order_id: str) -> dict:
         logger.debug("order lookup failed %s: %s", order_id, e)
         return {}
     state = o.get("state", "")
+    outcome = "no" if o.get("intent", "").endswith("SHORT") else "yes"
     return {
         "filled": float(o.get("cumQuantity") or 0),
-        "avg_price": _amt(o.get("avgPx")),
+        "avg_price": from_wire_price(outcome, _amt(o.get("avgPx"))),  # in terms of the outcome held
+        "outcome": outcome,
         "state": state,
         "final": state in ("ORDER_STATE_FILLED", "ORDER_STATE_CANCELED", "ORDER_STATE_EXPIRED",
                            "ORDER_STATE_REJECTED", "ORDER_STATE_REPLACED"),
@@ -523,7 +569,7 @@ def cancel_stale_orders(max_age_min: int = 120) -> int:
             age = (now - datetime.fromisoformat(ts.replace("Z", "+00:00"))).total_seconds() / 60
         except ValueError:
             continue
-        if age > max_age_min and o.get("side", "").endswith("BUY"):
+        if age > max_age_min and o.get("intent", "") in ("ORDER_INTENT_BUY_LONG", "ORDER_INTENT_BUY_SHORT"):
             if cancel(o.get("id", ""), o.get("marketSlug", "")):
                 n += 1
     if n:

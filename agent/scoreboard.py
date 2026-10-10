@@ -62,8 +62,16 @@ def _save_state(st: dict) -> None:
 
 def evaluate_ladder(rows: list[dict], bankroll: float, stage_start: str) -> dict:
     """Decide UP / HOLD / DOWN for the capital ladder from settled trades in this stage."""
-    stage = sorted([r for r in rows if r["resolved"] and r["timestamp"] >= stage_start[:19]],
-                   key=lambda r: r["timestamp"])
+    start_dt = datetime.fromisoformat(stage_start)
+
+    def _ts(r):
+        try:
+            t = datetime.fromisoformat(r["timestamp"])
+            return t if t.tzinfo else t.astimezone()
+        except (KeyError, ValueError):
+            return None
+
+    stage = sorted([r for r in rows if r["resolved"] and _ts(r) and _ts(r) >= start_dt], key=_ts)
     n = len(stage)
     cost = sum(r["cost"] for r in stage)
     pnl = sum(r["pnl"] for r in stage)
@@ -76,7 +84,6 @@ def evaluate_ladder(rows: list[dict], bankroll: float, stage_start: str) -> dict
         peak = max(peak, eq)
         dd = max(dd, peak - eq)
     live_share = (sum(1 for r in stage if not r["paper"]) / n) if n else 0.0
-    paper_mostly = live_share < 0.5
 
     nxt = next((x for x in LADDER if x > bankroll), None)
     prev = max([x for x in LADDER if x < bankroll], default=None)
@@ -85,10 +92,10 @@ def evaluate_ladder(rows: list[dict], bankroll: float, stage_start: str) -> dict
         f"ROI >= {MIN_ROI_UP:.0%}": roi >= MIN_ROI_UP,
         f"max drawdown < {MAX_DD_UP:.0%} of bankroll": dd < MAX_DD_UP * bankroll,
     }
-    if paper_mostly:
-        checks["taker-bound ROI > 0 (paper honesty check)"] = roi_t > 0
-    if bankroll >= 250:
-        checks[f"live fills >= {LIVE_SHARE_UP:.0%}"] = live_share >= LIVE_SHARE_UP
+    # Paper maker fills are assumed, so they can't earn real money a step up:
+    # every step needs mostly live fills AND a positive worst-case (taker) ROI.
+    checks["taker-bound ROI > 0"] = roi_t > 0
+    checks[f"live fills >= {LIVE_SHARE_UP:.0%}"] = live_share >= LIVE_SHARE_UP
 
     if dd > DD_DOWN * bankroll or (n >= MIN_TRADES_DOWN and roi < ROI_DOWN):
         verdict = "DOWN"
