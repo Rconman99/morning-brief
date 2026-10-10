@@ -91,9 +91,8 @@ def main():
     if res.get("ok"):
         o = res.get("preview") or {}
         print(f"preview YES ACCEPTED: state={o.get('state')} price={o.get('price')} qty={o.get('quantity')} intent={o.get('intent')}")
-        # NO side: a NO bid far below market (NO at 0.02 => wire YES price 0.98? no — NO at
-        # (1 - yes_ask) - margin). We bid NO at half its current bid so it would never fill,
-        # and confirm the exchange echoes the YES-terms wire price we expect.
+        # NO side: preview a NO bid at half the current NO bid (it would never fill) and
+        # show the YES-terms price actually sent, to confirm the NO price convention.
         no_bid = max(0.01, round((1 - (bbo.get("yes_ask") or 0.95)) * 0.5, 3))
         res_no = pm_us.preview_limit(slug, "BUY", "no", no_bid, 1)
         if not res_no.get("ok"):
