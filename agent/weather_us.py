@@ -56,6 +56,11 @@ STATIONS = {
     "lax": ("KLAX", 33.9382, -118.3866, -8),
 }
 UA = {"User-Agent": "polymarket-agent weather model (contact: repo owner)"}
+# Multi-model blend. At US points Open-Meteo "best_match" is just GFS, which can
+# sit 3-6F away from the consensus traders anchor on (NWS / NBM). NBM is the
+# NWS's own blend, so it gets double weight.
+MODELS = {"gfs_seamless": 1.0, "ecmwf_ifs025": 1.0, "icon_seamless": 1.0, "ncep_nbm_conus": 2.0}
+MAX_EDGE = float(os.environ.get("WX_MAX_EDGE", "0.25"))  # bigger "edges" are more likely model error than free money
 CAL_PATH = PROJECT_ROOT / "data" / "processed" / "weather_us_calibration.json"
 CAL_DAYS = int(os.environ.get("WX_CAL_DAYS", "75"))
 CAL_MAX_AGE_H = 20
@@ -113,29 +118,67 @@ def _daily_max_lst(times: list, temps: list, offset_h: int) -> dict:
     return {d: max(v) for d, v in by.items() if len(v) >= 20}
 
 
+def _blend(per_model: dict) -> dict:
+    """{model: {date: v}} -> {date: (weighted mean, model spread sd)} using available models."""
+    dates = set().union(*[set(v) for v in per_model.values()]) if per_model else set()
+    out = {}
+    for d in dates:
+        vals = [(per_model[m][d], MODELS[m]) for m in per_model if d in per_model[m]]
+        if len(vals) < 2:
+            continue
+        w = sum(x[1] for x in vals)
+        mean = sum(v * wt for v, wt in vals) / w
+        raw = [v for v, _ in vals]
+        mu = sum(raw) / len(raw)
+        sd = math.sqrt(sum((v - mu) ** 2 for v in raw) / (len(raw) - 1)) if len(raw) > 1 else 0.0
+        out[d] = (mean, sd)
+    return out
+
+
+def _hourly(params: dict, url: str) -> dict:
+    p = dict(params)
+    p.update({"timezone": "GMT", "temperature_unit": "fahrenheit", "models": ",".join(MODELS)})
+    return (_get(url, p) or {}).get("hourly", {})
+
+
 def archived_forecasts(lat, lon, offset_h, start: date, end: date) -> dict:
-    """{lead: {date: forecast_high}} for lead 0 (same-day run) and 1 (day-before run)."""
-    d = _get("https://previous-runs-api.open-meteo.com/v1/forecast", {
-        "latitude": lat, "longitude": lon, "timezone": "GMT",
-        "hourly": "temperature_2m,temperature_2m_previous_day1",
-        "temperature_unit": "fahrenheit",
-        "start_date": start.isoformat(), "end_date": end.isoformat(),
-    }) or {}
-    h = d.get("hourly", {})
+    """{lead: {date: (blend_high, spread)}} for lead 0 (same-day runs) and 1 (day-before runs)."""
+    h = _hourly({"latitude": lat, "longitude": lon,
+                 "hourly": "temperature_2m,temperature_2m_previous_day1",
+                 "start_date": start.isoformat(), "end_date": end.isoformat()},
+                "https://previous-runs-api.open-meteo.com/v1/forecast")
     times = h.get("time", [])
-    return {0: _daily_max_lst(times, h.get("temperature_2m", []), offset_h),
-            1: _daily_max_lst(times, h.get("temperature_2m_previous_day1", []), offset_h)}
+    out = {}
+    for lead, var in ((0, "temperature_2m"), (1, "temperature_2m_previous_day1")):
+        per = {m: _daily_max_lst(times, h.get(f"{var}_{m}", []), offset_h) for m in MODELS if h.get(f"{var}_{m}")}
+        out[lead] = _blend(per)
+    return out
 
 
 def current_forecast(lat, lon, offset_h) -> dict:
-    """{date: forecast_high} for today and the next 2 LST days (latest run)."""
-    d = _get("https://api.open-meteo.com/v1/forecast", {
-        "latitude": lat, "longitude": lon, "timezone": "GMT",
-        "hourly": "temperature_2m", "temperature_unit": "fahrenheit",
-        "past_days": 1, "forecast_days": 3,
-    }) or {}
-    h = d.get("hourly", {})
-    return _daily_max_lst(h.get("time", []), h.get("temperature_2m", []), offset_h)
+    """{date: (blend_high, spread, remaining_high_blend_or_None)} for recent/next LST days.
+
+    remaining_high = blended max over hours still to come today (used for lead 0).
+    """
+    h = _hourly({"latitude": lat, "longitude": lon, "hourly": "temperature_2m",
+                 "past_days": 1, "forecast_days": 3}, "https://api.open-meteo.com/v1/forecast")
+    times = h.get("time", [])
+    per = {m: _daily_max_lst(times, h.get(f"temperature_2m_{m}", []), offset_h) for m in MODELS if h.get(f"temperature_2m_{m}")}
+    blend = _blend(per)
+    # Remaining-hours max for the current LST day
+    tz = _lst(offset_h)
+    now = datetime.now(timezone.utc)
+    today = now.astimezone(tz).date().isoformat()
+    rem = {}
+    for m in MODELS:
+        vals = h.get(f"temperature_2m_{m}", [])
+        r = [v for t, v in zip(times, vals) if v is not None
+             and datetime.fromisoformat(t).replace(tzinfo=timezone.utc) >= now - timedelta(minutes=30)
+             and datetime.fromisoformat(t).replace(tzinfo=timezone.utc).astimezone(tz).date().isoformat() == today]
+        if r:
+            rem[m] = {today: max(r)}
+    rem_blend = _blend(rem) if len(rem) >= 2 else {}
+    return {d: (v[0], v[1], (rem_blend.get(d) or (None,))[0]) for d, v in blend.items()}
 
 
 def observed_max_so_far(station: str, offset_h: int, day: str) -> float | None:
@@ -177,7 +220,7 @@ def calibrate(force: bool = False) -> dict:
         fc = archived_forecasts(lat, lon, off, start, end)
         city = {}
         for lead in (0, 1):
-            res = [truth[d] - fc[lead][d] for d in fc[lead] if d in truth and start.isoformat() <= d <= end.isoformat()]
+            res = [truth[d] - fc[lead][d][0] for d in fc[lead] if d in truth and start.isoformat() <= d <= end.isoformat()]
             if len(res) < 15:
                 city[str(lead)] = {"n": len(res), "residuals": res, "bias": 0.0, "sd": 3.0}
                 continue
@@ -196,7 +239,8 @@ def _phi(x: float) -> float:
     return 0.5 * (1 + math.erf(x / math.sqrt(2)))
 
 
-def bracket_probs(forecast: float, cal: dict, lead: int, brackets: list[tuple], floor: float | None = None) -> list[float]:
+def bracket_probs(forecast: float, cal: dict, lead: int, brackets: list[tuple], floor: float | None = None,
+                  spread: float = 0.0, remaining: float | None = None, day_frac_left: float = 1.0) -> list[float]:
     """P(integer CLI high in [lo, hi]) for each bracket, from empirical residuals.
 
     Each residual r gives a scenario high = forecast + r, smoothed with a normal
@@ -209,13 +253,25 @@ def bracket_probs(forecast: float, cal: dict, lead: int, brackets: list[tuple], 
     floor_sd = MIN_SD.get(lead, 2.0)
     if sd_emp < floor_sd:
         k = math.sqrt(max(KERNEL_SD ** 2, floor_sd ** 2 - sd_emp ** 2))
+    # When the models disagree more than usual, widen (calibration already holds typical spread).
+    k = math.sqrt(k ** 2 + 0.5 * spread ** 2)
+
+    # Same day: the day's high = max(observed so far, what's still to come).
+    # Remaining-hours uncertainty shrinks with the fraction of the day left.
+    if lead == 0 and floor is not None and remaining is not None:
+        scen = [max(floor, remaining + r * max(day_frac_left, 0.15)) for r in res]
+        k = max(0.6, k * max(day_frac_left, 0.3))
+    else:
+        scen = [forecast + r for r in res]
 
     def cdf(x):  # P(continuous high < x)
-        return sum(_phi((x - (forecast + r)) / k) for r in res) / len(res)
+        return sum(_phi((x - c) / k) for c in scen) / len(scen)
 
     lo_cut = -1e9
     if floor is not None:
-        lo_cut = round(floor) - 0.5  # integer high >= rounded observed max
+        # METARs are whole degC, so the hourly max can understate the CLI max by
+        # up to ~0.9F; only rule out highs clearly below what was observed.
+        lo_cut = floor - 1.0
     base = 1.0 - cdf(lo_cut) if floor is not None else 1.0
     base = max(base, 1e-9)
     out = []
@@ -273,15 +329,22 @@ def price_markets(cal_all: dict) -> dict:
         stn, lat, lon, offh = STATIONS[code]
         if code not in fc_cache:
             fc_cache[code] = current_forecast(lat, lon, offh)
-        fc = fc_cache[code].get(day)
-        today_lst = datetime.now(_lst(offh)).date()
-        lead = (date.fromisoformat(day) - today_lst).days
-        if fc is None or lead < 0 or lead > 1:
+        fct = fc_cache[code].get(day)
+        now_lst = datetime.now(_lst(offh))
+        lead = (date.fromisoformat(day) - now_lst.date()).days
+        if fct is None or lead < 0 or lead > 1:
             continue
+        fc, spread, remaining = fct
         cal = cal_all.get("cities", {}).get(code, {}).get(str(lead), {})
         floor = observed_max_so_far(stn, offh, day) if lead == 0 else None
         bias = cal.get("bias", 0.0)
-        probs = bracket_probs(fc, cal, lead, [b for _, b in items], floor)
+        # fraction of the "heating day" (7am-7pm LST) still ahead
+        hrs = now_lst.hour + now_lst.minute / 60
+        day_frac_left = min(1.0, max(0.0, (19 - hrs) / 12))
+        if lead == 0 and remaining is not None and remaining < (floor or -1e9) - 3 and day_frac_left <= 0:
+            remaining = floor
+        probs = bracket_probs(fc, cal, lead, [b for _, b in items], floor, spread,
+                              remaining + bias if remaining is not None else None, day_frac_left)
         total = sum(probs) or 1.0
         probs = [p / total for p in probs]  # brackets are exhaustive
         for (m, b), p_yes in zip(items, probs):
@@ -290,7 +353,8 @@ def price_markets(cal_all: dict) -> dict:
                 continue
             yes_ask, no_ask = bbo.get("yes_ask") or 0, bbo.get("no_ask") or 0
             row = {"slug": m["slug"], "city": code, "date": day, "lead": lead, "bracket": m.get("title"),
-                   "forecast": round(fc, 1), "bias": bias, "obs_floor": round(floor, 1) if floor else None,
+                   "forecast": round(fc, 1), "spread": round(spread, 2),
+                   "remaining": round(remaining, 1) if remaining is not None else None, "bias": bias, "obs_floor": round(floor, 1) if floor else None,
                    "p_yes": round(p_yes, 4), "yes_ask": yes_ask, "no_ask": no_ask,
                    "yes_bid": bbo.get("yes_bid") or 0}
             rows.append(row)
@@ -300,6 +364,9 @@ def price_markets(cal_all: dict) -> dict:
                 fee = 0.0695 * ask * (1 - ask)  # worst case (taker) fee per share
                 edge = p - ask - fee
                 if edge < MIN_EDGE:
+                    continue
+                if edge > MAX_EDGE:
+                    logger.info("humility skip %s %s: model %.2f vs ask %.2f", m["slug"], side, p, ask)
                     continue
                 limit = round(min(ask, p - MIN_EDGE), 3)
                 proposals.append({
@@ -367,7 +434,7 @@ def main():
             flag = ""
             if r["p_yes"] >= MIN_PROB or 1 - r["p_yes"] >= MIN_PROB:
                 flag = " *"
-            print(f"{r['city']} {r['date']} L{r['lead']} fc {r['forecast']:>5} floor {str(r['obs_floor']):>5} "
+            print(f"{r['city']} {r['date']} L{r['lead']} fc {r['forecast']:>5}±{r['spread']:<4} rem {str(r['remaining']):>5} floor {str(r['obs_floor']):>5} "
                   f"{r['bracket']:<12} model YES {r['p_yes']*100:5.1f}%  mkt YES ask {r['yes_ask']:.3f} NO ask {r['no_ask']:.3f}{flag}")
         for p in d.get("proposals", []):
             print(f"PROPOSAL {p['side']} {p['question'][:60]} model {p['model_prob']:.3f} ask {p['ask']:.3f} "
