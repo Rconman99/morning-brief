@@ -19,13 +19,34 @@ from agent.executor import get_balance, get_paper_trades, get_mode
 logger = logging.getLogger(__name__)
 
 
+def _resolved_slugs() -> set:
+    """Markets the ledger has seen settle — their trades no longer tie up capital."""
+    try:
+        c = json.loads((PROJECT_ROOT / "agent" / "ledger_cache.json").read_text())
+        return set(c.get("settlements", {}).keys())
+    except (OSError, json.JSONDecodeError):
+        return set()
+
+
+def _group(t: dict) -> str:
+    g = t.get("group")
+    if g:
+        return g
+    try:
+        from agent.pm_us import group_key
+        return group_key(t.get("slug", ""))
+    except Exception:
+        return t.get("slug", "")
+
+
 def _calculate_exposure(trades: list) -> dict:
-    """Calculate current exposure from recent trades."""
-    # Only count trades from last 30 days that haven't resolved
+    """Current exposure from open (unsettled) trades in the last 30 days."""
     cutoff = (datetime.now() - timedelta(days=30)).isoformat()
+    resolved = _resolved_slugs()
     active_cost = 0.0
     category_cost = {}
-    daily_pnl = 0.0
+    strategy_cost = {}
+    groups = {}
 
     today = datetime.now().date().isoformat()
     week_ago = (datetime.now() - timedelta(days=7)).date().isoformat()
@@ -42,20 +63,42 @@ def _calculate_exposure(trades: list) -> dict:
         status = t.get("status", "")
 
         if status in ("paper_filled", "submitted"):
-            active_cost += cost
-            category_cost[cat] = category_cost.get(cat, 0) + cost
-
             if ts[:10] == today:
                 daily_cost += cost
             if ts[:10] >= week_ago:
                 weekly_cost += cost
+            if t.get("slug") in resolved:
+                continue  # settled: capital is back
+            active_cost += cost
+            category_cost[cat] = category_cost.get(cat, 0) + cost
+            strat = t.get("strategy", "unknown")
+            strategy_cost[strat] = strategy_cost.get(strat, 0) + cost
+            g = _group(t)
+            groups[g] = groups.get(g, 0) + 1
 
     return {
         "total_deployed": active_cost,
         "by_category": category_cost,
+        "by_strategy": strategy_cost,
+        "groups": groups,
         "today_deployed": daily_cost,
         "week_deployed": weekly_cost,
     }
+
+
+def strategy_budgets(bankroll: float, active: set) -> dict:
+    """Capital budget per active strategy, proportional to its performance weight.
+
+    Weights come from agent/strategy_params.json and are moved by the evaluator
+    using *realized* results (agent/ledger.py): winners get more, losers less,
+    clamped to [STRATEGY_WEIGHT_MIN, STRATEGY_WEIGHT_MAX] so a new strategy
+    always keeps some exploration capital.
+    """
+    params = config.load_agent_config()
+    w = {s: float((params.get(s) or {}).get("weight", 1.0)) for s in active}
+    total = sum(w.values()) or 1.0
+    deployable = bankroll * config.MAX_TOTAL_EXPOSURE_PCT
+    return {s: round(deployable * w[s] / total, 2) for s in active}
 
 
 def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
@@ -80,6 +123,29 @@ def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
         proposal["size_usd"] = adjusted
         proposal["size_shares"] = adjusted / max(proposal.get("price", 0.5), 0.01)
         cost = adjusted
+
+    # 1b. Correlation: one position per event group (same underlying + date).
+    group = _group(proposal)
+    if exposure["groups"].get(group, 0) >= config.MAX_POSITIONS_PER_GROUP:
+        return {
+            "approved": False,
+            "reason": f"Already holding {exposure['groups'][group]} position(s) in event group '{group}'",
+        }
+
+    # 1c. Strategy budget: capital follows realized performance (see strategy_budgets).
+    budgets = proposal.get("_budgets") or {}
+    if strategy in budgets:
+        used = exposure["by_strategy"].get(strategy, 0)
+        room = budgets[strategy] - used
+        if room < 1.0:
+            return {
+                "approved": False,
+                "reason": f"Strategy '{strategy}' budget ${budgets[strategy]:.0f} used (${used:.0f} open)",
+            }
+        if cost > room:
+            proposal["size_usd"] = room
+            proposal["size_shares"] = room / max(proposal.get("price", 0.5), 0.01)
+            cost = room
 
     # 2. Total exposure
     total_after = exposure["total_deployed"] + cost
@@ -195,15 +261,33 @@ def check_proposal(proposal: dict, bankroll: float, trades: list) -> dict:
 
 def filter_proposals(proposals: list, bankroll: float) -> list:
     """Run all proposals through the risk gate. Returns approved proposals."""
-    trades = get_paper_trades()
+    trades = list(get_paper_trades())
     approved = []
 
+    exposure = _calculate_exposure(trades)
+    active = {p.get("strategy", "unknown") for p in proposals} | set(exposure["by_strategy"].keys())
+    budgets = strategy_budgets(bankroll, active)
+    if budgets:
+        logger.info("Strategy budgets: %s", ", ".join(f"{k} ${v:.0f}" for k, v in sorted(budgets.items())))
+
     for p in proposals:
+        p["_budgets"] = budgets
         result = check_proposal(p, bankroll, trades)
+        p.pop("_budgets", None)
         p["risk_check"] = result
 
         if result["approved"]:
             approved.append(p)
+            # Count this approval against limits for the rest of the run.
+            trades.append({
+                "timestamp": datetime.now().isoformat(),
+                "status": "paper_filled",
+                "cost_usd": p.get("size_usd", 0),
+                "strategy": p.get("strategy", "unknown"),
+                "category": p.get("category", "other"),
+                "slug": p.get("slug", ""),
+                "group": _group(p),
+            })
             logger.info("APPROVED: %s — %s", p.get("question", "")[:50], result["reason"])
         else:
             logger.info("REJECTED: %s — %s", p.get("question", "")[:50], result["reason"])

@@ -307,8 +307,14 @@ def _place_limit_order_us(side, price, size, market_question, strategy, reason,
         order_record["error"] = "size rounds to 0 shares (US orders are whole shares)"
         return order_record
 
-    # Price guard: don't lift an offer above our limit, and make sure there's depth.
+    # Price guard + maker pricing. Research (Kalshi 2021-25, 46k contracts): buying
+    # favorites as a MAKER is the only bucket with positive post-fee returns, and
+    # Polymarket US pays makers a rebate while charging takers. So by default we
+    # rest a post-only bid at/just above the best bid instead of lifting the ask.
+    # POLYMARKET_US_MAKER=0 restores taker behaviour (buy at the ask, never above limit).
+    maker = os.environ.get("POLYMARKET_US_MAKER", "1").strip() not in ("0", "false", "no")
     bbo = pm_us.get_bbo(us_slug)
+    ask = 0.0
     if bbo:
         if bbo.get("state") and bbo["state"] != "MARKET_STATE_OPEN":
             order_record["status"] = "error"
@@ -318,7 +324,7 @@ def _place_limit_order_us(side, price, size, market_question, strategy, reason,
                 f.write(json.dumps(order_record) + "\n")
             return order_record
         ask = bbo["yes_ask"] if outcome == "yes" else bbo["no_ask"]
-        if side.upper() == "BUY" and ask and ask > price + 0.0005:
+        if not maker and side.upper() == "BUY" and ask and ask > price + 0.0005:
             order_record["status"] = "error"
             order_record["error"] = f"ask {ask:.3f} above limit {price:.3f} — not chasing"
             logger.warning("BLOCKED: %s %s ask %.3f > limit %.3f", us_slug, outcome.upper(), ask, price)
@@ -326,26 +332,39 @@ def _place_limit_order_us(side, price, size, market_question, strategy, reason,
                 f.write(json.dumps(order_record) + "\n")
             return order_record
 
+    order_price = price
+    if maker and side.upper() == "BUY":
+        order_price, ask_seen = pm_us.maker_price(us_slug, outcome, price, bbo)
+        ask = ask_seen or ask
+    order_record.update({
+        "role": "maker" if maker else "taker",
+        "fill_price": round(order_price, 4),
+        "ask_at_entry": round(ask, 4) if ask else None,
+        "group": pm_us.group_key(us_slug),
+        "cost_usd": round(order_price * int(size), 2),
+    })
+
     if mode == "paper":
+        # Paper maker fills are assumed at our bid (optimistic); the ledger also
+        # scores each one as a taker buy at ask_at_entry so the edge is bounded.
         order_record["status"] = "paper_filled"
         order_record["order_id"] = f"paper_{int(datetime.now().timestamp())}"
         with open(PAPER_TRADE_LOG, "a") as f:
             f.write(json.dumps(order_record) + "\n")
-        logger.info("[PAPER/US] %s %s %d shares @ %.3f ($%.2f) — %s | %s",
-                    side, outcome.upper(), int(size), price, price * int(size),
-                    market_question[:50], reason[:50])
+        logger.info("[PAPER/US %s] %s %s %d shares @ %.3f (ask %.3f) ($%.2f) — %s | %s",
+                    order_record["role"], side, outcome.upper(), int(size), order_price, ask or 0,
+                    order_price * int(size), market_question[:50], reason[:50])
         return order_record
 
-    # post_only=False: a resting GTC limit at/below the ask is maker; if it crosses
-    # we still want the fill (post-only would reject it, and we already checked the ask).
-    res = pm_us.place_limit(us_slug, side, outcome, price, size, post_only=False)
+    res = pm_us.place_limit(us_slug, side, outcome, order_price, size, post_only=maker)
     if res.get("ok"):
         order_record["status"] = "submitted"
         order_record["order_id"] = res.get("order_id", "")
         order_record["response"] = {"state": res.get("state"), "filled": res.get("filled", 0)}
-        logger.info("[LIVE/US] %s %s %d shares @ %.3f ($%.2f) — %s | order %s (%s)",
-                    side, outcome.upper(), int(size), price, price * int(size),
-                    market_question[:50], str(res.get("order_id", ""))[:12], res.get("state"))
+        logger.info("[LIVE/US %s] %s %s %d shares @ %.3f ($%.2f) — %s | order %s (%s)",
+                    order_record["role"], side, outcome.upper(), int(size), order_price,
+                    order_price * int(size), market_question[:50],
+                    str(res.get("order_id", ""))[:12], res.get("state"))
     else:
         order_record["status"] = "error"
         order_record["error"] = res.get("error", "rejected")

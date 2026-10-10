@@ -30,70 +30,44 @@ EVAL_LOG = PROJECT_ROOT / "agent" / "eval_history.jsonl"
 PERF_LOG = PROJECT_ROOT / "agent" / "performance.json"
 
 
+MIN_RESOLVED_TO_RANK = 10   # settled trades a strategy needs before its weight can move
+
+
 def calculate_strategy_performance(trades: list, days: int = None) -> dict:
-    """Calculate performance metrics per strategy from trade history.
+    """Per-strategy performance from REAL settlements (agent/ledger.py).
 
-    Returns: {strategy_name: {pnl, trades, wins, losses, win_rate, sharpe, avg_return}}
+    The previous version assumed every paper trade priced >=90¢ won, which is
+    what produced the inflated "7-0" record. Now a trade only counts once its
+    market has settled; strategies with fewer than MIN_RESOLVED_TO_RANK settled
+    trades are reported but not ranked (their weight doesn't move).
+
+    `trades` and `days` are kept for signature compatibility; the ledger reads
+    the trade log itself and scores everything that has settled.
     """
-    if days is None:
-        days = EVAL_CYCLE_DAYS
-
-    cutoff = (datetime.now() - timedelta(days=days)).isoformat()
-    recent = [t for t in trades if t.get("timestamp", "") >= cutoff]
-
-    by_strategy = defaultdict(list)
-    for t in recent:
-        strategy = t.get("strategy", "unknown")
-        by_strategy[strategy].append(t)
+    try:
+        from agent.ledger import build
+        _, summary = build(refresh_settlements=True)
+    except Exception as e:
+        logger.warning("Ledger unavailable (%s) — skipping evaluation", e)
+        return {}
 
     results = {}
-    for strategy, strades in by_strategy.items():
-        costs = [t.get("cost_usd", 0) for t in strades]
-        # For paper trades, estimate P&L based on edge
-        # In live mode, we'd check resolution status
-        returns = []
-        wins = 0
-        losses = 0
-
-        for t in strades:
-            price = t.get("price", 0.5)
-            # Gimme bets: expected return = (1 - price) / price
-            # Weather edge: expected return = edge_pct
-            if price > 0 and price < 1:
-                expected_return = (1.0 - price) / price
-                returns.append(expected_return)
-                # For paper mode, assume gimme bets (>90%) resolve correctly 95% of the time
-                if price >= 0.90:
-                    wins += 1
-                elif price >= 0.60:
-                    wins += 1  # Weather edge with high confidence
-                else:
-                    losses += 1
-
-        total_cost = sum(costs)
-        avg_return = sum(returns) / len(returns) if returns else 0
-        win_rate = wins / (wins + losses) if (wins + losses) > 0 else 0
-
-        # Sharpe ratio approximation
-        if len(returns) >= 2:
-            mean_r = sum(returns) / len(returns)
-            var_r = sum((r - mean_r) ** 2 for r in returns) / (len(returns) - 1)
-            std_r = math.sqrt(var_r) if var_r > 0 else 0.001
-            sharpe = mean_r / std_r
-        else:
-            sharpe = 0
-
+    for strategy, v in summary.items():
+        if v["resolved"] < MIN_RESOLVED_TO_RANK:
+            logger.info("  %s: %d settled trades (<%d) — not ranked yet",
+                        strategy, v["resolved"], MIN_RESOLVED_TO_RANK)
+            continue
         results[strategy] = {
-            "trades": len(strades),
-            "total_cost": round(total_cost, 2),
-            "wins": wins,
-            "losses": losses,
-            "win_rate": round(win_rate, 3),
-            "avg_return": round(avg_return, 4),
-            "sharpe": round(sharpe, 3),
-            "returns": [round(r, 4) for r in returns],
+            "trades": v["resolved"],
+            "total_cost": v["deployed"],
+            "wins": v["wins"],
+            "losses": v["losses"],
+            "win_rate": v["win_rate"],
+            "avg_return": v["roi"],
+            "sharpe": v["sharpe"],
+            "pnl": v["pnl"],
+            "pnl_taker_bound": v["pnl_taker_bound"],
         }
-
     return results
 
 
@@ -116,9 +90,12 @@ def adjust_weights(params: dict, performance: dict) -> dict:
 
         old_weight = params[strategy].get("weight", 1.0)
 
-        if i == 0:  # Best performer
+        roi = perf.get("avg_return", 0)
+        if roi < 0:  # Losing money after fees: always shrink, whatever the rank
+            new_weight = old_weight * (1 - STRATEGY_WEIGHT_ADJUST)
+        elif i == 0 and roi > 0:  # Best performer and actually profitable
             new_weight = old_weight * (1 + STRATEGY_WEIGHT_ADJUST)
-        elif i == len(ranked) - 1:  # Worst performer
+        elif i == len(ranked) - 1 and len(ranked) > 1:  # Worst of several
             new_weight = old_weight * (1 - STRATEGY_WEIGHT_ADJUST)
         else:
             new_weight = old_weight  # Middle stays

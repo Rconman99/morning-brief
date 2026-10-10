@@ -5,13 +5,15 @@ They are the non-negotiable guardrails that prevent catastrophic loss.
 """
 
 import json
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # --- HARD LIMITS (agent cannot modify these) ---
 
-MAX_SINGLE_POSITION_PCT = 0.10      # 10% of bankroll on any one market
+MAX_SINGLE_POSITION_PCT = float(os.environ.get("MAX_SINGLE_POSITION_PCT", "0.05"))  # 5% of bankroll per market (was 10%; per-trade σ≈33% on favorites)
+MAX_POSITIONS_PER_GROUP = int(os.environ.get("MAX_POSITIONS_PER_GROUP", "1"))     # one bet per event (same underlying + date)
 MAX_TOTAL_EXPOSURE_PCT = 0.95       # 95% max deployed (5% cash buffer)
 MAX_CATEGORY_EXPOSURE_PCT = 0.50    # 50% max in any one category (e.g., BTC)
 MAX_DAILY_LOSS_PCT = 0.05           # 5% daily loss → pause 24h

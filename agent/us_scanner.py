@@ -23,6 +23,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import argparse
 import logging
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -44,6 +45,10 @@ MAX_PAGES = int(os.environ.get("US_GIMME_MAX_PAGES", "100"))
 # too unless told otherwise — it keeps the book-confirmation budget on the
 # markets that can actually be traded.
 SKIP_CATEGORIES = {c.strip().lower() for c in os.environ.get("US_GIMME_SKIP_CATEGORIES", "sports").split(",") if c.strip()}
+# Intraday/daily crypto price brackets (cpc-*) are fast-bot territory: >70% of
+# crypto-arb profit goes to sub-100ms bots; a 15-minute bot is their liquidity.
+# Skipped by default until a spot+volatility pricing model exists.
+SKIP_SLUG_REGEX = os.environ.get("US_GIMME_SKIP_SLUG_REGEX", r"^cpc-")
 PAGE = 100
 
 
@@ -79,6 +84,9 @@ def scan(max_bbo_calls: int = MAX_BBO_CALLS) -> dict:
             continue
         in_window += 1
         if (m.get("category") or "other").lower() in SKIP_CATEGORIES:
+            skipped_cat += 1
+            continue
+        if SKIP_SLUG_REGEX and re.search(SKIP_SLUG_REGEX, m.get("slug", "")):
             skipped_cat += 1
             continue
         yes_q, no_q = side_prices(m)

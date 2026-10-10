@@ -16,6 +16,8 @@ agent/paper_trades.jsonl
 agent/runs.jsonl
 agent/bankroll.json
 agent/pending_exits.json
+agent/ledger_cache.json
+agent/capital_state.json
 agent/resolved_notified.json
 agent/vps.log
 agent/agent.log

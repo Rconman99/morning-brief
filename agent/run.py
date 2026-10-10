@@ -191,6 +191,16 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
         if isinstance(strategy_params, dict):
             strategy_params["bankroll"] = bankroll
 
+    # 1.4. Polymarket US live: cancel resting maker bids that have gone stale so
+    # capital isn't parked on quotes the market walked away from.
+    if mode == "live" and not dry_run:
+        try:
+            from agent.pm_us import is_us, cancel_stale_orders
+            if is_us():
+                cancel_stale_orders(int(os.environ.get("POLYMARKET_US_ORDER_TTL_MIN", "120")))
+        except Exception as e:
+            logger.warning("stale-order sweep skipped: %s", e)
+
     # 1.5. Auto-exit: take profit on positions at/above AUTO_EXIT_PRICE
     # Disabled by default while pre-existing hold-to-resolution positions are open;
     # flip AUTO_EXIT_ENABLED in config.py once those have settled.

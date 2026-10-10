@@ -23,4 +23,5 @@ git pull origin main --quiet 2>/dev/null
 .venv/bin/python3 agent/us_scanner.py >> "$LOG" 2>&1
 .venv/bin/python3 agent/run.py --bankroll "$BANKROLL" >> "$LOG" 2>&1
 .venv/bin/python3 agent/tracker.py >> "$LOG" 2>&1
+.venv/bin/python3 agent/scoreboard.py --telegram >> "$LOG" 2>&1
 echo "--- $(date) --- venue=$POLYMARKET_VENUE" >> "$LOG"

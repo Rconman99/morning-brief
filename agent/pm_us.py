@@ -427,6 +427,110 @@ def preview_limit(slug: str, side: str, outcome: str, price: float, qty: float) 
         return {"ok": False, "error": str(e), "request": params}
 
 
+def get_settlement(slug: str) -> float | None:
+    """Settled value of the YES side (1.0 / 0.0, occasionally 0.5), or None if not settled."""
+    try:
+        r = _call_paced(get_public_client().markets.settlement, slug, retries=1)
+        v = r.get("settlement") if isinstance(r, dict) else None
+        return float(v) if v is not None else None
+    except Exception:
+        return None
+
+
+def get_order_fill(order_id: str) -> dict:
+    """{'filled': shares, 'avg_price': px, 'state': ..., 'final': bool} for a live order, {} on error."""
+    c = get_client()
+    if not c:
+        return {}
+    try:
+        o = c.orders.retrieve(order_id).get("order", {})
+    except Exception as e:
+        logger.debug("order lookup failed %s: %s", order_id, e)
+        return {}
+    state = o.get("state", "")
+    return {
+        "filled": float(o.get("cumQuantity") or 0),
+        "avg_price": _amt(o.get("avgPx")),
+        "state": state,
+        "final": state in ("ORDER_STATE_FILLED", "ORDER_STATE_CANCELED", "ORDER_STATE_EXPIRED",
+                           "ORDER_STATE_REJECTED", "ORDER_STATE_REPLACED"),
+    }
+
+
+_GENERIC = {"cpc", "tc", "tec", "temp", "above", "below", "range", "day", "hr", "wk", "mo",
+            "high", "low", "gte", "lt", "price", "close"}
+_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def group_key(slug: str) -> str:
+    """Event group for correlation limits: markets on the same underlying and date.
+
+    cpc-btc-above-day-2026-10-10-84250   -> btc|2026-10-10
+    cpc-btc-range-day-2026-10-10-82000   -> btc|2026-10-10
+    tc-temp-miahigh-2026-10-11-gte93lt94f -> miahigh|2026-10-11
+    tec-mlb-champ-2026-09-27-cws          -> mlb-champ|2026-09-27
+    """
+    s = (slug or "").lower()
+    m = _DATE.search(s)
+    if not m:
+        return s.rsplit("-", 1)[0]
+    head = [tok for tok in s[:m.start()].strip("-").split("-") if tok and tok not in _GENERIC]
+    return f"{'-'.join(head)}|{m.group(0)}"
+
+
+def maker_price(slug: str, outcome: str, limit: float, bbo: dict | None = None) -> tuple[float, float]:
+    """(price to post, ask at entry) for a resting BUY that won't cross the spread.
+
+    Joins the best bid, or improves it by one tick when the spread is wider than
+    one tick, never above our limit and never at/above the ask.
+    """
+    bbo = bbo or get_bbo(slug)
+    tick = float(get_market(slug).get("orderPriceMinTickSize") or 0.001)
+    if not bbo:
+        return round_to_tick(limit, tick), 0.0
+    if outcome == "yes":
+        bid, ask = bbo.get("yes_bid", 0.0), bbo.get("yes_ask", 0.0)
+    else:
+        bid = round(1.0 - bbo["yes_ask"], 6) if bbo.get("yes_ask") else 0.0
+        ask = bbo.get("no_ask", 0.0)
+    if not bid:
+        px = limit
+    elif ask and ask - bid > tick * 1.5:
+        px = bid + tick
+    else:
+        px = bid
+    px = min(px, limit)
+    if ask:
+        px = min(px, ask - tick)
+    return round_to_tick(px, tick), ask
+
+
+def cancel_stale_orders(max_age_min: int = 120) -> int:
+    """Cancel live resting orders older than max_age_min so capital isn't parked on stale quotes."""
+    c = get_client()
+    if not c:
+        return 0
+    n = 0
+    now = datetime.now(timezone.utc)
+    try:
+        orders = c.orders.list().get("orders", []) or []
+    except Exception as e:
+        logger.warning("stale-order sweep failed: %s", e)
+        return 0
+    for o in orders:
+        ts = o.get("createTime") or o.get("insertTime") or ""
+        try:
+            age = (now - datetime.fromisoformat(ts.replace("Z", "+00:00"))).total_seconds() / 60
+        except ValueError:
+            continue
+        if age > max_age_min and o.get("side", "").endswith("BUY"):
+            if cancel(o.get("id", ""), o.get("marketSlug", "")):
+                n += 1
+    if n:
+        logger.info("Cancelled %d stale resting order(s) older than %d min", n, max_age_min)
+    return n
+
+
 def cancel(order_id: str, slug: str) -> bool:
     c = get_client()
     if not c:
