@@ -15,6 +15,9 @@ __pycache__/
 agent/paper_trades.jsonl
 agent/runs.jsonl
 agent/bankroll.json
+agent/pending_exits.json
+agent/resolved_notified.json
+agent/vps.log
 agent/agent.log
 agent/launchd.log
 agent/eval_history.jsonl
