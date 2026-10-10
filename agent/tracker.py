@@ -25,19 +25,32 @@ def load_env():
                 os.environ.setdefault(k.strip(), v.strip())
 
 
+def _us() -> bool:
+    from agent.pm_us import is_us
+    return is_us()
+
+
 def get_client():
-    """Authenticated Polymarket SDK client (shared, cached). See agent/pm_client.py."""
+    """Authenticated client for the active venue (shared, cached)."""
+    if _us():
+        from agent.pm_us import get_client as _get_us
+        return _get_us()
     from agent.pm_client import get_client as _get
     return _get()
 
 
 def get_wallet() -> str:
-    """The account wallet (Deposit Wallet) that holds funds and positions."""
+    """The account that holds funds and positions (Deposit Wallet, or the US account label)."""
+    if _us():
+        return "polymarket.us account"
     from agent.pm_client import get_wallet_address
     return get_wallet_address()
 
 
 def get_positions(wallet: str) -> list:
+    if _us():
+        from agent.pm_us import load_positions as us_positions
+        return us_positions()
     resp = requests.get(
         "https://data-api.polymarket.com/positions",
         params={"user": wallet, "sizeThreshold": "0.01"},
@@ -47,6 +60,8 @@ def get_positions(wallet: str) -> list:
 
 
 def get_activity(wallet: str, limit: int = 50) -> list:
+    if _us():
+        return []  # US API activity has a different shape; not surfaced yet
     resp = requests.get(
         "https://data-api.polymarket.com/activity",
         params={"user": wallet, "limit": str(limit)},
@@ -83,7 +98,10 @@ def main():
     # Open orders via CLOB
     client = get_client()
     if client:
-        from agent.pm_client import list_open_orders
+        if _us():
+            from agent.pm_us import list_open_orders
+        else:
+            from agent.pm_client import list_open_orders
         orders = list_open_orders()
         if isinstance(orders, list) and orders:
             print(f"OPEN ORDERS ({len(orders)})")

@@ -89,8 +89,22 @@ def resolve_token_ids(slug: str) -> dict:
     return {}
 
 
+def get_venue() -> str:
+    """'us' = Polymarket US (polymarket.us API); 'polygon' = legacy polymarket.com CLOB."""
+    from agent.pm_us import venue
+    return venue()
+
+
 def get_mode() -> str:
-    """Returns 'live' if private key is configured, otherwise 'paper'."""
+    """Returns 'live' if credentials for the active venue are configured, otherwise 'paper'.
+
+    Set POLYMARKET_PAPER=1 to force paper mode regardless of credentials.
+    """
+    if os.environ.get("POLYMARKET_PAPER", "").strip() in ("1", "true", "yes"):
+        return "paper"
+    if get_venue() == "us":
+        from agent.pm_us import has_keys
+        return "live" if has_keys() else "paper"
     key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
     if key and len(key) > 10:
         return "live"
@@ -136,6 +150,10 @@ def place_limit_order(
     if size <= 0:
         logger.warning("BLOCKED: Invalid size %.2f for %s", size, market_question[:50])
         return {"status": "error", "error": f"Invalid size {size}", "timestamp": now}
+
+    # Polymarket US venue: orders are keyed by US market slug + YES/NO intent.
+    if get_venue() == "us":
+        return _place_limit_order_us(side, price, size, market_question, strategy, reason, slug, token_hint, now, mode)
 
     # Resolve real token ID from slug if we have one
     resolved_token = token_id
@@ -237,8 +255,109 @@ def place_limit_order(
     return order_record
 
 
+def _place_limit_order_us(side, price, size, market_question, strategy, reason,
+                          slug, token_hint, now, mode) -> dict:
+    """Polymarket US execution path (see agent/pm_us.py).
+
+    `slug` must be a US market slug (the US scanner emits these). If a proposal
+    comes from a polymarket.com-based strategy, we try a text match against the
+    US exchange and skip when there is no confident match.
+    """
+    from agent import pm_us
+
+    outcome = (token_hint or "yes").lower()
+    if outcome not in ("yes", "no"):
+        outcome = "yes"
+    us_slug = slug if (slug and pm_us.get_market(slug)) else ""
+    if not us_slug and market_question:
+        m = pm_us.find_market(market_question)
+        if m:
+            us_slug = m.get("slug", "")
+            logger.info("Matched %r -> US market %s (score %.2f)", market_question[:50], us_slug, m.get("match_score", 0))
+
+    order_record = {
+        "timestamp": now,
+        "mode": mode,
+        "venue": "us",
+        "token_id": us_slug or slug,
+        "slug": us_slug or slug,
+        "token_hint": outcome,
+        "side": side.upper(),
+        "price": round(price, 4),
+        "size": int(size),
+        "cost_usd": round(price * int(size), 2),
+        "market": market_question[:100],
+        "strategy": strategy,
+        "reason": reason,
+        "status": "pending",
+        "order_type": "limit",
+        "role": "maker",
+    }
+
+    if not us_slug:
+        order_record["status"] = "no_us_market"
+        order_record["error"] = f"No Polymarket US market matched: {slug or market_question[:60]}"
+        logger.warning("SKIPPED (no US market): %s", market_question[:60])
+        with open(PAPER_TRADE_LOG, "a") as f:
+            f.write(json.dumps(order_record) + "\n")
+        return order_record
+
+    if int(size) < 1:
+        order_record["status"] = "error"
+        order_record["error"] = "size rounds to 0 shares (US orders are whole shares)"
+        return order_record
+
+    # Price guard: don't lift an offer above our limit, and make sure there's depth.
+    bbo = pm_us.get_bbo(us_slug)
+    if bbo:
+        if bbo.get("state") and bbo["state"] != "MARKET_STATE_OPEN":
+            order_record["status"] = "error"
+            order_record["error"] = f"market not open ({bbo['state']})"
+            logger.warning("BLOCKED: %s is %s", us_slug, bbo["state"])
+            with open(PAPER_TRADE_LOG, "a") as f:
+                f.write(json.dumps(order_record) + "\n")
+            return order_record
+        ask = bbo["yes_ask"] if outcome == "yes" else bbo["no_ask"]
+        if side.upper() == "BUY" and ask and ask > price + 0.0005:
+            order_record["status"] = "error"
+            order_record["error"] = f"ask {ask:.3f} above limit {price:.3f} — not chasing"
+            logger.warning("BLOCKED: %s %s ask %.3f > limit %.3f", us_slug, outcome.upper(), ask, price)
+            with open(PAPER_TRADE_LOG, "a") as f:
+                f.write(json.dumps(order_record) + "\n")
+            return order_record
+
+    if mode == "paper":
+        order_record["status"] = "paper_filled"
+        order_record["order_id"] = f"paper_{int(datetime.now().timestamp())}"
+        with open(PAPER_TRADE_LOG, "a") as f:
+            f.write(json.dumps(order_record) + "\n")
+        logger.info("[PAPER/US] %s %s %d shares @ %.3f ($%.2f) — %s | %s",
+                    side, outcome.upper(), int(size), price, price * int(size),
+                    market_question[:50], reason[:50])
+        return order_record
+
+    # post_only=False: a resting GTC limit at/below the ask is maker; if it crosses
+    # we still want the fill (post-only would reject it, and we already checked the ask).
+    res = pm_us.place_limit(us_slug, side, outcome, price, size, post_only=False)
+    if res.get("ok"):
+        order_record["status"] = "submitted"
+        order_record["order_id"] = res.get("order_id", "")
+        order_record["response"] = {"state": res.get("state"), "filled": res.get("filled", 0)}
+        logger.info("[LIVE/US] %s %s %d shares @ %.3f ($%.2f) — %s | order %s (%s)",
+                    side, outcome.upper(), int(size), price, price * int(size),
+                    market_question[:50], str(res.get("order_id", ""))[:12], res.get("state"))
+    else:
+        order_record["status"] = "error"
+        order_record["error"] = res.get("error", "rejected")
+        logger.error("US order failed: %s", order_record["error"])
+
+    with open(PAPER_TRADE_LOG, "a") as f:
+        f.write(json.dumps(order_record) + "\n")
+    return order_record
+
+
 def get_balance() -> float:
-    """Get available USDC balance. Returns 0 in paper mode."""
+    """Get available collateral balance. Returns the paper bankroll in paper mode."""
     mode = get_mode()
     if mode == "paper":
         # Read paper bankroll from config
@@ -251,6 +370,9 @@ def get_balance() -> float:
                 pass
         return 1000.0  # Default $1K paper bankroll
 
+    if get_venue() == "us":
+        from agent.pm_us import get_balance as us_balance
+        return us_balance()
     from agent.pm_client import get_collateral_balance
     return get_collateral_balance()
 

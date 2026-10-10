@@ -114,8 +114,14 @@ def scan_gimme_bets(params: dict) -> list:
     Uses the existing polymarket_scanner's gimme_bets detection.
     """
     from agent.config import AUTO_EXIT_PRICE
+    import os
 
-    pm = _load_signal("polymarket.json")
+    # Venue switch: on Polymarket US the candidates come from agent/us_scanner.py
+    # (same shape, US market slugs, venue="us") instead of the polymarket.com scanner.
+    if os.environ.get("POLYMARKET_VENUE", "").strip().lower() == "us":
+        pm = _load_signal("polymarket_us.json")
+    else:
+        pm = _load_signal("polymarket.json")
     if not pm:
         return []
 
@@ -141,7 +147,11 @@ def scan_gimme_bets(params: dict) -> list:
         price = g.get("price", 0)
         if price < min_price:
             continue
-        if g.get("volume_24h", 0) < min_vol:
+        if g.get("venue") == "us":
+            # US API has no 24h volume; the scanner records resting depth at the quote.
+            if g.get("depth_shares", 0) < max(min_shares, 100):
+                continue
+        elif g.get("volume_24h", 0) < min_vol:
             continue
         if g.get("days_to_expiry") is not None and g["days_to_expiry"] > max_days:
             continue
@@ -176,6 +186,7 @@ def scan_gimme_bets(params: dict) -> list:
 
         proposals.append({
             "strategy": "gimme_bets",
+            "venue": g.get("venue", "polygon"),
             "question": g.get("question", ""),
             "slug": g.get("slug", ""),
             "side": "BUY",

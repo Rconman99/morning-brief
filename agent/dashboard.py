@@ -28,15 +28,26 @@ if env_path.exists():
             os.environ.setdefault(k.strip(), v.strip())
 
 
+def _us():
+    from agent.pm_us import is_us
+    return is_us()
+
+
 def get_wallet():
     # POLYMARKET_WALLET (Deposit Wallet) → POLYMARKET_WALLET_ADDRESS (read-only
-    # override) → address derived from the signer key.
+    # override) → address derived from the signer key. On the US venue there is
+    # no wallet; the label is just the account.
+    if _us():
+        return "polymarket.us account"
     from agent.pm_client import get_wallet_address
     return get_wallet_address()
 
 
 def get_positions(wallet):
     try:
+        if _us():
+            from agent.pm_us import load_positions
+            return load_positions()
         r = requests.get(f"https://data-api.polymarket.com/positions?user={wallet}&sizeThreshold=0.01", timeout=15)
         return r.json() if r.status_code == 200 else []
     except:
@@ -45,6 +56,8 @@ def get_positions(wallet):
 
 def get_activity(wallet, limit=20):
     try:
+        if _us():
+            return []
         r = requests.get(f"https://data-api.polymarket.com/activity?user={wallet}&limit={limit}", timeout=15)
         return r.json() if r.status_code == 200 else []
     except:
@@ -53,7 +66,10 @@ def get_activity(wallet, limit=20):
 
 def get_open_orders():
     try:
-        from agent.pm_client import list_open_orders
+        if _us():
+            from agent.pm_us import list_open_orders
+        else:
+            from agent.pm_client import list_open_orders
         return list_open_orders()
     except Exception:
         return []

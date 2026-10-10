@@ -74,6 +74,17 @@ def close_position(client, position, dry_run=False):
         print("  [dry-run — no order sent]")
         return {"status": "dry_run"}
 
+    if position.get("venue") == "us":
+        # Polymarket US: sell what we hold (YES = SELL_LONG, NO = SELL_SHORT) by slug.
+        from agent import pm_us
+        res = pm_us.place_limit(position["slug"], "SELL", position.get("outcome", "yes"),
+                                target, int(position.get("available", shares) or shares), post_only=False)
+        if res.get("ok"):
+            print(f"  ✓ order {res.get('order_id')} ({res.get('state')})")
+            return {"status": "submitted", "order_id": res.get("order_id"), "response": {"state": res.get("state")}}
+        print(f"  ✗ {res.get('error')}")
+        return {"status": "error", "error": res.get("error", "rejected")}
+
     try:
         resp = client.place_limit_order(
             asset_id=asset,

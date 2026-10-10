@@ -13,3 +13,6 @@ alpaca-py
 # Required since CLOB V2 only accepts orders via Deposit Wallets (sig type 3),
 # which the older clients can't do. See agent/pm_client.py.
 polymarket-client>=0.13.0
+
+# Polymarket US (polymarket.us) — official SDK, Ed25519 API keys
+polymarket-us>=2.4.1
