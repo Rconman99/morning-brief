@@ -185,8 +185,10 @@ def observed_max_so_far(station: str, offset_h: int, day: str) -> float | None:
     """Max observed temp (F) at the station since the start of the LST climate day."""
     tz = _lst(offset_h)
     start = datetime.fromisoformat(day).replace(tzinfo=tz)
+    t0 = time.time()
     d = _get(f"https://api.weather.gov/stations/{station}/observations",
-             {"start": start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")}) or {}
+             {"start": start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"), "limit": 100}) or {}
+    logger.info("obs %s: %d reports in %.1fs", station, len(d.get("features", [])), time.time() - t0)
     best = None
     for f in d.get("features", []):
         p = f.get("properties", {})
@@ -317,6 +319,7 @@ def price_markets(cal_all: dict) -> dict:
             break
         off += 100
 
+    logger.info("listed %d temperature markets", len(markets))
     groups = defaultdict(list)
     for m in markets:
         code, day = SLUG_RE.match(m["slug"]).groups()
@@ -328,7 +331,9 @@ def price_markets(cal_all: dict) -> dict:
     for (code, day), items in sorted(groups.items()):
         stn, lat, lon, offh = STATIONS[code]
         if code not in fc_cache:
+            t0 = time.time()
             fc_cache[code] = current_forecast(lat, lon, offh)
+            logger.info("forecast %s in %.1fs", code, time.time() - t0)
         fct = fc_cache[code].get(day)
         now_lst = datetime.now(_lst(offh))
         lead = (date.fromisoformat(day) - now_lst.date()).days
@@ -348,7 +353,13 @@ def price_markets(cal_all: dict) -> dict:
         total = sum(probs) or 1.0
         probs = [p / total for p in probs]  # brackets are exhaustive
         for (m, b), p_yes in zip(items, probs):
-            bbo = pm_us.get_bbo(m["slug"])
+            # Pre-filter on the quotes the list endpoint already returns; only
+            # confirm the live book for sides that could actually trade.
+            ly, ln = pm_us.side_prices(m)
+            maybe = any(q and pp >= MIN_PROB and pp - q >= MIN_EDGE - 0.03
+                        for pp, q in ((p_yes, ly), (1 - p_yes, ln)))
+            bbo = pm_us.get_bbo(m["slug"]) if maybe else {"state": "MARKET_STATE_OPEN", "yes_ask": ly, "no_ask": ln,
+                                                           "yes_bid": 0, "ask_shares": 0, "bid_shares": 0, "_list": True}
             if not bbo or bbo.get("state") != "MARKET_STATE_OPEN":
                 continue
             yes_ask, no_ask = bbo.get("yes_ask") or 0, bbo.get("no_ask") or 0
@@ -359,7 +370,7 @@ def price_markets(cal_all: dict) -> dict:
                    "yes_bid": bbo.get("yes_bid") or 0}
             rows.append(row)
             for side, p, ask in (("yes", p_yes, yes_ask), ("no", 1 - p_yes, no_ask)):
-                if not ask or p < MIN_PROB:
+                if bbo.get("_list") or not ask or p < MIN_PROB:
                     continue
                 fee = 0.0695 * ask * (1 - ask)  # worst case (taker) fee per share
                 edge = p - ask - fee

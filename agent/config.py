@@ -70,6 +70,12 @@ DEFAULT_STRATEGY_PARAMS = {
         "min_volume_24h": 25000,        # Was 50K — too tight, finding ~zero non-event-ladder candidates. 25K still gives enough depth for $5-10 fills.
         "min_gross_edge": 0.03,         # Skip cycles below 3% gross — fees eat smaller edges
     },
+    "weather_us": {
+        "weight": 1.0,
+        "max_position_pct": 0.05,       # same 5% cap as everything else
+        "min_shares": 5,
+        "max_proposals": 5,
+    },
     "btc_sentiment": {
         "weight": 1.0,
         "conviction_threshold": 3,       # Minimum conviction score to trade

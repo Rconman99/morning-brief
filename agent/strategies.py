@@ -142,6 +142,7 @@ def scan_gimme_bets(params: dict) -> list:
     else:
         max_pos = params.get("max_position_usd", 10)
 
+    wx_view = _weather_us_view()
     proposals = []
     for g in pm.get("gimme_bets", []):
         price = g.get("price", 0)
@@ -161,6 +162,14 @@ def scan_gimme_bets(params: dict) -> list:
             continue  # primary defense: scanner-passthrough flag from gamma-api
         if skip_grouped and (g.get("group_size", 0) > 0 or g.get("group_title", "")):
             continue  # event-ladder markets fail order_version_mismatch despite negRisk=False
+
+        # Weather-model veto: a "safe-looking" temperature bracket the forecast disagrees with.
+        if g.get("venue") == "us" and str(g.get("slug", "")).startswith("tc-temp-"):
+            view = wx_view.get(g.get("slug"))
+            if view is not None:
+                side_p = view if g.get("side", "").upper() == "YES" else 1 - view
+                if side_p < price + 0.02:
+                    continue
 
         # Skip if risks are too high
         risks = g.get("risks", [])
@@ -205,6 +214,71 @@ def scan_gimme_bets(params: dict) -> list:
 
     proposals.sort(key=lambda x: x.get("annualized_yield") or 0, reverse=True)
     return proposals[:10]
+
+
+# ============================================================
+# STRATEGY 2b: Weather model on Polymarket US temperature markets
+# ============================================================
+
+def _weather_us_view() -> dict:
+    """{slug: p_yes} from agent/weather_us.py's latest pricing (fresh within 2h)."""
+    env = _load_signal("weather_us.json")
+    out = {}
+    for r in (env or {}).get("rows", []):
+        out[r["slug"]] = r.get("p_yes")
+    return out
+
+
+def scan_weather_us(params: dict) -> list:
+    """Proposals from the calibrated multi-model temperature model (agent/weather_us.py).
+
+    Only sides the model rates >= WX_MIN_PROB with edge >= WX_MIN_EDGE after fees
+    (and <= WX_MAX_EDGE, the humility cap). Limit price is capped at
+    model_prob - WX_MIN_EDGE; the executor rests it as a maker bid.
+    """
+    import os
+    if os.environ.get("POLYMARKET_VENUE", "").strip().lower() != "us":
+        return []
+    data = _load_signal("weather_us.json")
+    if not data:
+        return []
+    bankroll = params.get("bankroll", 0) or 0
+    max_pos = bankroll * params.get("max_position_pct", 0.05) if bankroll else 5
+    min_shares = params.get("min_shares", 5)
+    out = []
+    for w in data.get("proposals", [])[: params.get("max_proposals", 5) * 3]:
+        price = float(w.get("price") or 0)
+        if not 0.05 <= price <= 0.97:
+            continue
+        shares = max(min_shares, int(max_pos / price))
+        cost = shares * price
+        if cost > max_pos * 1.05 and shares > min_shares:
+            shares = int(max_pos / price)
+            cost = shares * price
+        if shares < min_shares or cost > max_pos * 1.5:
+            continue
+        p = w["model_prob"]
+        out.append({
+            "strategy": "weather_us",
+            "venue": "us",
+            "question": w["question"],
+            "slug": w["slug"],
+            "side": "BUY",
+            "token_hint": w["side"].lower(),
+            "price": round(price, 3),
+            "size_shares": shares,
+            "size_usd": round(cost, 2),
+            "edge_pct": round(w["edge"] * 100, 1),
+            "model_prob": p,
+            "conviction": round(min(1.0, 0.5 + w["edge"] * 3), 2),
+            "category": "climate",
+            "days_to_expiry": w.get("lead", 1),
+            "volume_24h": 10 ** 6,  # liquidity checked by depth below
+            "risks": [],
+            "reason": f"{w['side']} model {p:.0%} vs ask {w['ask']:.2f} (fc {w['forecast']}F, lead {w['lead']})",
+        })
+    out.sort(key=lambda x: x["edge_pct"], reverse=True)
+    return out[: params.get("max_proposals", 5)]
 
 
 # ============================================================
@@ -430,6 +504,15 @@ def scan_btc_sentiment(params: dict) -> list:
 def run_all_strategies(params: dict) -> list:
     """Run all three strategy families and return combined proposals."""
     all_proposals = []
+
+    # Weather model on Polymarket US (first: it has the best information on temperature brackets)
+    wx_params = params.get("weather_us", {})
+    wx = scan_weather_us(wx_params)
+    for p in wx:
+        p["strategy_weight"] = wx_params.get("weight", 1.0)
+        p["weighted_conviction"] = round(p.get("conviction", 0) * p["strategy_weight"], 3)
+    all_proposals.extend(wx)
+    logger.info("Weather US: %d proposals", len(wx))
 
     # Weather Edge
     weather_params = params.get("weather_edge", {})
