@@ -13,6 +13,7 @@ __pycache__/
 *.egg-info/
 .gitnexus
 agent/paper_trades.jsonl
+agent/proposals.jsonl
 agent/runs.jsonl
 agent/bankroll.json
 agent/pending_exits.json

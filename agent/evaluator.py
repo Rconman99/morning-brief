@@ -147,10 +147,13 @@ def run_evaluation() -> dict:
         logger.info("  %s: Sharpe=%.3f, Win=%.1f%%, Trades=%d, AvgReturn=%.2f%%",
                      s, p["sharpe"], p["win_rate"] * 100, p["trades"], p["avg_return"] * 100)
 
-    # Adjust weights
+    # Adjust weights from settled trade P&L only. Proposal Brier/CLV is logged
+    # beside this record so we can see whether the model beats the market; it
+    # does not move weights and it does not move the capital ladder.
     params = load_agent_config()
     params = adjust_weights(params, performance)
     save_strategy_params(params)
+    proposal_evidence = _proposal_evidence()
 
     # Find worst performer for potential rewrite
     worst = min(performance.items(), key=lambda x: x[1].get("sharpe", 0)) if performance else None
@@ -167,6 +170,7 @@ def run_evaluation() -> dict:
         "performance": performance,
         "weight_adjustments": {s: params[s].get("weight", 1.0) for s in params},
         "rewrite_candidate": rewrite_candidate,
+        "proposal_evidence": proposal_evidence,
     }
     with open(EVAL_LOG, "a") as f:
         f.write(json.dumps(eval_record) + "\n")
@@ -180,6 +184,18 @@ def run_evaluation() -> dict:
     }, indent=2))
 
     return eval_record
+
+
+def _proposal_evidence() -> dict:
+    """Fill outcomes for logged proposals. Failure here must not block weight updates."""
+    try:
+        from agent.ledger import proposal_report
+        report = proposal_report(refresh_settlements=True)
+        logger.info("%s", report.get("line"))
+        return report
+    except Exception as e:
+        logger.warning("proposal scoring unavailable: %s", e)
+        return {"line": "Proposal evidence: unavailable.", "error": str(e)}
 
 
 def get_performance_summary() -> dict:

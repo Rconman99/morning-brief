@@ -202,6 +202,59 @@ def build(refresh_settlements: bool = True) -> tuple[list[dict], dict]:
     return rows, summarize(rows)
 
 
+def refresh_slugs(slugs: list[str], max_lookups: int = 60, cache: dict | None = None) -> dict:
+    """Same settlement lookup the trade ledger uses, for proposal slugs.
+
+    A slug already in the cache is not fetched again. A miss is left unset so
+    the next cycle retries. Does not touch order placement.
+    """
+    from agent import pm_us
+    cache = _load_cache() if cache is None else cache
+    st = cache.setdefault("settlements", {})
+    lookups = 0
+    changed = False
+    seen = set(st)
+    for slug in slugs:
+        if not slug or slug in seen or lookups >= max_lookups:
+            continue
+        seen.add(slug)
+        s = pm_us.get_settlement(slug)
+        lookups += 1
+        if s is not None:
+            st[slug] = s
+            changed = True
+    if changed:
+        _save_cache(cache)
+    return cache
+
+
+def proposal_report(refresh_settlements: bool = True) -> dict:
+    """Score logged proposals once their markets have a real YES settlement.
+
+    Informational only: callers must not use this to move the capital ladder
+    or strategy weights.
+    """
+    from agent.proposal_log import (
+        evidence_line,
+        load_records,
+        score_proposal_records,
+        summarize_model_vs_market,
+    )
+    records = load_records()
+    slugs = [r.get("slug", "") for r in records if r.get("record", "proposal") == "proposal"]
+    if refresh_settlements and slugs:
+        cache = refresh_slugs(slugs)
+    else:
+        cache = _load_cache()
+    scored = score_proposal_records(records, cache.get("settlements", {}))
+    summary = summarize_model_vs_market(scored)
+    return {
+        "scored": len(scored),
+        "by_strategy": summary,
+        "line": evidence_line(summary),
+    }
+
+
 def main():
     logging.basicConfig(level=logging.WARNING)
     rows, summary = build()

@@ -82,6 +82,8 @@ to winning strategies and less to losers, continuously improving.
   - `.venv/bin/python agent/ledger.py`
   - `.venv/bin/python agent/weather_us.py --print` (model vs market per bracket)
   - `.venv/bin/python agent/verify_us.py --preview` (after keys exist)
+  - `.venv/bin/python agent/weather_settlement_backtest.py` (CLI highs vs past settlements; writes the city-skip file)
+  - `.venv/bin/python agent/scoreboard.py` (includes proposal Brier / CLV; not a ladder gate)
 - Telegram: daily scoreboard ~8am PT (`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` in `.env`).
 
 ### `.env` variables (names only — never print values)
@@ -93,7 +95,11 @@ Optional tunables: `POLYMARKET_PAPER=1` (force paper), `POLYMARKET_US_MAKER` (de
 `POLYMARKET_US_ORDER_TTL_MIN` (120), `MAX_SINGLE_POSITION_PCT` (0.05),
 `MAX_POSITIONS_PER_GROUP` (1), `US_GIMME_SKIP_CATEGORIES` (default `sports`),
 `US_GIMME_SKIP_SLUG_REGEX` (default `^cpc-`), `WX_MIN_PROB` (0.80), `WX_MIN_EDGE` (0.04),
-`WX_MAX_EDGE` (0.25), `WX_CAL_DAYS` (75).
+`WX_MAX_EDGE` (0.25), `WX_CAL_DAYS` (75),
+`WX_SKIP_MISMATCH_CITIES` (default `1`: skip a city only if
+`data/processed/weather_settlement_backtest.json` lists it), `WX_SKIP_CITIES`
+(comma-separated extra skips, e.g. `lax`), `WX_SKIP_ON_RULES_MISMATCH` (default
+`0`: log a rules/station disagreement, do not skip unless set to `1`).
 
 ---
 
@@ -103,14 +109,17 @@ Optional tunables: `POLYMARKET_PAPER=1` (force paper), `POLYMARKET_US_MAKER` (de
 |---|---|
 | `pm_us.py` | Polymarket US client (paced public client, auth client), BBO, market list, **wire price conversion**, orders (post-only maker, synchronous), positions, equity, settlement, stale-order sweep, event `group_key()` |
 | `us_scanner.py` | Builds `gimme_bets` candidates from US quotes → `data/processed/polymarket_us.json`. Skips sports + `cpc-` crypto brackets by default. |
-| `weather_us.py` | Temperature model → `data/processed/weather_us.json`; calibration cache `weather_us_calibration.json` |
+| `weather_us.py` | Temperature model → `data/processed/weather_us.json`; calibration cache `weather_us_calibration.json`. Skips a city the settlement backtest has flagged. |
+| `weather_settlement_check.py` | Station map (KMIA, KNYC Central Park, KMDW, KSFO, KLAX), LST climate day, inclusive whole-degree brackets, rules-text check |
+| `weather_settlement_backtest.py` | Past US temperature settlements vs IEM CLI highs → `data/processed/weather_settlement_backtest.json` |
+| `proposal_log.py` | Appends every proposal to `agent/proposals.jsonl`; Brier, log loss, CLV math |
 | `strategies.py` | `scan_weather_us`, `scan_gimme_bets` (+ weather veto), `run_all_strategies` (US venue keeps only `venue=="us"` proposals); signal files >30 min old ignored |
 | `risk_gate.py` | All limits (see §6); live mode reads exposure from the exchange |
 | `executor.py` | `place_limit_order` → `_place_limit_order_us` (maker pricing, guards, paper/live) |
 | `run.py` | Main loop: equity cap (live) → evaluator → stale-order sweep (live) → auto-exit (live only) → strategies → risk gate → execute → log |
-| `ledger.py` | Scores every US trade vs real settlement; fees; paper "taker-bound" lower bound |
-| `evaluator.py` | Every 5 days moves strategy weights on settled, taker-bound ROI (≥10 settled per strategy) |
-| `scoreboard.py` | Per-strategy table + capital ladder + Telegram |
+| `ledger.py` | Scores every US trade vs real settlement; fees; paper "taker-bound" lower bound. Also scores logged proposals (Brier / log loss / CLV) once the same settlement cache knows the market. |
+| `evaluator.py` | Every 5 days moves strategy weights on settled, taker-bound ROI (≥10 settled per strategy). Records proposal evidence on the eval row; does **not** move weights from it. |
+| `scoreboard.py` | Per-strategy table + capital ladder + model-vs-market section + Telegram (short). Ladder rules unchanged. |
 | `close_positions.py` | Exit orders (live only) |
 | `tracker.py`, `dashboard.py` | Reporting (dashboard on :8080) |
 | `verify_us.py` | Key/balance/positions check; `--preview` validates a YES **and** a NO order server-side without placing |
@@ -161,6 +170,13 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
 - Trade: side prob ≥80%, edge ≥4¢ after worst-case fee, **humility cap** skip if edge >25¢;
   skip city/day unless brackets tile the full range. `gimme_bets` won't trade a temperature
   bracket without a fresh model view that agrees.
+- Settlement check: rules text is compared to the station map when the exchange
+  sends it. Bracket edges are whole °F, inclusive ("62 to 63" contains 62 and 63).
+  A city is dropped from proposals when the backtest file reports any mismatch
+  (`WX_SKIP_MISMATCH_CITIES=1`). No file yet means nothing is skipped.
+- Every cycle appends proposals (approved or not) to `agent/proposals.jsonl`.
+  After settlement, scoreboard shows model Brier vs market Brier, mean CLV, and
+  a 10-bucket calibration. That block does not change the ladder.
 - External APIs (reachable from the droplet, not from Claude's sandbox): open-meteo
   (forecast, previous-runs), mesonet.agron.iastate.edu (CLI), api.weather.gov.
 
@@ -243,6 +259,12 @@ window keyed on trade-open time; BBO `longQuote/shortQuote` semantics unconfirme
 | 5 | Weather v2: NWS point forecast as 5th input; per-season calibration | Medium | half day |
 | 6 | BTC brackets priced vs live spot + volatility (only then un-skip `cpc-`) | Medium | 1 day |
 | 7 | `ANTHROPIC_API_KEY` for probability_arb (currently dropped on US venue anyway) | Low | — |
+
+Research upgrades landed in paper mode (do not treat as a green light to add capital):
+proposal log + Brier/log-loss/CLV on the scoreboard, and the weather settlement
+backtest with a per-city skip. Still not done: ensembles/EMOS, log-odds blend
+with the market, fractional Kelly. The humility cap, one-position correlation
+cap, loss pause, and maker-only path are unchanged.
 
 ---
 

@@ -19,6 +19,15 @@ Trade rule ("high-conviction model" pattern from the leaderboard audit):
   buy the side (YES/NO) whose model probability >= WX_MIN_PROB (0.80) and
   exceeds the price we'd pay by >= WX_MIN_EDGE (0.04) after fees; limit price is
   capped at model_prob - WX_MIN_EDGE, and the executor rests it as a maker bid.
+  Edges wider than WX_MAX_EDGE (0.25) are skipped (humility cap).
+
+Settlement truth (agent/weather_settlement_check.py):
+  stations are KMIA, KNYC (Central Park), KMDW, KSFO, KLAX. The climate day is
+  local *standard* time, including during daylight saving. Bracket edges are
+  whole °F and inclusive. A city with a mismatch in
+  data/processed/weather_settlement_backtest.json is not proposed
+  (WX_SKIP_MISMATCH_CITIES=1, the default). Run agent/weather_settlement_backtest.py
+  on the server to produce that file.
 
 Run (on the droplet; needs outbound HTTPS to open-meteo, IEM, weather.gov):
     .venv/bin/python agent/weather_us.py              # refresh calibration if stale, price markets, write envelope
@@ -44,10 +53,22 @@ from datetime import date, datetime, timedelta, timezone
 import requests
 
 from lib.data_envelope import create_envelope, save_envelope
+from agent.weather_settlement_check import (
+    climate_day,
+    climate_window_utc,
+    lst_timezone,
+    parse_bracket as parse_temp_bracket,
+    rules_blob,
+    skip_reasons,
+    station_matches_rules,
+)
 
 logger = logging.getLogger(__name__)
 
-# slug code -> (station, lat, lon, UTC offset of LOCAL STANDARD time in hours)
+# slug code -> (station, lat, lon, UTC offset of LOCAL STANDARD time in hours).
+# These offsets must stay on standard time (not DST). NYC is Central Park KNYC.
+# weather_settlement_check.CITIES is the canonical map; price_markets skips a
+# city if this table drifts, or if the settlement backtest file reports a mismatch.
 STATIONS = {
     "mia": ("KMIA", 25.7906, -80.3164, -5),
     "nyc": ("KNYC", 40.7789, -73.9692, -5),
@@ -91,7 +112,8 @@ def _get(url, params=None, tries=3):
 
 
 def _lst(offset_h: int) -> timezone:
-    return timezone(timedelta(hours=offset_h))
+    """Local standard time. Fixed offset — daylight saving does not shift the climate day."""
+    return lst_timezone(offset_h)
 
 
 def cli_highs(station: str, years: list[int]) -> dict:
@@ -107,14 +129,20 @@ def cli_highs(station: str, years: list[int]) -> dict:
 
 
 def _daily_max_lst(times: list, temps: list, offset_h: int) -> dict:
-    """Hourly (UTC ISO) series -> {LST date: max} for complete-ish days."""
+    """Hourly (UTC ISO) series -> {LST climate-date: max} for complete-ish days.
+
+    The date is local standard time via climate_day(), so a July hour that is
+    already "tomorrow" on the daylight-saving clock still belongs to today's
+    NWS climate report until standard-time midnight.
+    """
     by = defaultdict(list)
-    tz = _lst(offset_h)
     for t, v in zip(times, temps):
         if v is None:
             continue
-        dt = datetime.fromisoformat(t).replace(tzinfo=timezone.utc).astimezone(tz)
-        by[dt.date().isoformat()].append(v)
+        dt = datetime.fromisoformat(t)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        by[climate_day(dt, offset_h).isoformat()].append(v)
     return {d: max(v) for d, v in by.items() if len(v) >= 20}
 
 
@@ -183,11 +211,10 @@ def current_forecast(lat, lon, offset_h) -> dict:
 
 def observed_max_so_far(station: str, offset_h: int, day: str) -> float | None:
     """Max observed temp (F) at the station since the start of the LST climate day."""
-    tz = _lst(offset_h)
-    start = datetime.fromisoformat(day).replace(tzinfo=tz)
+    start_utc, _end = climate_window_utc(date.fromisoformat(day), offset_h)
     t0 = time.time()
     d = _get(f"https://api.weather.gov/stations/{station}/observations",
-             {"start": start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"), "limit": 100}) or {}
+             {"start": start_utc.isoformat().replace("+00:00", "Z"), "limit": 100}) or {}
     logger.info("obs %s: %d reports in %.1fs", station, len(d.get("features", [])), time.time() - t0)
     best = None
     for f in d.get("features", []):
@@ -291,17 +318,8 @@ def bracket_probs(forecast: float, cal: dict, lead: int, brackets: list[tuple], 
 
 
 def parse_bracket(title: str) -> tuple[float, float] | None:
-    t = (title or "").lower().strip()
-    m = re.match(r"^(-?\d+)\s*to\s*(-?\d+)$", t)
-    if m:
-        return float(m.group(1)), float(m.group(2))
-    m = re.match(r"^(-?\d+)\s*or below$", t)
-    if m:
-        return -1e6, float(m.group(1))
-    m = re.match(r"^(-?\d+)\s*or above$", t)
-    if m:
-        return float(m.group(1)), 1e6
-    return None
+    """Inclusive whole-degree bracket. Shared with the settlement checker."""
+    return parse_temp_bracket(title)
 
 
 # --------------------------------------------------------------- pricing ---
@@ -333,7 +351,38 @@ def price_markets(cal_all: dict) -> dict:
             groups[(code, day)].append((m, b))
 
     fc_cache, rows, proposals = {}, [], []
+    # Skip a city the settlement backtest has already caught lying, or whose
+    # station row drifted off KMIA / KNYC / KMDW / KSFO / KLAX standard time.
+    # Default is the backtest file only (WX_SKIP_MISMATCH_CITIES=1). Missing
+    # file -> nothing skipped. Rules text is checked below and logged; it skips
+    # only when WX_SKIP_ON_RULES_MISMATCH=1.
+    city_skip = skip_reasons(STATIONS)
+    logged_skip = set()
     for (code, day), items in sorted(groups.items()):
+        if code in city_skip:
+            if code not in logged_skip:
+                logger.warning(
+                    "skip %s: %s — no weather_us proposals for this city",
+                    code, city_skip[code],
+                )
+                logged_skip.add(code)
+            continue
+        rules_mismatch = False
+        for m, _b in items:
+            verdict = station_matches_rules(rules_blob(m), code)
+            if verdict is False:
+                rules_mismatch = True
+                logger.error(
+                    "station rules mismatch for %s (%s): market text does not name this station",
+                    code, STATIONS[code][0],
+                )
+                break
+            if verdict is True:
+                logger.info("station rules match %s (%s)", code, STATIONS[code][0])
+                break
+        if rules_mismatch and os.environ.get("WX_SKIP_ON_RULES_MISMATCH", "0").strip().lower() in ("1", "true", "yes"):
+            logger.warning("skip %s proposals: WX_SKIP_ON_RULES_MISMATCH", code)
+            continue
         stn, lat, lon, offh = STATIONS[code]
         if code not in fc_cache:
             t0 = time.time()
