@@ -53,6 +53,20 @@ def setup_logging():
         )
 
 
+def _log_cycle_proposals(proposals: list | None, executed: list | None = None) -> None:
+    """Record every proposal (and follow-up quotes) for later Brier/CLV scoring.
+
+    Failure here must not block the cycle. This does not place orders.
+    """
+    try:
+        from agent.proposal_log import log_cycle
+        n = log_cycle(proposals or [], executed=executed or [])
+        if n:
+            logger.info("Proposal log: wrote %d row(s)", n)
+    except Exception as e:
+        logger.warning("proposal log skipped: %s", e)
+
+
 def print_summary(proposals: list, approved: list, executed: list, bankroll: float, mode: str):
     """Print a human-readable summary of the agent run."""
     now = datetime.now().astimezone()
@@ -178,15 +192,18 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
                 eq = account_equity()
                 if eq is None:
                     logger.warning("Cannot read account equity — skipping this cycle")
+                    _log_cycle_proposals([])
                     return {"proposals": 0, "approved": 0, "executed": 0}
                 if eq < bankroll:
                     logger.info("Bankroll capped to account equity: $%.2f (configured $%.2f)", eq, bankroll)
                     bankroll = eq
                 if bankroll < 5:
                     logger.warning("Account equity $%.2f too small to trade (unfunded?) — skipping", bankroll)
+                    _log_cycle_proposals([])
                     return {"proposals": 0, "approved": 0, "executed": 0}
         except Exception as e:
             logger.warning("equity check failed (%s) — skipping this cycle", e)
+            _log_cycle_proposals([])
             return {"proposals": 0, "approved": 0, "executed": 0}
     logger.info("Bankroll: $%.2f", bankroll)
 
@@ -236,6 +253,7 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     logger.info("Total proposals: %d", len(proposals))
 
     if not proposals:
+        _log_cycle_proposals([])
         print_summary([], [], [], bankroll, mode)
         return {"proposals": 0, "approved": 0, "executed": 0}
 
@@ -284,6 +302,8 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
 
     if failed:
         logger.warning("%d / %d executions FAILED", len(failed), len(failed) + len(executed))
+
+    _log_cycle_proposals(proposals, executed)
 
     # 5. Print summary
     print_summary(proposals, approved, executed, bankroll, mode)

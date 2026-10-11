@@ -14,6 +14,10 @@ Capital ladder: $100 -> $250 -> $500 -> $1,000 -> $2,500 -> $5,000
     - from $250 up, >= 80% of those settled trades must be LIVE fills (paper doesn't count)
   Step DOWN when: drawdown > 20% of the stage bankroll, or ROI < -3% over >= 30 settled trades.
 
+Also prints a model-vs-market section (Brier, log loss, CLV, 10-bin calibration)
+from agent/proposals.jsonl. That section is informational. It does not change
+the ladder. Telegram gets the same verdict plus one short line per strategy.
+
 Usage:
     .venv/bin/python agent/scoreboard.py              # print scoreboard
     .venv/bin/python agent/scoreboard.py --telegram   # also send the daily summary (once/day)
@@ -116,7 +120,8 @@ def evaluate_ladder(rows: list[dict], bankroll: float, stage_start: str) -> dict
     }
 
 
-def render(summary: dict, ladder: dict, weights: dict, budgets: dict) -> str:
+def render(summary: dict, ladder: dict, weights: dict, budgets: dict,
+           model_vs_market: dict | None = None, brief: bool = False) -> str:
     lines = [f"POLYMARKET AGENT SCOREBOARD — {datetime.now().strftime('%Y-%m-%d %H:%M')}",
              f"Bankroll stage ${ladder['bankroll']:,.0f}  |  verdict: {ladder['verdict']}",
              ""]
@@ -132,7 +137,10 @@ def render(summary: dict, ladder: dict, weights: dict, budgets: dict) -> str:
               f"This stage: {ladder['stage_trades']} settled, P&L ${ladder['stage_pnl']:.2f} "
               f"(taker-bound ${ladder['stage_pnl_taker_bound']:.2f}), ROI {ladder['stage_roi']*100:.1f}%, "
               f"max DD ${ladder['stage_max_drawdown']:.2f}, live {ladder['live_share']*100:.0f}%",
-              ladder["advice"]]
+              ladder["advice"],
+              ""]
+    from agent.proposal_log import format_model_section
+    lines.extend(format_model_section(model_vs_market, brief=brief))
     return "\n".join(lines)
 
 
@@ -153,13 +161,21 @@ def main():
     params = load_agent_config()
     weights = {s: float((params.get(s) or {}).get("weight", 1.0)) for s in summary}
     budgets = strategy_budgets(bankroll, set(summary)) if summary else {}
-    text = render(summary, ladder, weights, budgets)
+    try:
+        from agent.ledger import proposal_report
+        preport = proposal_report(refresh_settlements=True)
+        model_vs_market = preport.get("by_strategy") or {}
+    except Exception as e:
+        logging.getLogger(__name__).warning("proposal scores unavailable: %s", e)
+        model_vs_market = {}
+    text = render(summary, ladder, weights, budgets, model_vs_market)
     print(text)
 
     try:
         from lib.data_envelope import create_envelope, save_envelope
         save_envelope(create_envelope("scoreboard", {"strategies": summary, "ladder": ladder,
-                                                     "weights": weights, "budgets": budgets}), "scoreboard.json")
+                                                     "weights": weights, "budgets": budgets,
+                                                     "model_vs_market": model_vs_market}), "scoreboard.json")
     except Exception:
         pass
 
@@ -168,7 +184,8 @@ def main():
         if st.get("last_telegram") != today and datetime.now(timezone.utc).hour >= 15:  # ~8am PT
             try:
                 from lib.notify import send_telegram
-                if send_telegram("<pre>" + text.replace("&", "&amp;").replace("<", "&lt;") + "</pre>"):
+                short = render(summary, ladder, weights, budgets, model_vs_market, brief=True)
+                if send_telegram("<pre>" + short.replace("&", "&amp;").replace("<", "&lt;") + "</pre>"):
                     st["last_telegram"] = today
                     _save_state(st)
             except Exception:
