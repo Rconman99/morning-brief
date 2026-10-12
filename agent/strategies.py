@@ -245,13 +245,20 @@ def _weather_us_view() -> dict:
 
 
 def scan_weather_us(params: dict) -> list:
-    """Proposals from the calibrated multi-model temperature model (agent/weather_us.py).
+    """Proposals from the temperature model (agent/weather_us.py).
 
     Only sides the model rates >= WX_MIN_PROB with edge >= WX_MIN_EDGE after fees
     (and <= WX_MAX_EDGE, the humility cap). Limit price is capped at
-    model_prob - WX_MIN_EDGE; the executor rests it as a maker bid.
+    the probability used for the trade, minus WX_MIN_EDGE; the executor rests
+    it as a maker bid.
+
+    When WX_ENSEMBLE is on, the ensemble/EMOS probability is blended with the
+    market mid in log-odds before that edge test. model_prob on the proposal
+    stays the unblended side probability so the proposal log can score the
+    model against the market. WX_ENSEMBLE=0 leaves this blend off.
     """
     import os
+    from agent.weather_ensemble import ensemble_enabled, reapply_weather_gate
     if os.environ.get("POLYMARKET_VENUE", "").strip().lower() != "us":
         return []
     data = _load_signal("weather_us.json", max_age_min=30)
@@ -260,8 +267,13 @@ def scan_weather_us(params: dict) -> list:
     bankroll = params.get("bankroll", 0) or 0
     max_pos = bankroll * params.get("max_position_pct", 0.05) if bankroll else 5
     min_shares = params.get("min_shares", 5)
+    blend_on = ensemble_enabled()
     out = []
     for w in data.get("proposals", [])[: params.get("max_proposals", 5) * 3]:
+        if blend_on:
+            w = reapply_weather_gate(w)
+            if not w:
+                continue
         price = float(w.get("price") or 0)
         if not 0.05 <= price <= 0.97:
             continue
@@ -273,7 +285,8 @@ def scan_weather_us(params: dict) -> list:
         if shares < min_shares or cost > max_pos * 1.5:
             continue
         p = w["model_prob"]
-        out.append({
+        method = w.get("prob_method") or "model"
+        item = {
             "strategy": "weather_us",
             "venue": "us",
             "question": w["question"],
@@ -290,8 +303,17 @@ def scan_weather_us(params: dict) -> list:
             "days_to_expiry": w.get("lead", 1),
             "volume_24h": 10 ** 6,  # liquidity checked by depth below
             "risks": [],
-            "reason": f"{w['side']} model {p:.0%} vs ask {w['ask']:.2f} (fc {w['forecast']}F, lead {w['lead']})",
-        })
+            "reason": f"{w['side']} {method} {p:.0%} vs ask {w['ask']:.2f} (fc {w['forecast']}F, lead {w['lead']})",
+        }
+        for key in (
+            "prob_method", "prob_fallback", "ensemble_mean", "ensemble_spread",
+            "emos_bias", "emos_spread", "obs_floor", "obs_floor_applied",
+            "trade_prob", "p_yes", "n_members", "n_models", "ensemble_models",
+            "model_weight", "yes_ask", "yes_bid", "no_ask",
+        ):
+            if key in w and w[key] is not None and w[key] != "":
+                item[key] = w[key]
+        out.append(item)
     out.sort(key=lambda x: x["edge_pct"], reverse=True)
     return out[: params.get("max_proposals", 5)]
 

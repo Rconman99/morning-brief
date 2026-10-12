@@ -231,6 +231,7 @@ class TestBacktestScriptAndPricingSkip:
 
     def test_price_markets_skips_a_flagged_city_before_the_forecast(self, monkeypatch):
         import agent.weather_us as wx
+        monkeypatch.setenv("WX_ENSEMBLE", "0")
         monkeypatch.delenv("WX_SKIP_CITIES", raising=False)
         monkeypatch.delenv("WX_SKIP_MISMATCH_CITIES", raising=False)
         monkeypatch.setattr(
@@ -262,6 +263,7 @@ class TestBacktestScriptAndPricingSkip:
 
     def test_rules_mismatch_logs_but_does_not_skip_unless_asked(self, monkeypatch):
         import agent.weather_us as wx
+        monkeypatch.setenv("WX_ENSEMBLE", "0")
         monkeypatch.delenv("WX_SKIP_ON_RULES_MISMATCH", raising=False)
         monkeypatch.setattr(
             "agent.weather_settlement_check.load_backtest_report",
