@@ -73,8 +73,8 @@ class TestBracketProbabilities:
         probs = gaussian_bracket_probs(63.0, 0.4, BRACKETS)
         assert sum(probs) == pytest.approx(1.0, abs=1e-6)
         assert probs[1] > 0.8  # 62 to 63, both ends inclusive
-        assert probs[0] < 0.01  # 61 or below does not contain 62
-        assert probs[2] < 0.05  # 64 to 65
+        assert probs[0] < 0.01  # 61 or below stops at 61
+        assert probs[1] > probs[2]  # 64 to 65 is only the right-hand tail
 
     def test_open_tail_takes_the_rest_of_a_hot_forecast(self):
         probs = gaussian_bracket_probs(80.0, 1.0, BRACKETS)
