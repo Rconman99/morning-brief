@@ -4,16 +4,25 @@ Markets: "Highest temperature in <city> on <date>?" with 2-degree brackets
 ("62 to 63", "61 or below", "70 or above"), settled on the NWS Daily
 Climatological Report (CLI) high at one airport/park station.
 
-Model (per city, per lead time):
-  1. Forecast daily high = max of Open-Meteo hourly temperature at the station,
-     aggregated over the NWS climate day (local STANDARD time midnight-midnight).
-  2. Error distribution = this station's own recent forecast errors:
-     archived Open-Meteo forecasts (previous-runs API) vs the actual CLI highs
-     (Iowa Environmental Mesonet archive), last ~75 days. Empirical residuals,
-     kernel-smoothed, so bias and spread are measured, not assumed.
-  3. Same day: the NWS observed max so far is a floor (the day's high can't be
-     lower), so probability below it is removed and the rest renormalized.
-  4. P(bracket) = P(integer high in [lo, hi]).
+Model (per city, per lead time), WX_ENSEMBLE=1 by default:
+  1. Ensemble daily high = max of each Open-Meteo ensemble member (GEFS,
+     ECMWF ENS, ICON, GEM) over the NWS climate day (local STANDARD time).
+     Models are weighted equally. WX_ENSEMBLE=0 skips this and uses the
+     deterministic blend below.
+  2. EMOS: shift that mean by a bias and use a spread fitted on this station's
+     last ~75 day-ahead forecast errors (previous-runs API vs CLI highs),
+     minimizing CRPS. Fewer than WX_EMOS_MIN_DAYS (40) errors, or a failed
+     download, falls back to the raw ensemble, then to the residual kernel.
+  3. Same day: NWS observed max so far (api.weather.gov, User-Agent set) is a
+     floor. Brackets entirely below it are zeroed and the rest renormalized.
+  4. P(bracket) = P(integer CLI high in [lo, hi]), inclusive.
+  5. Before the 4¢ edge test, blend the model with the market mid in log-odds
+     (WX_MODEL_WEIGHT, default 0.40). The proposal log scores the unblended
+     model probability.
+
+Residual kernel (flag off, or ensemble unavailable):
+  Forecast = blend of GFS, ECMWF, ICON, NBM (×2). Error distribution = this
+  station's own recent forecast errors, kernel-smoothed. Same-day floor as above.
 
 Trade rule ("high-conviction model" pattern from the leaderboard audit):
   buy the side (YES/NO) whose model probability >= WX_MIN_PROB (0.80) and
@@ -53,6 +62,15 @@ from datetime import date, datetime, timedelta, timezone
 import requests
 
 from lib.data_envelope import create_envelope, save_envelope
+from agent.weather_ensemble import (
+    blend_log_odds,
+    build_bucket_distribution,
+    decide_from_yes,
+    ensemble_enabled,
+    fetch_ensemble_summary,
+    model_weight,
+    quote_prob,
+)
 from agent.weather_settlement_check import (
     climate_day,
     climate_window_utc,
@@ -209,23 +227,49 @@ def current_forecast(lat, lon, offset_h) -> dict:
     return {d: (v[0], v[1], (rem_blend.get(d) or (None,))[0]) for d, v in blend.items()}
 
 
+def _quantity_f(qty) -> float | None:
+    """NWS quantitative value to °F. Default unit is Celsius, which is what api.weather.gov sends."""
+    if not isinstance(qty, dict):
+        return None
+    v = qty.get("value")
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    unit = str(qty.get("unitCode") or "wmoUnit:degC")
+    if "degF" in unit or unit.endswith(":F"):
+        return float(v)
+    return float(v) * 9.0 / 5.0 + 32.0
+
+
 def observed_max_so_far(station: str, offset_h: int, day: str) -> float | None:
-    """Max observed temp (F) at the station since the start of the LST climate day."""
-    start_utc, _end = climate_window_utc(date.fromisoformat(day), offset_h)
-    t0 = time.time()
-    d = _get(f"https://api.weather.gov/stations/{station}/observations",
-             {"start": start_utc.isoformat().replace("+00:00", "Z"), "limit": 100}) or {}
+    """Max observed temp (F) at the station since the start of the LST climate day.
+
+    Uses the hourly temperature, not maxTemperatureLast24Hours: that 24h window
+    crosses the climate-day boundary. A bad download returns None.
+    """
+    try:
+        start_utc, end_utc = climate_window_utc(date.fromisoformat(day), offset_h)
+        t0 = time.time()
+        d = _get(f"https://api.weather.gov/stations/{station}/observations",
+                 {"start": start_utc.isoformat().replace("+00:00", "Z"), "limit": 100}) or {}
+    except Exception as exc:
+        logger.warning("obs %s failed: %s", station, exc)
+        return None
     logger.info("obs %s: %d reports in %.1fs", station, len(d.get("features", [])), time.time() - t0)
     best = None
-    for f in d.get("features", []):
-        p = f.get("properties", {})
-        for key in ("maxTemperatureLast24Hours", "temperature"):
-            v = (p.get(key) or {}).get("value")
-            if key == "maxTemperatureLast24Hours":
-                continue  # 24h window crosses the climate-day boundary; don't use
-            if v is not None:
-                fval = v * 9 / 5 + 32
-                best = fval if best is None else max(best, fval)
+    for feat in d.get("features", []):
+        p = feat.get("properties") or {}
+        ts = p.get("timestamp")
+        if isinstance(ts, str):
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            except ValueError:
+                dt = None
+            if dt is not None and not (start_utc <= dt < end_utc):
+                continue
+        fval = _quantity_f(p.get("temperature"))
+        if fval is None:
+            continue
+        best = fval if best is None else max(best, fval)
     return best
 
 
@@ -350,7 +394,8 @@ def price_markets(cal_all: dict) -> dict:
         if code in STATIONS and b:
             groups[(code, day)].append((m, b))
 
-    fc_cache, rows, proposals = {}, [], []
+    fc_cache, ens_cache, rows, proposals = {}, {}, [], []
+    use_ensemble = ensemble_enabled()
     # Skip a city the settlement backtest has already caught lying, or whose
     # station row drifted off KMIA / KNYC / KMDW / KSFO / KLAX standard time.
     # Default is the backtest file only (WX_SKIP_MISMATCH_CITIES=1). Missing
@@ -384,26 +429,41 @@ def price_markets(cal_all: dict) -> dict:
             logger.warning("skip %s proposals: WX_SKIP_ON_RULES_MISMATCH", code)
             continue
         stn, lat, lon, offh = STATIONS[code]
-        if code not in fc_cache:
-            t0 = time.time()
-            fc_cache[code] = current_forecast(lat, lon, offh)
-            logger.info("forecast %s in %.1fs", code, time.time() - t0)
-        fct = fc_cache[code].get(day)
         now_lst = datetime.now(_lst(offh))
-        lead = (date.fromisoformat(day) - now_lst.date()).days
-        if fct is None or lead < 0 or lead > 1:
+        try:
+            lead = (date.fromisoformat(day) - now_lst.date()).days
+        except ValueError:
             continue
-        fc, spread, remaining = fct
+        ens_stats = None
+        if use_ensemble and 0 <= lead <= 1:
+            if code not in ens_cache:
+                try:
+                    ens_cache[code] = fetch_ensemble_summary(lat, lon, offh) or {}
+                except Exception:
+                    logger.exception("ensemble fetch crashed for %s; residual model", code)
+                    ens_cache[code] = {}
+            ens_stats = ens_cache[code].get(day)
+        # Flag off: this deterministic blend is the model. Flag on: it is only
+        # the fallback when the ensemble has no members for this climate day.
+        if ens_stats is None:
+            if code not in fc_cache:
+                t0 = time.time()
+                try:
+                    fc_cache[code] = current_forecast(lat, lon, offh)
+                except Exception:
+                    logger.exception("forecast fetch failed for %s", code)
+                    fc_cache[code] = {}
+                logger.info("forecast %s in %.1fs", code, time.time() - t0)
+            fct = (fc_cache.get(code) or {}).get(day)
+        else:
+            fct = None
+        if lead < 0 or lead > 1:
+            continue
+        if ens_stats is None and fct is None:
+            continue
         # Same-day markets use the day-before error distribution: archived same-day
         # runs are near-analyses for past hours and understate real forecast error.
         cal = cal_all.get("cities", {}).get(code, {}).get("1", {})
-        floor = observed_max_so_far(stn, offh, day) if lead == 0 else None
-        bias = cal.get("bias", 0.0)
-        # fraction of the "heating day" (7am-7pm LST) still ahead
-        hrs = now_lst.hour + now_lst.minute / 60
-        day_frac_left = min(1.0, max(0.0, (19 - hrs) / 12))
-        if lead == 0 and remaining is not None and remaining < (floor or -1e9) - 3 and day_frac_left <= 0:
-            remaining = floor
         # Brackets must tile the whole line (… or below, a to b, …, or above) with
         # no gaps; otherwise renormalizing would invent edge. Skip the city/day.
         seen, uniq = set(), []
@@ -418,29 +478,139 @@ def price_markets(cal_all: dict) -> dict:
         if not tiled:
             logger.warning("skip %s %s: brackets don't cover the full range (%d listed)", code, day, len(bks))
             continue
-        probs = bracket_probs(fc, cal, lead, [b for _, b in items], floor, spread,
-                              remaining, day_frac_left)
-        total = sum(probs) or 1.0
-        probs = [p / total for p in probs]  # brackets are exhaustive
+        floor = None
+        if lead == 0:
+            try:
+                floor = observed_max_so_far(stn, offh, day)
+            except Exception:
+                logger.exception("obs floor failed for %s", stn)
+                floor = None
+        dist = None
+        if ens_stats is not None:
+            try:
+                dist = build_bucket_distribution(
+                    ens_stats, [b for _, b in items], cal.get("residuals"), lead, floor,
+                    sigma_floor=MIN_SD.get(lead, 2.0),
+                )
+            except Exception:
+                logger.exception("ensemble distribution failed for %s %s", code, day)
+                dist = None
+        if dist is not None:
+            probs = dist["probs"]
+            fc = dist["calibrated_mean"]
+            spread = dist["calibrated_spread"]
+            remaining = None
+            bias = 0.0 if dist["emos_bias"] is None else dist["emos_bias"]
+        else:
+            if fct is None:
+                if code not in fc_cache:
+                    t0 = time.time()
+                    try:
+                        fc_cache[code] = current_forecast(lat, lon, offh)
+                    except Exception:
+                        logger.exception("forecast fetch failed for %s", code)
+                        fc_cache[code] = {}
+                    logger.info("forecast %s in %.1fs", code, time.time() - t0)
+                fct = (fc_cache.get(code) or {}).get(day)
+            if fct is None:
+                continue
+            fc, spread, remaining = fct
+            bias = cal.get("bias", 0.0)
+            # fraction of the "heating day" (7am-7pm LST) still ahead
+            hrs = now_lst.hour + now_lst.minute / 60
+            day_frac_left = min(1.0, max(0.0, (19 - hrs) / 12))
+            if lead == 0 and remaining is not None and remaining < (floor or -1e9) - 3 and day_frac_left <= 0:
+                remaining = floor
+            probs = bracket_probs(fc, cal, lead, [b for _, b in items], floor, spread,
+                                  remaining, day_frac_left)
+            total = sum(probs) or 1.0
+            probs = [p / total for p in probs]  # brackets are exhaustive
+            if use_ensemble:
+                dist = {
+                    "prob_method": "residual_kernel",
+                    "prob_fallback": "ensemble_unavailable",
+                    "ensemble_mean": None,
+                    "ensemble_spread": None,
+                    "emos_bias": None,
+                    "emos_spread": None,
+                    "obs_floor_applied": False,
+                    "n_members": 0,
+                    "n_models": 0,
+                    "ensemble_models": "",
+                }
+                logger.warning("ensemble unavailable for %s %s; residual kernel", code, day)
         for (m, b), p_yes in zip(items, probs):
             # Pre-filter on the quotes the list endpoint already returns; only
             # confirm the live book for sides that could actually trade.
             ly, ln = pm_us.side_prices(m)
-            maybe = any(q and pp >= MIN_PROB and pp - q >= MIN_EDGE - 0.03
-                        for pp, q in ((p_yes, ly), (1 - p_yes, ln)))
+            if use_ensemble and dist is not None and dist.get("prob_method") != "residual_kernel":
+                blended = blend_log_odds(p_yes, quote_prob(ly, None))
+                maybe = any(q and pp >= MIN_PROB - 0.02 and pp - q >= MIN_EDGE - 0.03
+                            for pp, q in ((blended, ly), (1.0 - blended, ln)))
+            else:
+                maybe = any(q and pp >= MIN_PROB and pp - q >= MIN_EDGE - 0.03
+                            for pp, q in ((p_yes, ly), (1 - p_yes, ln)))
             bbo = pm_us.get_bbo(m["slug"]) if maybe else {"state": "MARKET_STATE_OPEN", "yes_ask": ly, "no_ask": ln,
                                                            "yes_bid": 0, "ask_shares": 0, "bid_shares": 0, "_list": True}
             if not bbo or bbo.get("state") != "MARKET_STATE_OPEN":
                 continue
             yes_ask, no_ask = bbo.get("yes_ask") or 0, bbo.get("no_ask") or 0
+            yes_bid = bbo.get("yes_bid") or 0
             row = {"slug": m["slug"], "city": code, "date": day, "lead": lead, "bracket": m.get("title"),
                    "forecast": round(fc, 1), "spread": round(spread, 2),
                    "remaining": round(remaining, 1) if remaining is not None else None, "bias": bias, "obs_floor": round(floor, 1) if floor else None,
                    "p_yes": round(p_yes, 4), "yes_ask": yes_ask, "no_ask": no_ask,
-                   "yes_bid": bbo.get("yes_bid") or 0}
+                   "yes_bid": yes_bid}
+            if use_ensemble and dist is not None:
+                row.update({
+                    "prob_method": dist.get("prob_method"),
+                    "prob_fallback": dist.get("prob_fallback"),
+                    "ensemble_mean": dist.get("ensemble_mean"),
+                    "ensemble_spread": dist.get("ensemble_spread"),
+                    "emos_bias": dist.get("emos_bias"),
+                    "emos_spread": dist.get("emos_spread"),
+                    "obs_floor_applied": bool(dist.get("obs_floor_applied")),
+                    "n_members": dist.get("n_members"),
+                    "n_models": dist.get("n_models"),
+                    "ensemble_models": dist.get("ensemble_models") or "",
+                })
             rows.append(row)
             for side, p, ask in (("yes", p_yes, yes_ask), ("no", 1 - p_yes, no_ask)):
-                if bbo.get("_list") or not ask or p < MIN_PROB:
+                if bbo.get("_list") or not ask:
+                    continue
+                if use_ensemble and dist is not None and dist.get("prob_method") != "residual_kernel":
+                    gated = decide_from_yes(
+                        p_yes, side, yes_ask, yes_bid, no_ask,
+                        min_prob=MIN_PROB, min_edge=MIN_EDGE, max_edge=MAX_EDGE, blend=True,
+                    )
+                    if not gated or gated.get("_skip") == "humility" or gated.get("edge", 0) > MAX_EDGE:
+                        if gated and (gated.get("_skip") == "humility" or gated.get("edge", 0) > MAX_EDGE):
+                            logger.info("humility skip %s %s: model %.2f vs ask %.2f",
+                                        m["slug"], side, gated.get("trade_prob") or p, ask)
+                        continue
+                    proposals.append({
+                        "venue": "us", "slug": m["slug"], "question": f"{m.get('question','')} — {m.get('title','')}",
+                        "side": side.upper(), "price": gated["price"], "ask": ask,
+                        "model_prob": gated["model_prob"], "trade_prob": gated["trade_prob"],
+                        "edge": gated["edge"], "lead": lead, "city": code, "date": day,
+                        "forecast": round(fc, 1), "obs_floor": row["obs_floor"],
+                        "p_yes": round(float(p_yes), 6),
+                        "yes_ask": yes_ask, "yes_bid": yes_bid, "no_ask": no_ask,
+                        "model_weight": model_weight(),
+                        "prob_method": dist.get("prob_method"),
+                        "prob_fallback": dist.get("prob_fallback"),
+                        "ensemble_mean": dist.get("ensemble_mean"),
+                        "ensemble_spread": dist.get("ensemble_spread"),
+                        "emos_bias": dist.get("emos_bias"),
+                        "emos_spread": dist.get("emos_spread"),
+                        "obs_floor_applied": bool(dist.get("obs_floor_applied")),
+                        "n_members": dist.get("n_members"),
+                        "n_models": dist.get("n_models"),
+                        "ensemble_models": dist.get("ensemble_models") or "",
+                        "depth_shares": bbo.get("ask_shares") if side == "yes" else bbo.get("bid_shares"),
+                    })
+                    continue
+                if p < MIN_PROB:
                     continue
                 fee = 0.0695 * ask * (1 - ask)  # worst case (taker) fee per share
                 edge = p - ask - fee
@@ -450,13 +620,21 @@ def price_markets(cal_all: dict) -> dict:
                     logger.info("humility skip %s %s: model %.2f vs ask %.2f", m["slug"], side, p, ask)
                     continue
                 limit = round(min(ask, p - MIN_EDGE), 3)
-                proposals.append({
+                proposal = {
                     "venue": "us", "slug": m["slug"], "question": f"{m.get('question','')} — {m.get('title','')}",
                     "side": side.upper(), "price": limit, "ask": ask, "model_prob": round(p, 4),
                     "edge": round(edge, 4), "lead": lead, "city": code, "date": day,
                     "forecast": round(fc, 1), "obs_floor": row["obs_floor"],
                     "depth_shares": bbo.get("ask_shares") if side == "yes" else bbo.get("bid_shares"),
-                })
+                }
+                if use_ensemble and dist is not None:
+                    proposal.update({
+                        "prob_method": dist.get("prob_method"),
+                        "prob_fallback": dist.get("prob_fallback"),
+                        "p_yes": round(float(p_yes), 6),
+                        "yes_ask": yes_ask, "yes_bid": yes_bid, "no_ask": no_ask,
+                    })
+                proposals.append(proposal)
     proposals.sort(key=lambda x: x["edge"], reverse=True)
     return {"priced_at": datetime.now(timezone.utc).isoformat(), "markets": len(rows),
             "rows": rows, "proposals": proposals}
@@ -515,8 +693,9 @@ def main():
             flag = ""
             if r["p_yes"] >= MIN_PROB or 1 - r["p_yes"] >= MIN_PROB:
                 flag = " *"
+            method = r.get("prob_method") or "kernel"
             print(f"{r['city']} {r['date']} L{r['lead']} fc {r['forecast']:>5}±{r['spread']:<4} rem {str(r['remaining']):>5} floor {str(r['obs_floor']):>5} "
-                  f"{r['bracket']:<12} model YES {r['p_yes']*100:5.1f}%  mkt YES ask {r['yes_ask']:.3f} NO ask {r['no_ask']:.3f}{flag}")
+                  f"{r['bracket']:<12} model YES {r['p_yes']*100:5.1f}%  mkt YES ask {r['yes_ask']:.3f} NO ask {r['no_ask']:.3f}{flag} {method}")
         for p in d.get("proposals", []):
             print(f"PROPOSAL {p['side']} {p['question'][:60]} model {p['model_prob']:.3f} ask {p['ask']:.3f} "
                   f"limit {p['price']:.3f} edge {p['edge']:.3f}")

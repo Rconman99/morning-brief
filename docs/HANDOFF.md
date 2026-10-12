@@ -95,7 +95,10 @@ Optional tunables: `POLYMARKET_PAPER=1` (force paper), `POLYMARKET_US_MAKER` (de
 `POLYMARKET_US_ORDER_TTL_MIN` (120), `MAX_SINGLE_POSITION_PCT` (0.05),
 `MAX_POSITIONS_PER_GROUP` (1), `US_GIMME_SKIP_CATEGORIES` (default `sports`),
 `US_GIMME_SKIP_SLUG_REGEX` (default `^cpc-`), `WX_MIN_PROB` (0.80), `WX_MIN_EDGE` (0.04),
-`WX_MAX_EDGE` (0.25), `WX_CAL_DAYS` (75),
+`WX_MAX_EDGE` (0.25), `WX_CAL_DAYS` (75), `WX_ENSEMBLE` (default `1`; set `0` to
+use the older residual kernel and skip the log-odds blend), `WX_MODEL_WEIGHT`
+(default `0.40`, model share of the blend), `WX_EMOS_MIN_DAYS` (40),
+`WX_OBS_FLOOR_MARGIN` (1°F),
 `WX_SKIP_MISMATCH_CITIES` (default `1`: skip a city only if
 `data/processed/weather_settlement_backtest.json` lists it), `WX_SKIP_CITIES`
 (comma-separated extra skips, e.g. `lax`), `WX_SKIP_ON_RULES_MISMATCH` (default
@@ -109,7 +112,8 @@ Optional tunables: `POLYMARKET_PAPER=1` (force paper), `POLYMARKET_US_MAKER` (de
 |---|---|
 | `pm_us.py` | Polymarket US client (paced public client, auth client), BBO, market list, **wire price conversion**, orders (post-only maker, synchronous), positions, equity, settlement, stale-order sweep, event `group_key()` |
 | `us_scanner.py` | Builds `gimme_bets` candidates from US quotes → `data/processed/polymarket_us.json`. Skips sports + `cpc-` crypto brackets by default. |
-| `weather_us.py` | Temperature model → `data/processed/weather_us.json`; calibration cache `weather_us_calibration.json`. Skips a city the settlement backtest has flagged. |
+| `weather_us.py` | Temperature model → `data/processed/weather_us.json`; calibration cache `weather_us_calibration.json`. Skips a city the settlement backtest has flagged. Ensemble path is on unless `WX_ENSEMBLE=0`. |
+| `weather_ensemble.py` | GEFS / ECMWF ENS / ICON / GEM daily highs, EMOS bias+spread, observed-high floor, log-odds blend. No API key. |
 | `weather_settlement_check.py` | Station map (KMIA, KNYC Central Park, KMDW, KSFO, KLAX), LST climate day, inclusive whole-degree brackets, rules-text check |
 | `weather_settlement_backtest.py` | Past US temperature settlements vs IEM CLI highs → `data/processed/weather_settlement_backtest.json` |
 | `proposal_log.py` | Appends every proposal to `agent/proposals.jsonl`; Brier, log loss, CLV math |
@@ -160,15 +164,31 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
 ### weather_us model
 - Markets: daily high at KMIA, KNYC (Central Park), KMDW, KSFO, KLAX; 6 two-degree
   brackets per city-day; settle on the NWS Daily Climate Report (local *standard* time day).
-- Forecast: blend of GFS, ECMWF, ICON, NBM (×2) from Open-Meteo. (Open-Meteo
-  "best_match" at US points is GFS-only and was 3–6°F off consensus — don't use it alone.)
-- Calibration: each station's last 75 days of archived blend forecasts (previous-runs API)
-  vs actual CLI highs (Iowa Environmental Mesonet) → empirical residuals. Day-ahead
-  bias/sd: MIA +2.6/1.7, NYC −0.8/1.8, MDW +1.2/2.0, SFO −1.2/3.1, LAX −1.1/2.7 °F.
-- Same day: day-before error distribution, remaining-hours blend + observed max so far
-  (api.weather.gov; floor +0.5°F), kernel ≥1°F.
-- Trade: side prob ≥80%, edge ≥4¢ after worst-case fee, **humility cap** skip if edge >25¢;
-  skip city/day unless brackets tile the full range. `gimme_bets` won't trade a temperature
+- Default path (`WX_ENSEMBLE=1`): Open-Meteo ensemble members — GEFS (`gfs_seamless`),
+  ECMWF ENS (`ecmwf_ifs025`), ICON (`icon_seamless`, often down), GEM (`gem_global`).
+  Equal weight per model that returns. Daily high is the member's max over the
+  local-standard-time climate day. `WX_ENSEMBLE=0` restores the blend below and
+  the old edge test (no log-odds blend).
+- EMOS: additive bias + one spread, fit by CRPS on that station's day-ahead
+  forecast errors (previous-runs blend vs CLI), last `WX_CAL_DAYS` (75). Needs
+  `WX_EMOS_MIN_DAYS` (40) or the raw ensemble is used. The free ensemble API does
+  not keep past members (those hours come back null), so the spread is not a
+  regression on historical ensemble width; today's ensemble spread is a floor
+  under the fitted spread. A failed download falls back to the residual kernel
+  and does not abort the cycle.
+- Residual kernel (flag off, or fallback): blend of GFS, ECMWF, ICON, NBM (×2).
+  (Open-Meteo "best_match" at US points is GFS-only and was 3–6°F off consensus.)
+  Day-ahead bias/sd from the last fit: MIA +2.6/1.7, NYC −0.8/1.8, MDW +1.2/2.0,
+  SFO −1.2/3.1, LAX −1.1/2.7 °F.
+- Same day: observed max so far at the settlement station (api.weather.gov,
+  User-Agent set). Brackets entirely below that reading, minus `WX_OBS_FLOOR_MARGIN`
+  (1°F, because hourly obs understate the CLI integer), are zeroed and the rest
+  renormalized. The residual path still uses its older kernel floor.
+- Trade: after a log-odds blend with the market mid (`WX_MODEL_WEIGHT` 0.40 model),
+  side prob ≥80%, edge ≥4¢ after worst-case fee, **humility cap** skip if edge >25¢.
+  The proposal log scores the unblended model probability and records `prob_method`
+  (`emos`, `ensemble_raw`, or `residual_kernel`).
+  Skip a city/day unless brackets tile the full range. `gimme_bets` won't trade a temperature
   bracket without a fresh model view that agrees.
 - Settlement check: rules text is compared to the station map when the exchange
   sends it. Bracket edges are whole °F, inclusive ("62 to 63" contains 62 and 63).
@@ -177,8 +197,8 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
 - Every cycle appends proposals (approved or not) to `agent/proposals.jsonl`.
   After settlement, scoreboard shows model Brier vs market Brier, mean CLV, and
   a 10-bucket calibration. That block does not change the ladder.
-- External APIs (reachable from the droplet, not from Claude's sandbox): open-meteo
-  (forecast, previous-runs), mesonet.agron.iastate.edu (CLI), api.weather.gov.
+- External APIs (free, no key): open-meteo ensemble + forecast + previous-runs,
+  mesonet.agron.iastate.edu (CLI), api.weather.gov observations.
 
 ---
 
@@ -261,9 +281,10 @@ window keyed on trade-open time; BBO `longQuote/shortQuote` semantics unconfirme
 | 7 | `ANTHROPIC_API_KEY` for probability_arb (currently dropped on US venue anyway) | Low | — |
 
 Research upgrades landed in paper mode (do not treat as a green light to add capital):
-proposal log + Brier/log-loss/CLV on the scoreboard, and the weather settlement
-backtest with a per-city skip. Still not done: ensembles/EMOS, log-odds blend
-with the market, fractional Kelly. The humility cap, one-position correlation
+proposal log + Brier/log-loss/CLV on the scoreboard, the weather settlement
+backtest with a per-city skip, and ensemble/EMOS probabilities with a same-day
+observed-high floor and a log-odds blend (`WX_ENSEMBLE=0` turns that path off).
+Still not done: fractional Kelly. The humility cap, one-position correlation
 cap, loss pause, and maker-only path are unchanged.
 
 ---

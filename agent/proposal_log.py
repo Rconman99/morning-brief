@@ -84,12 +84,49 @@ def _edge(proposal: dict):
 
 def _model_prob(proposal: dict):
     raw = proposal.get("model_prob", proposal.get("estimated_prob"))
-    if not isinstance(raw, (int, float)):
+    if not isinstance(raw, (int, float)) or isinstance(raw, bool):
         return None
     p = float(raw)
     if 0.0 <= p <= 1.0:
         return p
     return None
+
+
+_FORECAST_FLOATS = (
+    "ensemble_mean", "ensemble_spread", "emos_bias", "emos_spread",
+    "obs_floor", "trade_prob", "p_yes", "model_weight",
+)
+_FORECAST_INTS = ("n_members", "n_models")
+_FORECAST_STRS = ("prob_method", "prob_fallback", "ensemble_models")
+
+
+def forecast_fields(proposal: dict) -> dict:
+    """Ensemble / EMOS diagnostics copied onto a proposal-log row.
+
+    model_prob itself is the unblended side probability the scorer uses.
+    trade_prob is the log-odds blend the edge test used, when that path ran.
+    Missing fields are omitted so older proposals stay unchanged.
+    """
+    if not isinstance(proposal, dict):
+        return {}
+    out = {}
+    for key in _FORECAST_STRS:
+        val = proposal.get(key)
+        if isinstance(val, str) and val:
+            out[key] = val
+    for key in _FORECAST_FLOATS:
+        val = proposal.get(key)
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            continue
+        out[key] = float(val)
+    for key in _FORECAST_INTS:
+        val = proposal.get(key)
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            continue
+        out[key] = int(val)
+    if isinstance(proposal.get("obs_floor_applied"), bool):
+        out["obs_floor_applied"] = proposal["obs_floor_applied"]
+    return out
 
 
 def _pos_price(raw):
@@ -248,7 +285,7 @@ def log_cycle(proposals: list[dict], executed: list[dict] | None = None,
             ask = _pos_price(raw.get("ask") if raw.get("ask") is not None else raw.get("price"))
         check = raw.get("risk_check") or {}
         approved = bool(check.get("approved"))
-        proposal_rows.append({
+        row = {
             "record": "proposal",
             "timestamp": stamp,
             "strategy": strategy,
@@ -264,7 +301,9 @@ def log_cycle(proposals: list[dict], executed: list[dict] | None = None,
             "approved": approved,
             "reject_reason": None if approved else (check.get("reason") or "not approved"),
             "executed": key in executed_keys,
-        })
+        }
+        row.update(forecast_fields(raw))
+        proposal_rows.append(row)
 
     known = {(r.get("slug"), r.get("side")) for r in load_records(path)
              if r.get("record", "proposal") == "proposal"}
@@ -384,6 +423,7 @@ def score_proposal_records(records: list[dict], settlements: dict) -> list[dict]
         if market is not None:
             item["brier_market"] = brier_score(market, outcome)
             item["logloss_market"] = log_loss(market, outcome)
+        item.update(forecast_fields(first))
         scored.append(item)
     scored.sort(key=lambda r: (r["day"], r["strategy"], r["slug"], r["side"]))
     return scored
