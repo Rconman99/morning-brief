@@ -5,7 +5,13 @@ Usage (from /opt/morning-brief):
     .venv/bin/python agent/verify_us.py --preview   # also ask the exchange to validate a
                                                     # 1-share order (nothing is placed)
 
-Exit code 0 = ready to trade live; 1 = auth/validation problem; 2 = config problem.
+Exit code 0 = auth/validation ok (does not by itself enable live trading);
+1 = auth/validation problem; 2 = config problem.
+
+Read-only: this script may use the API keys to check balances, orders, and
+positions, and --preview asks the exchange to validate an order without placing
+it. The bot stays in paper until POLYMARKET_LIVE=1 (POLYMARKET_PAPER=1 forces
+paper even then). See agent.executor.get_mode.
 """
 
 import sys
@@ -35,9 +41,18 @@ def main():
 
     load_env()
     from agent import pm_us
+    from agent.executor import get_mode, keys_without_live_opt_in
 
     print("POLYMARKET_VENUE:  ", pm_us.venue(), "" if pm_us.is_us() else "  <-- set POLYMARKET_VENUE=us in .env")
     print("US API keys:       ", "present" if pm_us.has_keys() else "MISSING (POLYMARKET_US_KEY_ID / POLYMARKET_US_SECRET_KEY)")
+    mode = get_mode()
+    print("trading mode:      ", mode.upper())
+    if keys_without_live_opt_in():
+        print("live opt-in:        OFF — keys are loaded but the bot stays PAPER until POLYMARKET_LIVE=1")
+    elif mode == "live":
+        print("live opt-in:        ON (POLYMARKET_LIVE=1, keys present, POLYMARKET_PAPER not set)")
+    elif os.environ.get("POLYMARKET_PAPER", "").strip().lower() in ("1", "true", "yes"):
+        print("live opt-in:        forced PAPER by POLYMARKET_PAPER=1 (overrides POLYMARKET_LIVE)")
     if not pm_us.has_keys():
         return 2
 
@@ -65,7 +80,9 @@ def main():
         print(f"   {p['outcome'].upper():<3} {p['size']:.0f} sh  avg {p['avgPrice']:.3f}  bid {p['curPrice']:.3f}  {p['slug']}  {p['title'][:40]}")
 
     if not args.preview:
-        print("\nOK — auth works. Add --preview to validate order sizing/risk server-side.")
+        print("\nOK — auth works. This check does not place orders and does not turn the bot live.")
+        print("    The bot stays PAPER until POLYMARKET_LIVE=1 (POLYMARKET_PAPER=1 forces paper even then).")
+        print("    Add --preview to validate order sizing/risk server-side.")
         return 0
 
     slug = args.slug
@@ -101,7 +118,8 @@ def main():
         on = res_no.get("preview") or {}
         sent = res_no["request"]["price"]["value"]
         print(f"preview NO  ACCEPTED: NO bid {no_bid} sent as YES-terms {sent}; exchange echoed price={on.get('price')} intent={on.get('intent')}")
-        print("\nOK — the exchange validates YES and NO orders from this key. The bot can trade live.")
+        print("\nOK — the exchange validates YES and NO orders from this key. Nothing was placed.")
+        print("    Set POLYMARKET_LIVE=1 and leave POLYMARKET_PAPER unset before the bot will trade live.")
         return 0
     print(f"preview REJECTED:   {res.get('error')}")
     print(f"request was:        {json.dumps(res.get('request'))}")

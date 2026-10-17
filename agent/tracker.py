@@ -87,13 +87,24 @@ def load_positions() -> list:
 
 def main():
     load_env()
+    from agent.executor import get_mode, keys_without_live_opt_in
 
+    mode = get_mode()
     wallet = get_wallet()
 
     print(f"\n{'='*60}")
     print(f"  POLYMARKET AGENT TRACKER — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print(f"  Wallet: {wallet}")
+    print(f"  Mode: {mode.upper()}")
+    if keys_without_live_opt_in():
+        print("  US API keys are present but live trading is disabled until POLYMARKET_LIVE=1")
     print(f"{'='*60}\n")
+
+    # Paper, including US keys without POLYMARKET_LIVE: do not read the
+    # authenticated account. Same result as a keyless paper cycle.
+    if _us() and mode != "live":
+        print("No positions found.\n")
+        return
 
     # Open orders via CLOB
     client = get_client()

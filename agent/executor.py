@@ -2,9 +2,12 @@
 
 Supports two modes:
 - PAPER: logs what it would do, no real orders (default)
-- LIVE: places real orders via the official `polymarket` SDK (see agent/pm_client.py)
+- LIVE: places real orders via the official SDK
 
-Set POLYMARKET_PRIVATE_KEY (and POLYMARKET_WALLET) in .env to enable live trading.
+Polymarket US goes live only when POLYMARKET_LIVE is 1/true/yes, both US API
+keys are set, and POLYMARKET_PAPER is not. Keys alone stay paper.
+The legacy polygon venue is unchanged: set POLYMARKET_PRIVATE_KEY to go live,
+unless POLYMARKET_PAPER is set.
 """
 
 import sys
@@ -95,20 +98,52 @@ def get_venue() -> str:
     return venue()
 
 
-def get_mode() -> str:
-    """Returns 'live' if credentials for the active venue are configured, otherwise 'paper'.
+def _env_truthy(name: str) -> bool:
+    """True when an env flag is 1, true, or yes (case-insensitive, stripped)."""
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
 
-    Set POLYMARKET_PAPER=1 to force paper mode regardless of credentials.
+
+def get_mode() -> str:
+    """Return 'live' or 'paper'. This is the only paper/live decision.
+
+    Polymarket US is live only when all of these hold:
+      - POLYMARKET_LIVE is 1, true, or yes
+      - POLYMARKET_US_KEY_ID and POLYMARKET_US_SECRET_KEY are both set
+      - POLYMARKET_PAPER is not 1, true, or yes
+
+    POLYMARKET_PAPER overrides POLYMARKET_LIVE. Keys alone stay paper, so
+    paper trades keep being logged and scored and nothing is sent or cancelled.
+
+    The legacy polygon venue is unchanged: live when POLYMARKET_PRIVATE_KEY
+    is set (length > 10), unless POLYMARKET_PAPER is set. POLYMARKET_LIVE
+    is not consulted on that venue.
     """
-    if os.environ.get("POLYMARKET_PAPER", "").strip() in ("1", "true", "yes"):
+    if _env_truthy("POLYMARKET_PAPER"):
         return "paper"
     if get_venue() == "us":
         from agent.pm_us import has_keys
-        return "live" if has_keys() else "paper"
+        if has_keys() and _env_truthy("POLYMARKET_LIVE"):
+            return "live"
+        return "paper"
     key = os.environ.get("POLYMARKET_PRIVATE_KEY", "")
     if key and len(key) > 10:
         return "live"
     return "paper"
+
+
+def keys_without_live_opt_in() -> bool:
+    """US API keys are loaded but POLYMARKET_LIVE is not 1/true/yes.
+
+    False on the legacy venue, and false when the keys are missing.
+    True even if POLYMARKET_PAPER is also set: the startup note explains
+    that live stays off until the opt-in flag is set.
+    """
+    if get_venue() != "us":
+        return False
+    from agent.pm_us import has_keys
+    if not has_keys():
+        return False
+    return not _env_truthy("POLYMARKET_LIVE")
 
 
 def get_client():

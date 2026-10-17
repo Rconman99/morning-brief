@@ -4,8 +4,11 @@
 #
 # 1. pull latest code (same self-update behaviour as the old vps_run.sh)
 # 2. scan the US exchange for candidates  -> data/processed/polymarket_us.json
-# 3. run the agent (strategies -> risk gate -> executor); paper mode until
-#    POLYMARKET_US_KEY_ID / POLYMARKET_US_SECRET_KEY exist in .env
+# 3. run the agent (strategies -> risk gate -> executor).
+#    Stays in paper until POLYMARKET_LIVE is 1/true/yes, both
+#    POLYMARKET_US_KEY_ID and POLYMARKET_US_SECRET_KEY are set, and
+#    POLYMARKET_PAPER is not set. Keys alone do not go live.
+#    POLYMARKET_PAPER=1 forces paper even when POLYMARKET_LIVE=1.
 # 4. tracker summary
 
 PROJECT_DIR="${PROJECT_DIR:-/opt/morning-brief}"
@@ -31,4 +34,4 @@ flock -n 9 || { echo "--- $(date) --- previous cycle still running, skipping" >>
 .venv/bin/python3 agent/run.py --bankroll "$BANKROLL" >> "$LOG" 2>&1
 .venv/bin/python3 agent/tracker.py >> "$LOG" 2>&1
 .venv/bin/python3 agent/scoreboard.py --telegram >> "$LOG" 2>&1
-echo "--- $(date) --- venue=$POLYMARKET_VENUE" >> "$LOG"
+echo "--- $(date) --- venue=$POLYMARKET_VENUE POLYMARKET_LIVE=${POLYMARKET_LIVE:-unset} POLYMARKET_PAPER=${POLYMARKET_PAPER:-unset}" >> "$LOG"
