@@ -92,7 +92,10 @@ def refresh(trades: list[dict], max_lookups: int = 60) -> dict:
         lookups += 1
         if s is not None:
             st[slug] = s
-    # Live orders: learn how much actually filled and at what price.
+    # Read-only fill lookup for orders that were actually submitted.
+    # This does not decide paper vs live — that is executor.get_mode().
+    # Keys without POLYMARKET_LIVE leave new trades as paper_filled, and
+    # those rows are scored from the log without this lookup.
     if pm_us.has_keys():
         for t in trades:
             oid = t.get("order_id", "")

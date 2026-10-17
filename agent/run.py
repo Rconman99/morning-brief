@@ -3,7 +3,7 @@
 Orchestrates: signals → strategies → risk gate → execution → logging.
 
 Usage:
-    # Paper trading (default — no private key needed)
+    # Paper trading (default). On Polymarket US, API keys alone stay paper.
     .venv/bin/python agent/run.py
 
     # With custom bankroll
@@ -12,8 +12,9 @@ Usage:
     # Dry run — show proposals without executing
     .venv/bin/python agent/run.py --dry-run
 
-    # Live trading (requires POLYMARKET_PRIVATE_KEY in .env)
-    POLYMARKET_PRIVATE_KEY=0x... .venv/bin/python agent/run.py
+    # Polymarket US live: POLYMARKET_LIVE=1 plus both US keys, and
+    # POLYMARKET_PAPER must not be set. POLYMARKET_PAPER=1 forces paper.
+    # Legacy polygon live (unchanged): POLYMARKET_PRIVATE_KEY=0x...
 """
 
 import sys
@@ -31,7 +32,7 @@ from agent.config import AUTO_EXIT_ENABLED, AUTO_EXIT_PRICE, load_agent_config
 from agent.strategies import run_all_strategies
 from agent.risk_gate import filter_proposals
 from agent.executor import (
-    place_limit_order, get_balance, get_mode,
+    place_limit_order, get_balance, get_mode, keys_without_live_opt_in,
     init_paper_bankroll, get_paper_trades,
 )
 from agent.evaluator import should_evaluate, run_evaluation
@@ -180,11 +181,23 @@ def auto_exit_winners(target_price: float, dry_run: bool) -> list:
     return placed
 
 
-def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
-    """Main agent loop: scan → propose → risk-check → execute."""
+def announce_mode() -> str:
+    """Log the trading mode once at startup. Returns 'live' or 'paper'."""
     mode = get_mode()
     logger.info("=== Polymarket Agent [%s mode] ===", mode.upper())
+    if keys_without_live_opt_in():
+        logger.info(
+            "US API keys are present but live trading is disabled until POLYMARKET_LIVE=1"
+        )
+    return mode
+
+
+def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
+    """Main agent loop: scan → propose → risk-check → execute."""
+    mode = announce_mode()
     # Live on Polymarket US: never size off more money than the account really has.
+    # Paper (including keys present without POLYMARKET_LIVE) skips this gate
+    # and keeps using the configured bankroll.
     if mode == "live":
         try:
             from agent.pm_us import is_us, account_equity

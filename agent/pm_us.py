@@ -8,9 +8,11 @@ separate, CFTC-regulated exchange with a retail API: USD balances, no crypto
 wallet, Ed25519 API keys created at https://polymarket.us/developer.
 
 Environment variables (in /opt/morning-brief/.env):
-- POLYMARKET_VENUE=us            route live trading here (default: legacy polygon CLOB)
+- POLYMARKET_VENUE=us            trade this venue (default: legacy polygon CLOB)
 - POLYMARKET_US_KEY_ID           API key id from the developer portal
 - POLYMARKET_US_SECRET_KEY       secret shown once at creation
+- POLYMARKET_LIVE=1              required opt-in before any live order or cancel
+                                 (keys alone stay paper; POLYMARKET_PAPER=1 overrides)
 
 Market model differences vs polymarket.com
 - Each US market is one outcome (`title`) of an event (`question`), e.g.
@@ -432,7 +434,15 @@ def build_order(slug: str, side: str, outcome: str, price: float, qty: float,
 
 def place_limit(slug: str, side: str, outcome: str, price: float, qty: float,
                 post_only: bool = True) -> dict:
-    """Place a GTC limit order. Returns {'ok': bool, 'order_id', 'state', 'error', 'request'}."""
+    """Place a GTC limit order. Returns {'ok': bool, 'order_id', 'state', 'error', 'request'}.
+
+    Refuses unless executor.get_mode() is live, so keys without POLYMARKET_LIVE
+    cannot send an order even if a caller skips the executor check.
+    """
+    from agent.executor import get_mode
+    if get_mode() != "live":
+        logger.warning("Refusing US order: paper mode (set POLYMARKET_LIVE=1 to trade live)")
+        return {"ok": False, "error": "paper mode — set POLYMARKET_LIVE=1 to trade live"}
     c = get_client()
     if not c:
         return {"ok": False, "error": "No Polymarket US client (keys missing)"}
@@ -554,7 +564,13 @@ def maker_price(slug: str, outcome: str, limit: float, bbo: dict | None = None) 
 
 
 def cancel_stale_orders(max_age_min: int = 120) -> int:
-    """Cancel live resting orders older than max_age_min so capital isn't parked on stale quotes."""
+    """Cancel live resting orders older than max_age_min so capital isn't parked on stale quotes.
+
+    No-op unless executor.get_mode() is live. Keys alone must not cancel orders.
+    """
+    from agent.executor import get_mode
+    if get_mode() != "live":
+        return 0
     c = get_client()
     if not c:
         return 0
@@ -580,6 +596,10 @@ def cancel_stale_orders(max_age_min: int = 120) -> int:
 
 
 def cancel(order_id: str, slug: str) -> bool:
+    from agent.executor import get_mode
+    if get_mode() != "live":
+        logger.info("cancel skipped: paper mode")
+        return False
     c = get_client()
     if not c:
         return False

@@ -102,6 +102,12 @@ def strategy_budgets(bankroll: float, active: set) -> dict:
 
 
 def _live_us() -> bool:
+    """True only when executor.get_mode() is live on the US venue.
+
+    Keys without POLYMARKET_LIVE stay paper, so exposure and the weekly loss
+    pause keep counting the paper log. The humility cap, correlation cap, and
+    loss pause themselves are unchanged.
+    """
     try:
         from agent.pm_us import is_us
         return is_us() and get_mode() == "live"

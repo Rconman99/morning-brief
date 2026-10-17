@@ -11,8 +11,10 @@ commands he can paste, plain-English explanations, impact level on recommendatio
 A Python bot runs every 15 minutes on a DigitalOcean droplet and trades
 **Polymarket US** (polymarket.us — the CFTC-regulated US exchange, USD balances,
 Ed25519 API keys, official SDK `polymarket-us`). It is currently in **PAPER mode**
-(no API keys installed) and must stay there until the owner adds keys and funds the
-account. Two strategies run: `gimme_bets` (buy heavy favorites ≥92¢ as a maker) and
+(no API keys installed). Adding keys later does **not** go live: real orders are
+sent only when `POLYMARKET_LIVE=1` (also `true`/`yes`), both US keys are present,
+and `POLYMARKET_PAPER` is not set. `POLYMARKET_PAPER=1` forces paper even if
+`POLYMARKET_LIVE=1`. Two strategies run: `gimme_bets` (buy heavy favorites ≥92¢ as a maker) and
 `weather_us` (a calibrated multi-model temperature forecast for daily-high markets).
 Every trade is scored against the exchange's real settlement; capital is allocated
 to strategies by realized performance; a "capital ladder" says when the owner has
@@ -29,7 +31,7 @@ to winning strategies and less to losers, continuously improving.
 | Item | State |
 |---|---|
 | Code on server | commit `6df6d15` (repo `Rconman99/morning-brief`, branch `main`) |
-| Mode | **paper** (`POLYMARKET_VENUE=us`, `POLYMARKET_BANKROLL=95`, no US keys) |
+| Mode | **paper** (`POLYMARKET_VENUE=us`, `POLYMARKET_BANKROLL=95`, no US keys). Stays paper after keys are added until `POLYMARKET_LIVE=1`. |
 | Timer / dashboard | both active; ~68 cycles/24h; 0 errors in last 12h |
 | Paper trades | 5 total (all `gimme_bets`, all from the FIRST cycle before the fixes) |
 | Settled | 3 — **all lost, −$23.05**: three bets on the same BTC 5pm-ET print (YES ≥$84,250, YES ≥$85,250, NO ≥$81,250). This is the correlation risk the fixes now block (crypto `cpc-` brackets skipped; 1 position per event group). |
@@ -91,7 +93,10 @@ to winning strategies and less to losers, continuously improving.
 `TELEGRAM_CHAT_ID`, `POLYMARKET_SIG_TYPE` (legacy), `OPENROUTER_API_KEY`,
 `POLYMARKET_VENUE=us`, `POLYMARKET_BANKROLL=95`.
 To be added by Ryan: `POLYMARKET_US_KEY_ID`, `POLYMARKET_US_SECRET_KEY`.
-Optional tunables: `POLYMARKET_PAPER=1` (force paper), `POLYMARKET_US_MAKER` (default 1),
+Live trading is opt-in: `POLYMARKET_LIVE=1` (also `true`/`yes`) **and** both keys
+**and** `POLYMARKET_PAPER` not set. Keys alone stay paper (trades still logged and
+scored; no orders, no cancels, no equity-gate skip).
+Optional tunables: `POLYMARKET_PAPER=1` (force paper; overrides `POLYMARKET_LIVE`), `POLYMARKET_US_MAKER` (default 1),
 `POLYMARKET_US_ORDER_TTL_MIN` (120), `MAX_SINGLE_POSITION_PCT` (0.05),
 `MAX_POSITIONS_PER_GROUP` (1), `US_GIMME_SKIP_CATEGORIES` (default `sports`),
 `US_GIMME_SKIP_SLUG_REGEX` (default `^cpc-`), `WX_MIN_PROB` (0.80), `WX_MIN_EDGE` (0.04),
@@ -119,14 +124,14 @@ use the older residual kernel and skip the log-odds blend), `WX_MODEL_WEIGHT`
 | `proposal_log.py` | Appends every proposal to `agent/proposals.jsonl`; Brier, log loss, CLV math |
 | `strategies.py` | `scan_weather_us`, `scan_gimme_bets` (+ weather veto), `run_all_strategies` (US venue keeps only `venue=="us"` proposals); signal files >30 min old ignored |
 | `risk_gate.py` | All limits (see §6); live mode reads exposure from the exchange |
-| `executor.py` | `place_limit_order` → `_place_limit_order_us` (maker pricing, guards, paper/live) |
-| `run.py` | Main loop: equity cap (live) → evaluator → stale-order sweep (live) → auto-exit (live only) → strategies → risk gate → execute → log |
+| `executor.py` | `get_mode()` is the only paper/live switch. US is live only with `POLYMARKET_LIVE` + both keys and without `POLYMARKET_PAPER`. `place_limit_order` → `_place_limit_order_us` |
+| `run.py` | Main loop: log mode → equity cap (live only) → evaluator → stale-order sweep (live only) → auto-exit (live only) → strategies → risk gate → execute → log |
 | `ledger.py` | Scores every US trade vs real settlement; fees; paper "taker-bound" lower bound. Also scores logged proposals (Brier / log loss / CLV) once the same settlement cache knows the market. |
 | `evaluator.py` | Every 5 days moves strategy weights on settled, taker-bound ROI (≥10 settled per strategy). Records proposal evidence on the eval row; does **not** move weights from it. |
 | `scoreboard.py` | Per-strategy table + capital ladder + model-vs-market section + Telegram (short). Ladder rules unchanged. |
 | `close_positions.py` | Exit orders (live only) |
-| `tracker.py`, `dashboard.py` | Reporting (dashboard on :8080) |
-| `verify_us.py` | Key/balance/positions check; `--preview` validates a YES **and** a NO order server-side without placing |
+| `tracker.py`, `dashboard.py` | Reporting (dashboard on :8080). Tracker does not read the account unless live. The dashboard header shows PAPER or LIVE from `get_mode()`. |
+| `verify_us.py` | Read-only key/balance/positions check; `--preview` validates a YES **and** a NO order server-side without placing. Does not turn the bot live. |
 | `cash_out_pusd.py` | Swaps the old bot wallet's pUSD → USDC on Uniswap V3 (dry-run default) |
 | `pm_client.py`, `fund_deposit_wallet.py` | Legacy polymarket.com (Polygon) path — not used on US venue |
 
@@ -243,8 +248,11 @@ window keyed on trade-open time; BBO `longQuote/shortQuote` semantics unconfirme
    DigitalOcean console `echo 'POLYMARKET_US_KEY_ID=…' >> /opt/morning-brief/.env` (same for
    `POLYMARKET_US_SECRET_KEY`), or on the Mac `bash ~/add_pm_keys.sh` (hidden prompt).
    Then `.venv/bin/python agent/verify_us.py --preview` → both YES and NO ACCEPTED.
-   Note: once keys exist the bot goes LIVE on the next tick (if equity ≥ $5).
-   To keep paper meanwhile: add `POLYMARKET_PAPER=1`.
+   Keys do **not** turn the bot live. It stays PAPER (paper trades still logged and
+   scored; no orders, no cancels, no balance gate skipping the cycle) until you add
+   `POLYMARKET_LIVE=1`. `POLYMARKET_PAPER=1` forces paper even if `POLYMARKET_LIVE=1`.
+   Go live only after preview passes and the account is funded: set `POLYMARKET_LIVE=1`
+   and leave `POLYMARKET_PAPER` unset. The next tick trades live if equity ≥ $5.
 3. **Fund** polymarket.us; set `POLYMARKET_BANKROLL` = deposit.
 4. Optional: recover the $88 pUSD (§8).
 
