@@ -130,7 +130,7 @@ use the older residual kernel and skip the log-odds blend), `WX_MODEL_WEIGHT`
 | `evaluator.py` | Every 5 days moves strategy weights on settled, taker-bound ROI (≥10 settled per strategy). Records proposal evidence on the eval row; does **not** move weights from it. |
 | `scoreboard.py` | Per-strategy table + capital ladder + model-vs-market section + Telegram (short). Ladder rules unchanged. |
 | `close_positions.py` | Exit orders (live only) |
-| `tracker.py`, `dashboard.py` | Reporting (dashboard on :8080) |
+| `tracker.py`, `dashboard.py` | Reporting (dashboard on :8080). Tracker does not read the account unless live. The dashboard header shows PAPER or LIVE from `get_mode()`. |
 | `verify_us.py` | Read-only key/balance/positions check; `--preview` validates a YES **and** a NO order server-side without placing. Does not turn the bot live. |
 | `cash_out_pusd.py` | Swaps the old bot wallet's pUSD → USDC on Uniswap V3 (dry-run default) |
 | `pm_client.py`, `fund_deposit_wallet.py` | Legacy polymarket.com (Polygon) path — not used on US venue |
