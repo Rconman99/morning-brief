@@ -201,6 +201,24 @@ def test_direct_order_and_cancel_refuse_without_opt_in(monkeypatch):
     assert pm_us.cancel_stale_orders() == 0
 
 
+def test_dashboard_badge_follows_mode(monkeypatch):
+    from agent.dashboard import mode_badge
+
+    _us(monkeypatch, keys=True)
+    label, css, note = mode_badge()
+    assert label == "PAPER"
+    assert css == "yellow"
+    assert "POLYMARKET_LIVE=1" in note
+
+    monkeypatch.setenv("POLYMARKET_LIVE", "1")
+    assert mode_badge() == ("LIVE", "green", "")
+
+    monkeypatch.setenv("POLYMARKET_PAPER", "1")
+    label, css, note = mode_badge()
+    assert label == "PAPER"
+    assert note == ""
+
+
 def test_paper_cycle_does_not_read_equity_or_cancel(monkeypatch, tmp_path):
     """Keys present, POLYMARKET_LIVE unset: no balance gate and no stale-order cancel."""
     from agent import run

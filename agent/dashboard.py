@@ -64,6 +64,22 @@ def get_activity(wallet, limit=20):
         return []
 
 
+def mode_badge() -> tuple[str, str, str]:
+    """Header label from executor.get_mode: (PAPER|LIVE, css class, opt-in note).
+
+    The old header always said LIVE. That was the page being up, and it read
+    as if the bot were trading. Keys without POLYMARKET_LIVE stay PAPER.
+    """
+    from agent.executor import get_mode, keys_without_live_opt_in
+    mode = get_mode()
+    label = mode.upper()
+    css = "green" if mode == "live" else "yellow"
+    note = ""
+    if keys_without_live_opt_in():
+        note = "US API keys are present but live trading is disabled until POLYMARKET_LIVE=1. "
+    return label, css, note
+
+
 def get_open_orders():
     try:
         if _us():
@@ -168,8 +184,8 @@ tr:hover {{ background: #15151f; }}
 </head>
 <body>
 <div class="container">
-<h1>POLYMARKET AGENT <span class="pulse green">LIVE</span></h1>
-<div class="subtitle">Wallet: {wallet} | Updated: {timestamp} | Auto-refresh: 30s</div>
+<h1>POLYMARKET AGENT <span class="pulse {mode_class}">{mode_label}</span></h1>
+<div class="subtitle">{mode_note}Wallet: {wallet} | Updated: {timestamp} | Auto-refresh: 30s</div>
 
 <div class="grid">
 <div class="card">
@@ -320,9 +336,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
         pnl = s["unrealized_pnl"]
         rpnl = s["realized_pnl"]
+        mode_label, mode_class, mode_note = mode_badge()
 
         html = HTML_TEMPLATE.format(
             wallet=wallet[:8] + "..." + wallet[-6:],
+            mode_label=mode_label,
+            mode_class=mode_class,
+            mode_note=mode_note,
             timestamp=data["timestamp"],
             total_current=s["total_current"],
             pnl_class="green" if pnl >= 0 else "red",
