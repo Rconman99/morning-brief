@@ -159,6 +159,12 @@ def get_client():
     return _get()
 
 
+def _trade_category(category: str, slug: str) -> str:
+    """Category persisted on the trade log. Crypto slugs share one bucket."""
+    from agent.gimme_rules import normalize_category
+    return normalize_category(category or "", slug or "")
+
+
 def place_limit_order(
     token_id: str,
     side: str,
@@ -169,6 +175,7 @@ def place_limit_order(
     reason: str = "",
     slug: str = "",
     token_hint: str = "yes",
+    category: str = "",
 ) -> dict:
     """Place a limit order. Returns order result dict.
 
@@ -188,7 +195,10 @@ def place_limit_order(
 
     # Polymarket US venue: orders are keyed by US market slug + YES/NO intent.
     if get_venue() == "us":
-        return _place_limit_order_us(side, price, size, market_question, strategy, reason, slug, token_hint, now, mode)
+        return _place_limit_order_us(
+            side, price, size, market_question, strategy, reason, slug, token_hint, now, mode,
+            category=category,
+        )
 
     # Resolve real token ID from slug if we have one
     resolved_token = token_id
@@ -217,6 +227,7 @@ def place_limit_order(
         "status": "pending",
         "order_type": "limit",  # Always limit — makers have positive excess returns (Becker research)
         "role": "maker",        # Limit orders = maker. GTC ensures we're providing liquidity.
+        "category": _trade_category(category, slug),
     }
 
     if mode == "paper":
@@ -291,7 +302,7 @@ def place_limit_order(
 
 
 def _place_limit_order_us(side, price, size, market_question, strategy, reason,
-                          slug, token_hint, now, mode) -> dict:
+                          slug, token_hint, now, mode, category: str = "") -> dict:
     """Polymarket US execution path (see agent/pm_us.py).
 
     `slug` must be a US market slug (the US scanner emits these). If a proposal
@@ -324,6 +335,7 @@ def _place_limit_order_us(side, price, size, market_question, strategy, reason,
         "status": "pending",
         "order_type": "limit",
         "role": "maker",
+        "category": _trade_category(category, us_slug or slug),
     }
 
     if not us_slug:

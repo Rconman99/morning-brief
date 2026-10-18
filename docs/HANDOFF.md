@@ -14,7 +14,7 @@ Ed25519 API keys, official SDK `polymarket-us`). It is currently in **PAPER mode
 (no API keys installed). Adding keys later does **not** go live: real orders are
 sent only when `POLYMARKET_LIVE=1` (also `true`/`yes`), both US keys are present,
 and `POLYMARKET_PAPER` is not set. `POLYMARKET_PAPER=1` forces paper even if
-`POLYMARKET_LIVE=1`. Two strategies run: `gimme_bets` (buy heavy favorites ≥92¢ as a maker) and
+`POLYMARKET_LIVE=1`. Two strategies run: `gimme_bets` (buy a heavy favorite only when a two-sided book and the bot's own model both agree, as a maker) and
 `weather_us` (a calibrated multi-model temperature forecast for daily-high markets).
 Every trade is scored against the exchange's real settlement; capital is allocated
 to strategies by realized performance; a "capital ladder" says when the owner has
@@ -34,7 +34,7 @@ to winning strategies and less to losers, continuously improving.
 | Mode | **paper** (`POLYMARKET_VENUE=us`, `POLYMARKET_BANKROLL=95`, no US keys). Stays paper after keys are added until `POLYMARKET_LIVE=1`. |
 | Timer / dashboard | both active; ~68 cycles/24h; 0 errors in last 12h |
 | Paper trades | 5 total (all `gimme_bets`, all from the FIRST cycle before the fixes) |
-| Settled | 3 — **all lost, −$23.05**: three bets on the same BTC 5pm-ET print (YES ≥$84,250, YES ≥$85,250, NO ≥$81,250). This is the correlation risk the fixes now block (crypto `cpc-` brackets skipped; 1 position per event group). |
+| Settled | 3 — **all lost, −$23.05**: three bets on the same BTC 5pm-ET print (YES ≥$84,250, YES ≥$85,250, NO ≥$81,250). Correlation cap is one position per event group. Crypto price slugs (`cpc*`, including `cpceth-` / `cpcsol-` / `cpcxrp-`) are skipped, and there is a combined crypto exposure cap on top of that. |
 | Open | 2 (Miami 93–94°F NO @0.93, LA "69 or below" NO @0.94 — the weather model rated the LA one ~50/50) |
 | Risk pause | **Active**: "Daily realized loss $23.05 > 5% of bankroll". Window is keyed on trade-open time (2026-10-10 20:10 UTC), so it lifts automatically ~2026-10-11 20:10 UTC (~1:10pm PT). Do not "fix" this by deleting trades. |
 | weather_us | producing 1–2 proposals/cycle; none executed yet (blocked by group cap / risk pause). |
@@ -98,8 +98,12 @@ Live trading is opt-in: `POLYMARKET_LIVE=1` (also `true`/`yes`) **and** both key
 scored; no orders, no cancels, no equity-gate skip).
 Optional tunables: `POLYMARKET_PAPER=1` (force paper; overrides `POLYMARKET_LIVE`), `POLYMARKET_US_MAKER` (default 1),
 `POLYMARKET_US_ORDER_TTL_MIN` (120), `MAX_SINGLE_POSITION_PCT` (0.05),
-`MAX_POSITIONS_PER_GROUP` (1), `US_GIMME_SKIP_CATEGORIES` (default `sports`),
-`US_GIMME_SKIP_SLUG_REGEX` (default `^cpc-`), `WX_MIN_PROB` (0.80), `WX_MIN_EDGE` (0.04),
+`MAX_POSITIONS_PER_GROUP` (1), `MAX_CRYPTO_EXPOSURE_PCT` (0.05, one combined bucket for every
+crypto underlying), `US_GIMME_SKIP_CATEGORIES` (default `sports`),
+`US_GIMME_SKIP_SLUG_REGEX` (default `^cpc`, matches `cpc-` and `cpceth-` / `cpcsol-` / `cpcxrp-`;
+empty disables the slug skip), `US_GIMME_PRICE_THRESHOLD` (0.92, applied to the **midpoint**),
+`US_GIMME_MAX_SPREAD` (0.04), `US_GIMME_MIN_EDGE` (0.03, model must clear the ask by this much
+after the taker fee `0.0695*p*(1-p)`), `US_GIMME_MIN_HOURS` (6), `WX_MIN_PROB` (0.80), `WX_MIN_EDGE` (0.04),
 `WX_MAX_EDGE` (0.25), `WX_CAL_DAYS` (75), `WX_ENSEMBLE` (default `1`; set `0` to
 use the older residual kernel and skip the log-odds blend), `WX_MODEL_WEIGHT`
 (default `0.40`, model share of the blend), `WX_EMOS_MIN_DAYS` (40),
@@ -116,14 +120,16 @@ use the older residual kernel and skip the log-odds blend), `WX_MODEL_WEIGHT`
 | File | Role |
 |---|---|
 | `pm_us.py` | Polymarket US client (paced public client, auth client), BBO, market list, **wire price conversion**, orders (post-only maker, synchronous), positions, equity, settlement, stale-order sweep, event `group_key()` |
-| `us_scanner.py` | Builds `gimme_bets` candidates from US quotes → `data/processed/polymarket_us.json`. Skips sports + `cpc-` crypto brackets by default. |
+| `us_scanner.py` | Builds `gimme_bets` from US quotes → `data/processed/polymarket_us.json`. Skips sports and every `cpc*` slug by default. A candidate needs a two-sided book, spread ≤ `US_GIMME_MAX_SPREAD`, and a midpoint ≥ the favorite threshold. `gimme_evaluated` keeps the rejects (one-sided, wide spread, below mid) with bid/ask/mid/depth. |
 | `weather_us.py` | Temperature model → `data/processed/weather_us.json`; calibration cache `weather_us_calibration.json`. Skips a city the settlement backtest has flagged. Ensemble path is on unless `WX_ENSEMBLE=0`. |
 | `weather_ensemble.py` | GEFS / ECMWF ENS / ICON / GEM daily highs, EMOS bias+spread, observed-high floor, log-odds blend. No API key. |
 | `weather_settlement_check.py` | Station map (KMIA, KNYC Central Park, KMDW, KSFO, KLAX), LST climate day, inclusive whole-degree brackets, rules-text check |
 | `weather_settlement_backtest.py` | Past US temperature settlements vs IEM CLI highs → `data/processed/weather_settlement_backtest.json` |
-| `proposal_log.py` | Appends every proposal to `agent/proposals.jsonl`; Brier, log loss, CLV math |
-| `strategies.py` | `scan_weather_us`, `scan_gimme_bets` (+ weather veto), `run_all_strategies` (US venue keeps only `venue=="us"` proposals); signal files >30 min old ignored |
-| `risk_gate.py` | All limits (see §6); live mode reads exposure from the exchange |
+| `proposal_log.py` | Appends every proposal to `agent/proposals.jsonl`; Brier, log loss, CLV math. Gimme rows include bid, ask, mid, and depth. |
+| `gimme_rules.py` | Book, taker-fee edge, time, and crypto-slug rules shared by the scanner and the strategy |
+| `gimme_backtest.py` | Offline replay of logged gimme rows against ledger settlements. Does not place orders. |
+| `strategies.py` | `scan_weather_us`, `scan_gimme_bets` (own-edge gate; weather uses the EMOS/ensemble `p_yes`; anything without a model is rejected; ranked by EV per dollar), `run_all_strategies` (US venue keeps only `venue=="us"` proposals); signal files >30 min old ignored |
+| `risk_gate.py` | All limits (see §6), plus a combined crypto cap. Live mode reads exposure from the exchange. Paper rows now store `category`, which is what the per-category cap reads. |
 | `executor.py` | `get_mode()` is the only paper/live switch. US is live only with `POLYMARKET_LIVE` + both keys and without `POLYMARKET_PAPER`. `place_limit_order` → `_place_limit_order_us` |
 | `run.py` | Main loop: log mode → equity cap (live only) → evaluator → stale-order sweep (live only) → auto-exit (live only) → strategies → risk gate → execute → log |
 | `ledger.py` | Scores every US trade vs real settlement; fees; paper "taker-bound" lower bound. Also scores logged proposals (Brier / log loss / CLV) once the same settlement cache knows the market. |
@@ -154,7 +160,11 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
   convert twice. Not yet confirmed against the live API with real keys — run
   `verify_us.py --preview` and check "preview NO ACCEPTED" before trusting NO trades.
 - **Sizing:** 5% of bankroll per position, ≥5 whole shares; 95% max deployed; 50% per
-  category; 25%/day and 50%/week deployment caps.
+  category; 25%/day and 50%/week deployment caps. Gimme size is unchanged (still the
+  5-share floor on a small bankroll).
+- **Crypto cap:** `MAX_CRYPTO_EXPOSURE_PCT` (default 5% of bankroll) across every crypto
+  underlying together. A `cpc*` slug counts even when an older paper row has no category.
+  This sits on top of the per-category cap; it does not replace it.
 - **Correlation:** max 1 position per event group (same underlying + date, e.g. `btc|2026-10-10`, `miahigh|2026-10-11`).
 - **Loss pause:** realized loss >5% of bankroll in 24h (or >10% in 7d) → no new entries.
 - **Live:** bankroll = min(configured, real account equity); cycle skipped if equity
@@ -193,12 +203,29 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
   side prob ≥80%, edge ≥4¢ after worst-case fee, **humility cap** skip if edge >25¢.
   The proposal log scores the unblended model probability and records `prob_method`
   (`emos`, `ensemble_raw`, or `residual_kernel`).
-  Skip a city/day unless brackets tile the full range. `gimme_bets` won't trade a temperature
-  bracket without a fresh model view that agrees.
+  Skip a city/day unless brackets tile the full range.
 - Settlement check: rules text is compared to the station map when the exchange
   sends it. Bracket edges are whole °F, inclusive ("62 to 63" contains 62 and 63).
   A city is dropped from proposals when the backtest file reports any mismatch
   (`WX_SKIP_MISMATCH_CITIES=1`). No file yet means nothing is skipped.
+
+### gimme_bets (US)
+- Crypto price markets (`cpc*`) are off by default (`US_GIMME_SKIP_SLUG_REGEX=^cpc`).
+  Clearing that regex still does not trade crypto: there is no crypto model, and a
+  category without a model is rejected.
+- The favorite test uses the midpoint. The side we buy must have a real bid and a
+  spread no wider than `US_GIMME_MAX_SPREAD` (default 4¢). A 95¢ ask with no bid is
+  not a 95% probability.
+- Weather brackets use the unblended EMOS/ensemble `p_yes`. It has to clear the ask
+  plus the taker fee plus `US_GIMME_MIN_EDGE` (default 3¢). The humility cap on
+  `weather_us` is unchanged.
+- Markets inside `US_GIMME_MIN_HOURS` (default 6 hours) are skipped. Proposals are
+  ranked by expected value per dollar of premium after the taker fee, not by
+  annualized yield.
+- Every considered candidate is written to `agent/proposals.jsonl` with bid, ask,
+  mid, and depth (`record=proposal` when it becomes a proposal, `record=gimme_candidate`
+  when it is rejected). `agent/gimme_backtest.py` replays old rows and says which
+  rules the old log cannot support.
 - Every cycle appends proposals (approved or not) to `agent/proposals.jsonl`.
   After settlement, scoreboard shows model Brier vs market Brier, mean CLV, and
   a 10-bucket calibration. That block does not change the ladder.
@@ -285,7 +312,7 @@ window keyed on trade-open time; BBO `longQuote/shortQuote` semantics unconfirme
 | 3 | Log exits so the ledger scores early sells correctly | Medium | small |
 | 4 | Daily loss window keyed on settlement time instead of open time | Low | small |
 | 5 | Weather v2: NWS point forecast as 5th input; per-season calibration | Medium | half day |
-| 6 | BTC brackets priced vs live spot + volatility (only then un-skip `cpc-`) | Medium | 1 day |
+| 6 | A crypto model (spot + volatility). Only then clear `US_GIMME_SKIP_SLUG_REGEX` — the own-edge gate still rejects `cpc*` until `model_prob_for` returns a probability | Medium | 1 day |
 | 7 | `ANTHROPIC_API_KEY` for probability_arb (currently dropped on US venue anyway) | Low | — |
 
 Research upgrades landed in paper mode (do not treat as a green light to add capital):

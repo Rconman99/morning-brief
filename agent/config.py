@@ -15,7 +15,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MAX_SINGLE_POSITION_PCT = float(os.environ.get("MAX_SINGLE_POSITION_PCT", "0.05"))  # 5% of bankroll per market (was 10%; per-trade σ≈33% on favorites)
 MAX_POSITIONS_PER_GROUP = int(os.environ.get("MAX_POSITIONS_PER_GROUP", "1"))     # one bet per event (same underlying + date)
 MAX_TOTAL_EXPOSURE_PCT = 0.95       # 95% max deployed (5% cash buffer)
-MAX_CATEGORY_EXPOSURE_PCT = 0.50    # 50% max in any one category (e.g., BTC)
+MAX_CATEGORY_EXPOSURE_PCT = 0.50    # 50% max in any one category (e.g., climate)
+# One combined bucket for every crypto underlying (BTC, ETH, SOL, XRP, any cpc* slug).
+# Default matches the single-position cap so a second coin cannot open beside the first.
+MAX_CRYPTO_EXPOSURE_PCT = float(os.environ.get("MAX_CRYPTO_EXPOSURE_PCT", "0.05"))
 MAX_DAILY_LOSS_PCT = 0.05           # 5% daily loss → pause 24h
 MAX_WEEKLY_LOSS_PCT = 0.10          # 10% weekly loss → pause + alert
 MIN_EDGE_TO_TRADE = 0.10            # 10% minimum expected value edge

@@ -194,8 +194,13 @@ def get_market(slug: str) -> dict:
 def get_bbo(slug: str) -> dict:
     """Normalized top of book for a market slug.
 
-    Returns {state, yes_ask, yes_bid, no_ask, last, open_interest, shares_traded,
-             ask_shares, bid_shares} with floats; {} on failure.
+    Returns {state, yes_ask, yes_bid, no_ask, no_bid, no_ask_real,
+             no_ask_synthetic, last, open_interest, shares_traded, ask_shares,
+             bid_shares} with floats; {} on failure.
+
+    yes_bid is 0 when nobody is bidding. no_ask falls back to 1 - yes_bid only
+    so older callers still see a complement; no_ask_synthetic marks that case.
+    no_ask_real is 0 when the exchange did not send a short quote.
     """
     try:
         r = _call_paced(get_public_client().markets.bbo, slug)
@@ -205,14 +210,26 @@ def get_bbo(slug: str) -> dict:
         return {}
     if not d:
         return {}
-    yes_ask = _amt(d.get("longQuote")) or _amt(d.get("bestAsk"))
+    long_quote = _amt(d.get("longQuote"))
+    best_ask = _amt(d.get("bestAsk"))
     yes_bid = _amt(d.get("bestBid"))
-    no_ask = _amt(d.get("shortQuote")) or (round(1 - yes_bid, 4) if yes_bid else 0.0)
+    short_quote = _amt(d.get("shortQuote"))
+    # longQuote / bestAsk are the YES offer. bestBid is the only YES bid.
+    # A missing bid stays 0 — callers must not treat the ask as a probability.
+    yes_ask = long_quote or best_ask
+    # shortQuote is the real NO offer. The complement of the YES bid is the same
+    # order and is kept as no_ask for older callers, flagged when it was derived.
+    no_ask_synthetic = short_quote <= 0 and yes_bid > 0
+    no_ask = short_quote or (round(1 - yes_bid, 4) if yes_bid else 0.0)
+    no_bid = round(1 - yes_ask, 4) if 0 < yes_ask < 1 else 0.0
     return {
         "state": d.get("state", ""),
         "yes_ask": yes_ask,
         "yes_bid": yes_bid,
         "no_ask": no_ask,
+        "no_bid": no_bid,
+        "no_ask_real": short_quote,
+        "no_ask_synthetic": no_ask_synthetic,
         "last": _amt(d.get("lastTradePx")),
         "open_interest": float(d.get("openInterest") or 0),
         "shares_traded": float(d.get("sharesTraded") or 0),

@@ -229,9 +229,30 @@ def _append(path: Path, rows: list[dict]) -> int:
     return len(rows)
 
 
+def _book_price(raw, *, allow_zero: bool = False):
+    """A quote in [0, 1). Zero is kept only when the caller logged an explicit bid."""
+    if raw is None or raw == "":
+        return None
+    try:
+        p = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if allow_zero and p == 0.0:
+        return 0.0
+    if 0.0 < p < 1.0:
+        return p
+    return None
+
+
+def _depth(raw):
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    return float(raw)
+
+
 def log_cycle(proposals: list[dict], executed: list[dict] | None = None,
               quotes: list[dict] | None = None, now: datetime | None = None,
-              path: Path | None = None) -> int:
+              path: Path | None = None, candidates: list[dict] | None = None) -> int:
     """Append this cycle's proposals and any later-useful quotes.
 
     Dedupe within the cycle: first proposal wins for a strategy+slug+side.
@@ -275,14 +296,19 @@ def log_cycle(proposals: list[dict], executed: list[dict] | None = None,
         proposed_pairs.add((slug, side))
         q = quote_idx.get((slug, side), {})
         ask = _pos_price(raw.get("market_ask"))
-        bid = _pos_price(raw.get("market_bid"))
+        # Zero is a real logged bid (nobody is bidding). Missing stays null.
+        bid = _book_price(raw.get("market_bid"), allow_zero=True)
+        if bid is None:
+            bid = _book_price(q.get("market_bid"), allow_zero=True)
         if ask is None:
             ask = _pos_price(q.get("market_ask"))
-        if bid is None:
-            bid = _pos_price(q.get("market_bid"))
         # A gimme proposal's limit/price is the ask it saw, when no book quote was copied over.
         if ask is None:
             ask = _pos_price(raw.get("ask") if raw.get("ask") is not None else raw.get("price"))
+        bid_for_mid = bid if bid else None
+        mid = _pos_price(raw.get("market_mid"))
+        if mid is None:
+            mid = implied_prob(ask, bid_for_mid)
         check = raw.get("risk_check") or {}
         approved = bool(check.get("approved"))
         row = {
@@ -296,12 +322,19 @@ def log_cycle(proposals: list[dict], executed: list[dict] | None = None,
             "model_prob": _model_prob(raw),
             "market_ask": ask,
             "market_bid": bid,
-            "market_prob": implied_prob(ask, bid),
+            "market_mid": mid,
+            "market_prob": mid if mid is not None else implied_prob(ask, bid_for_mid),
+            "depth_shares": _depth(raw.get("depth_shares")),
             "edge": _edge(raw),
             "approved": approved,
             "reject_reason": None if approved else (check.get("reason") or "not approved"),
             "executed": key in executed_keys,
         }
+        if raw.get("spread") is not None:
+            try:
+                row["spread"] = float(raw["spread"])
+            except (TypeError, ValueError):
+                pass
         row.update(forecast_fields(raw))
         proposal_rows.append(row)
 
@@ -328,7 +361,43 @@ def log_cycle(proposals: list[dict], executed: list[dict] | None = None,
             "market_ask": ask,
             "market_bid": bid,
         })
-    return _append(path, proposal_rows + quote_rows)
+
+    # Candidates the strategy rejected never become proposal rows. Log the book
+    # anyway so a one-sided ask is visible (bid 0) instead of a blank field.
+    proposed = {(r.get("strategy"), r.get("slug"), r.get("side")) for r in proposal_rows}
+    candidate_rows = []
+    seen_c = set()
+    for raw in candidates or []:
+        slug = raw.get("slug") or ""
+        side = str(raw.get("side") or "").lower()
+        strategy = raw.get("strategy") or "gimme_bets"
+        if not slug or side not in ("yes", "no"):
+            continue
+        key = (strategy, slug, side)
+        if key in proposed or key in seen_c:
+            continue
+        seen_c.add(key)
+        ask = _pos_price(raw.get("market_ask"))
+        bid = _book_price(raw.get("market_bid"), allow_zero=True)
+        mid = _pos_price(raw.get("market_mid"))
+        if mid is None:
+            mid = implied_prob(ask, bid if bid else None)
+        candidate_rows.append({
+            "record": "gimme_candidate",
+            "timestamp": stamp,
+            "strategy": strategy,
+            "slug": slug,
+            "side": side,
+            "model_prob": _model_prob(raw),
+            "market_ask": ask,
+            "market_bid": bid,
+            "market_mid": mid,
+            "depth_shares": _depth(raw.get("depth_shares")),
+            "approved": False,
+            "reject_reason": raw.get("reject_reason") or "not taken",
+            "executed": False,
+        })
+    return _append(path, proposal_rows + quote_rows + candidate_rows)
 
 
 def calibration_buckets(rows: list[dict], buckets: int = 10) -> list[dict]:

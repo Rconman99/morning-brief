@@ -123,19 +123,198 @@ def scan_weather_opportunities(params: dict) -> list:
 # ============================================================
 
 def scan_gimme_bets(params: dict) -> list:
-    """Find markets at 92%+ probability with decent volume resolving soon.
+    """Find heavy favorites the bot's own model still likes after fees.
 
-    Uses the existing polymarket_scanner's gimme_bets detection.
+    On Polymarket US the candidates come from agent/us_scanner.py. The ask is
+    not a probability: the scanner's midpoint has to clear the favorite
+    threshold on a two-sided book, and this function then requires the model's
+    probability to clear the ask plus the taker fee plus US_GIMME_MIN_EDGE.
+    Categories without a model (crypto included) are not traded. Proposals are
+    ranked by expected value per dollar, not annualized yield.
+
+    ``last_evaluations`` holds one audit row per candidate considered this call,
+    including rejects, so the proposal log can record bid, ask, mid, and depth.
     """
-    from agent.config import AUTO_EXIT_PRICE
     import os
 
-    # Venue switch: on Polymarket US the candidates come from agent/us_scanner.py
-    # (same shape, US market slugs, venue="us") instead of the polymarket.com scanner.
+    scan_gimme_bets.last_evaluations = []
     if os.environ.get("POLYMARKET_VENUE", "").strip().lower() == "us":
-        pm = _load_signal("polymarket_us.json", max_age_min=30)
+        proposals, audits = _scan_us_gimme_bets(params)
+        scan_gimme_bets.last_evaluations = audits
+        return proposals
+    return _scan_polygon_gimme_bets(params)
+
+
+def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
+    """US gimme proposals plus an audit row for every evaluated candidate."""
+    from agent.config import AUTO_EXIT_PRICE
+    from agent.gimme_rules import (
+        DEFAULT_MAX_SPREAD,
+        DEFAULT_MIN_EDGE,
+        DEFAULT_MIN_HOURS,
+        assess_us_gimme,
+        env_float,
+        model_prob_for,
+        normalize_category,
+        slug_is_skipped,
+    )
+
+    pm = _load_signal("polymarket_us.json", max_age_min=30)
+    if not pm:
+        return [], []
+
+    min_price = float(params.get("min_price", env_float("US_GIMME_PRICE_THRESHOLD", 0.92)))
+    max_days = params.get("max_days_to_expiry", 30)
+    min_gross_edge = params.get("min_gross_edge", 0.0)
+    min_shares = params.get("min_shares", 5)
+    min_depth = max(min_shares, env_float("US_GIMME_MIN_ASK_SHARES", 100))
+    max_spread = env_float("US_GIMME_MAX_SPREAD", DEFAULT_MAX_SPREAD)
+    min_edge = env_float("US_GIMME_MIN_EDGE", params.get("min_model_edge", DEFAULT_MIN_EDGE))
+    min_hours = env_float("US_GIMME_MIN_HOURS", DEFAULT_MIN_HOURS)
+    skip_categories = set(params.get("skip_categories", ["sports"]))
+    skip_neg_risk = params.get("skip_neg_risk", True)
+    skip_grouped = params.get("skip_grouped", True)
+
+    bankroll = params.get("bankroll", 0)
+    max_pct = params.get("max_position_pct")
+    if bankroll and max_pct:
+        max_pos = bankroll * max_pct
     else:
-        pm = _load_signal("polymarket.json")
+        max_pos = params.get("max_position_usd", 10)
+
+    wx_rows = _weather_us_rows()
+    items = pm.get("gimme_evaluated")
+    if not items:
+        items = pm.get("gimme_bets", [])
+
+    proposals = []
+    audits = []
+    for g in items:
+        slug = g.get("slug", "")
+        side = (g.get("side") or "").upper()
+        wx = wx_rows.get(slug) or {}
+        model_prob, model_reason = model_prob_for(slug, side, wx.get("p_yes"))
+        # Book rejects are already decided; don't relabel them as "no model".
+        if g.get("book_reject"):
+            model_for_assess, model_reason_for_assess = None, g.get("book_reject")
+        else:
+            model_for_assess, model_reason_for_assess = model_prob, model_reason
+        decision = assess_us_gimme(
+            g, model_for_assess,
+            min_price=min_price, max_spread=max_spread, min_edge=min_edge,
+            min_hours=min_hours, min_depth=min_depth, model_reason=model_reason_for_assess,
+        )
+        reason = decision["reason"]
+        # Crypto (and any other skipped slug) stays off even when the book looks
+        # like a heavy favorite. An empty US_GIMME_SKIP_SLUG_REGEX disables this;
+        # no_model still rejects categories that have no probability model.
+        if slug_is_skipped(slug):
+            reason = "skipped_slug"
+        if reason is None and (
+            normalize_category(g.get("category", ""), slug) in skip_categories
+            or g.get("category", "other") in skip_categories
+        ):
+            reason = "skip_category"
+        if reason is None and skip_neg_risk and g.get("neg_risk"):
+            reason = "neg_risk"
+        if reason is None and skip_grouped and (g.get("group_size", 0) > 0 or g.get("group_title", "")):
+            reason = "grouped"
+        risks = list(g.get("risks") or [])
+        if reason is None and "likely_settled" in risks:
+            reason = "likely_settled"
+        pay = decision["pay_price"] or 0.0
+        if reason is None and pay and (AUTO_EXIT_PRICE - pay) < min_gross_edge:
+            reason = "auto_exit_gap"
+        hours = decision["hours"]
+        if reason is None and hours is not None and hours > float(max_days) * 24:
+            reason = "too_far"
+
+        category = normalize_category(g.get("category", ""), slug)
+        audit = {
+            "strategy": "gimme_bets",
+            "slug": slug,
+            "side": side.lower(),
+            "market_bid": decision["bid"],
+            "market_ask": decision["ask"],
+            "market_mid": decision["mid"],
+            "depth_shares": decision["depth"],
+            "spread": decision["spread"],
+            "model_prob": decision["model_prob"] if g.get("book_reject") is None else model_prob,
+            "model_source": model_reason,
+            "ev_per_dollar": decision["ev_per_dollar"],
+            "hours_to_expiry": hours,
+            "category": category,
+            "reject_reason": reason,
+        }
+        if reason is not None:
+            audits.append(audit)
+            continue
+
+        # Size from the gross quote, same formula as before, so a 5-share
+        # floor on a small bankroll does not change. The rank key is EV.
+        raw_return = (1.0 - pay) / pay * 100 if pay else 0.0
+        size_usd = min(max_pos, max_pos * (raw_return / 10.0))
+        shares = size_usd / pay if pay else 0
+        if shares < min_shares:
+            shares = min_shares
+            size_usd = shares * pay
+            if size_usd > max_pos:
+                audit["reject_reason"] = "size"
+                audits.append(audit)
+                continue
+
+        edge = decision["edge"] or 0.0
+        ev = decision["ev_per_dollar"] or 0.0
+        proposal = {
+            "strategy": "gimme_bets",
+            "venue": "us",
+            "question": g.get("question", ""),
+            "slug": slug,
+            "side": "BUY",
+            "token_hint": side.lower(),
+            "price": round(pay, 4),
+            "market_bid": decision["bid"],
+            "market_ask": decision["ask"],
+            "market_mid": decision["mid"],
+            "spread": decision["spread"],
+            "depth_shares": decision["depth"],
+            "size_shares": round(shares, 1),
+            "size_usd": round(size_usd, 2),
+            "edge": round(edge, 4),
+            "edge_pct": round(edge * 100, 2),
+            "ev_per_dollar": round(ev, 6),
+            "model_prob": round(decision["model_prob"], 4),
+            "model_source": model_reason,
+            "annualized_yield": g.get("annualized_yield_pct"),
+            "days_to_expiry": g.get("days_to_expiry"),
+            "hours_to_expiry": hours,
+            "conviction": round(min(raw_return / 8.0, 1.0), 2),
+            "category": category,
+            "risks": risks,
+            "reason": (
+                f"{side} model {decision['model_prob']:.0%} vs ask {pay:.3f} "
+                f"(mid {decision['mid']:.3f}, edge {edge:.3f} after taker fee)"
+            ),
+        }
+        for key in (
+            "prob_method", "prob_fallback", "ensemble_mean", "ensemble_spread",
+            "emos_bias", "emos_spread", "obs_floor", "obs_floor_applied",
+            "p_yes", "n_members", "n_models", "ensemble_models",
+        ):
+            if key in wx and wx[key] is not None and wx[key] != "":
+                proposal[key] = wx[key]
+        audits.append(audit)
+        proposals.append(proposal)
+
+    proposals.sort(key=lambda p: p.get("ev_per_dollar") or -1, reverse=True)
+    return proposals[:10], audits
+
+
+def _scan_polygon_gimme_bets(params: dict) -> list:
+    """Legacy polymarket.com gimme list. US venue does not use this path."""
+    from agent.config import AUTO_EXIT_PRICE
+
+    pm = _load_signal("polymarket.json")
     if not pm:
         return []
 
@@ -143,12 +322,11 @@ def scan_gimme_bets(params: dict) -> list:
     max_days = params.get("max_days_to_expiry", 30)
     min_vol = params.get("min_volume_24h", 10000)
     min_gross_edge = params.get("min_gross_edge", 0.0)
-    min_shares = params.get("min_shares", 5)             # Polymarket CLOB rejects orders < 5 shares
-    skip_categories = set(params.get("skip_categories", ["sports"]))  # Sports = neg-risk; py-clob-client 0.34.6 returns order_version_mismatch
-    skip_neg_risk = params.get("skip_neg_risk", True)    # Multi-outcome markets fail with order_version_mismatch — needs scanner v2 to populate
-    skip_grouped = params.get("skip_grouped", True)      # Event-ladder markets ALSO fail order_version_mismatch even when negRisk=False (e.g. "↓ 74,000" within "what price will BTC hit?")
+    min_shares = params.get("min_shares", 5)
+    skip_categories = set(params.get("skip_categories", ["sports"]))
+    skip_neg_risk = params.get("skip_neg_risk", True)
+    skip_grouped = params.get("skip_grouped", True)
 
-    # Bankroll-aware sizing: prefer pct of bankroll, fall back to flat USD cap
     bankroll = params.get("bankroll", 0)
     max_pct = params.get("max_position_pct")
     if bankroll and max_pct:
@@ -163,7 +341,6 @@ def scan_gimme_bets(params: dict) -> list:
         if price < min_price:
             continue
         if g.get("venue") == "us":
-            # US API has no 24h volume; the scanner records resting depth at the quote.
             if g.get("depth_shares", 0) < max(min_shares, 100):
                 continue
         elif g.get("volume_24h", 0) < min_vol:
@@ -171,42 +348,37 @@ def scan_gimme_bets(params: dict) -> list:
         if g.get("days_to_expiry") is not None and g["days_to_expiry"] > max_days:
             continue
         if g.get("category", "other") in skip_categories:
-            continue  # neg-risk markets fail with order_version_mismatch in current py-clob-client
+            continue
         if skip_neg_risk and g.get("neg_risk"):
-            continue  # primary defense: scanner-passthrough flag from gamma-api
+            continue
         if skip_grouped and (g.get("group_size", 0) > 0 or g.get("group_title", "")):
-            continue  # event-ladder markets fail order_version_mismatch despite negRisk=False
+            continue
 
-        # Weather-model veto: a "safe-looking" temperature bracket the forecast disagrees with.
         if g.get("venue") == "us" and str(g.get("slug", "")).startswith("tc-temp-"):
             view = wx_view.get(g.get("slug"))
             if view is None:
-                continue  # no fresh forecast for this bracket: don't trade it blind
+                continue
             side_p = view if g.get("side", "").upper() == "YES" else 1 - view
             if side_p < price + 0.02:
                 continue
 
-        # Skip if risks are too high
         risks = g.get("risks", [])
         if "likely_settled" in risks:
-            continue  # Already resolved, no edge
+            continue
 
-        # Reject if remaining edge to auto-exit can't clear fee+slip floor
         if (AUTO_EXIT_PRICE - price) < min_gross_edge:
             continue
 
         profit_per_share = g.get("profit_per_share", 1.0 - price)
         raw_return = g.get("raw_return_pct", 0)
 
-        # Size: fixed per gimme bet, smaller since edge is small.
-        # Floor at min_shares to clear Polymarket's 5-share order minimum.
         size_usd = min(max_pos, max_pos * (raw_return / 10.0))
         shares = size_usd / price
         if shares < min_shares:
             shares = min_shares
             size_usd = shares * price
             if size_usd > max_pos:
-                continue  # Can't satisfy min-shares without exceeding position cap — skip
+                continue
 
         proposals.append({
             "strategy": "gimme_bets",
@@ -235,13 +407,22 @@ def scan_gimme_bets(params: dict) -> list:
 # STRATEGY 2b: Weather model on Polymarket US temperature markets
 # ============================================================
 
-def _weather_us_view() -> dict:
-    """{slug: p_yes} from agent/weather_us.py's latest pricing (fresh within 2h)."""
+def _weather_us_rows() -> dict:
+    """{slug: weather row} from agent/weather_us.py, fresh within 30 minutes.
+
+    ``p_yes`` is the unblended EMOS / ensemble probability, not the market.
+    """
     env = _load_signal("weather_us.json", max_age_min=30)
     out = {}
     for r in (env or {}).get("rows", []):
-        out[r["slug"]] = r.get("p_yes")
+        if r.get("slug"):
+            out[r["slug"]] = r
     return out
+
+
+def _weather_us_view() -> dict:
+    """{slug: p_yes} from agent/weather_us.py's latest pricing (fresh within 30 min)."""
+    return {slug: row.get("p_yes") for slug, row in _weather_us_rows().items()}
 
 
 def scan_weather_us(params: dict) -> list:
@@ -540,6 +721,7 @@ def scan_btc_sentiment(params: dict) -> list:
 
 def run_all_strategies(params: dict) -> list:
     """Run all three strategy families and return combined proposals."""
+    run_all_strategies.last_gimme_evaluations = []
     all_proposals = []
 
     # Weather model on Polymarket US (first: it has the best information on temperature brackets)
@@ -564,6 +746,7 @@ def run_all_strategies(params: dict) -> list:
     # Gimme Bets
     gimme_params = params.get("gimme_bets", {})
     gimmes = scan_gimme_bets(gimme_params)
+    run_all_strategies.last_gimme_evaluations = list(getattr(scan_gimme_bets, "last_evaluations", []) or [])
     weight = gimme_params.get("weight", 1.0)
     for p in gimmes:
         p["strategy_weight"] = weight
