@@ -28,6 +28,12 @@ def _resolved_slugs() -> set:
         return set()
 
 
+def _is_crypto_exposure(t: dict) -> bool:
+    """BTC, ETH, SOL, XRP, and any other cpc* slug share one combined cap."""
+    from agent.gimme_rules import is_crypto
+    return is_crypto(t.get("slug", ""), t.get("category", ""))
+
+
 def _group(t: dict) -> str:
     g = t.get("group")
     if g:
@@ -47,6 +53,7 @@ def _calculate_exposure(trades: list) -> dict:
     category_cost = {}
     strategy_cost = {}
     groups = {}
+    crypto_cost = 0.0
 
     today = datetime.now().date().isoformat()
     week_ago = (datetime.now() - timedelta(days=7)).date().isoformat()
@@ -75,12 +82,15 @@ def _calculate_exposure(trades: list) -> dict:
             strategy_cost[strat] = strategy_cost.get(strat, 0) + cost
             g = _group(t)
             groups[g] = groups.get(g, 0) + 1
+            if _is_crypto_exposure(t):
+                crypto_cost += cost
 
     return {
         "total_deployed": active_cost,
         "by_category": category_cost,
         "by_strategy": strategy_cost,
         "groups": groups,
+        "crypto_deployed": crypto_cost,
         "today_deployed": daily_cost,
         "week_deployed": weekly_cost,
     }
@@ -129,7 +139,10 @@ def _exchange_exposure(trades: list) -> dict | None:
     strat_by_slug = {t.get("slug"): t.get("strategy", "unknown") for t in trades if t.get("status") == "submitted"}
     cat_by_slug = {t.get("slug"): t.get("category", "other") for t in trades if t.get("status") == "submitted"}
     exp = _calculate_exposure([t for t in trades if t.get("status") != "paper_filled"])
-    exp.update({"total_deployed": 0.0, "by_category": {}, "by_strategy": {}, "groups": {}})
+    exp.update({
+        "total_deployed": 0.0, "by_category": {}, "by_strategy": {}, "groups": {},
+        "crypto_deployed": 0.0,
+    })
     items = [(p["slug"], p.get("initialValue") or p.get("avgPrice", 0) * p.get("size", 0)) for p in positions]
     items += [(o["slug"], o["price"] * max(0.0, o["original_size"] - o["size_matched"]))
               for o in orders if o.get("side") == "BUY"]
@@ -141,6 +154,8 @@ def _exchange_exposure(trades: list) -> dict | None:
         exp["by_category"][cat] = exp["by_category"].get(cat, 0) + cost
         g = _group({"slug": slug})
         exp["groups"][g] = exp["groups"].get(g, 0) + 1
+        if _is_crypto_exposure({"slug": slug, "category": cat}):
+            exp["crypto_deployed"] = exp.get("crypto_deployed", 0.0) + cost
     return exp
 
 
@@ -254,6 +269,26 @@ def check_proposal(proposal: dict, bankroll: float, trades: list, exposure: dict
         proposal["size_usd"] = remaining
         proposal["size_shares"] = remaining / max(proposal.get("price", 0.5), 0.01)
         cost = remaining
+
+    # 3b. Combined crypto cap. Separate from the per-category cap: ETH, SOL, and
+    # XRP are different event groups and used to open together when category was
+    # missing. This does not relax the category, correlation, or loss limits.
+    if _is_crypto_exposure(proposal):
+        crypto_after = exposure.get("crypto_deployed", 0) + cost
+        max_crypto = bankroll * config.MAX_CRYPTO_EXPOSURE_PCT
+        if crypto_after > max_crypto:
+            remaining = max_crypto - exposure.get("crypto_deployed", 0)
+            if remaining <= 0:
+                return {
+                    "approved": False,
+                    "reason": (
+                        f"Combined crypto exposure ${exposure.get('crypto_deployed', 0):.2f} "
+                        f"at ${max_crypto:.2f} cap ({config.MAX_CRYPTO_EXPOSURE_PCT:.0%} of bankroll)"
+                    ),
+                }
+            proposal["size_usd"] = remaining
+            proposal["size_shares"] = remaining / max(proposal.get("price", 0.5), 0.01)
+            cost = remaining
 
     # 4. Minimum edge — applies to ALL strategies, not just weather
     edge_raw = proposal.get("edge_pct", 0)
@@ -389,6 +424,8 @@ def filter_proposals(proposals: list, bankroll: float) -> list:
             exposure["by_strategy"][strat] = exposure["by_strategy"].get(strat, 0) + cost
             exposure["by_category"][cat] = exposure["by_category"].get(cat, 0) + cost
             exposure["groups"][g] = exposure["groups"].get(g, 0) + 1
+            if _is_crypto_exposure(p):
+                exposure["crypto_deployed"] = exposure.get("crypto_deployed", 0) + cost
             exposure["today_deployed"] += cost
             exposure["week_deployed"] += cost
             trades.append({"timestamp": datetime.now().isoformat(), "status": "paper_filled",

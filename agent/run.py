@@ -54,14 +54,17 @@ def setup_logging():
         )
 
 
-def _log_cycle_proposals(proposals: list | None, executed: list | None = None) -> None:
+def _log_cycle_proposals(proposals: list | None, executed: list | None = None,
+                         candidates: list | None = None) -> None:
     """Record every proposal (and follow-up quotes) for later Brier/CLV scoring.
 
     Failure here must not block the cycle. This does not place orders.
+    ``candidates`` is this cycle's gimme evaluations only — not leftovers from
+    a previous call in the same process.
     """
     try:
         from agent.proposal_log import log_cycle
-        n = log_cycle(proposals or [], executed=executed or [])
+        n = log_cycle(proposals or [], executed=executed or [], candidates=candidates or [])
         if n:
             logger.info("Proposal log: wrote %d row(s)", n)
     except Exception as e:
@@ -263,10 +266,11 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
 
     # 2. Run all strategies to get proposals
     proposals = run_all_strategies(params)
+    gimme_candidates = list(getattr(run_all_strategies, "last_gimme_evaluations", []) or [])
     logger.info("Total proposals: %d", len(proposals))
 
     if not proposals:
-        _log_cycle_proposals([])
+        _log_cycle_proposals([], candidates=gimme_candidates)
         print_summary([], [], [], bankroll, mode)
         return {"proposals": 0, "approved": 0, "executed": 0}
 
@@ -299,8 +303,9 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
                 reason=p.get("llm_reasoning", p.get("reason", "")),
                 slug=p.get("slug", ""),
                 token_hint=p.get("token_hint", "yes"),
+                category=p.get("category", ""),
             )
-            result["category"] = p.get("category", "other")
+            result["category"] = result.get("category") or p.get("category") or "other"
 
             # Only count successful executions — not errors
             if result.get("status") in ("submitted", "paper_filled"):
@@ -316,7 +321,7 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     if failed:
         logger.warning("%d / %d executions FAILED", len(failed), len(failed) + len(executed))
 
-    _log_cycle_proposals(proposals, executed)
+    _log_cycle_proposals(proposals, executed, gimme_candidates)
 
     # 5. Print summary
     print_summary(proposals, approved, executed, bankroll, mode)
