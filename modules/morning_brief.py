@@ -327,6 +327,130 @@ def log_verdicts(processed_dir: Path = None, scorecard_dir: Path = None):
     logger.info("Logged %d new verdicts to %s", new_count, log_path)
 
 
+# Asymmetric buffer around the 200-day simple moving average.
+# ABOVE: close is at least 1% above the SMA. BELOW: at least 3% below.
+# The band between those levels is NEUTRAL. This is context, not a trade signal.
+SPY_SMA_DAYS = 200
+SPY_ABOVE_GAP = 0.01
+SPY_BELOW_GAP = 0.03
+SPY_TREND_UNAVAILABLE = "SPY 200-day trend: unavailable"
+
+
+def spy_sma200_regime(close: float, sma200: float) -> str:
+    """Label SPY relative to its 200-day SMA using the fixed buffer.
+
+    ABOVE when close >= SMA * 1.01.
+    BELOW when close <= SMA * 0.97.
+    NEUTRAL (inside buffer) otherwise.
+    """
+    close_f = float(close)
+    sma_f = float(sma200)
+    if close_f != close_f or sma_f != sma_f or close_f <= 0 or sma_f <= 0:
+        raise ValueError("close and sma200 must be finite and positive")
+    above_line = sma_f * (1.0 + SPY_ABOVE_GAP)
+    below_line = sma_f * (1.0 - SPY_BELOW_GAP)
+    eps = sma_f * 1e-12
+    if close_f + eps >= above_line:
+        return "ABOVE"
+    if close_f <= below_line + eps:
+        return "BELOW"
+    return "NEUTRAL (inside buffer)"
+
+
+def _extract_closes(history):
+    """Close column from a yfinance frame, or the series itself."""
+    import pandas as pd
+
+    if history is None:
+        return []
+    if isinstance(history, pd.Series):
+        return history
+    if isinstance(history, pd.DataFrame):
+        frame = history
+        if isinstance(frame.columns, pd.MultiIndex):
+            frame = frame.copy()
+            frame.columns = frame.columns.get_level_values(0)
+        if "Close" not in frame.columns:
+            return []
+        close = frame["Close"]
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+        return close
+    return history
+
+
+def spy_200d_trend_from_closes(closes) -> str:
+    """One context line from daily closes. Short or bad input does not raise."""
+    try:
+        import pandas as pd
+
+        raw = [] if closes is None else closes
+        series = pd.to_numeric(pd.Series(list(raw)), errors="coerce").dropna()
+        if len(series) < SPY_SMA_DAYS:
+            return SPY_TREND_UNAVAILABLE
+        window = series.iloc[-SPY_SMA_DAYS:]
+        sma = float(window.mean())
+        close = float(series.iloc[-1])
+        regime = spy_sma200_regime(close, sma)
+        gap = (close - sma) / sma
+        return (
+            "SPY 200-day trend (context, not a trade signal): "
+            f"close ${close:.2f} vs SMA200 ${sma:.2f} ({gap:+.2%}) — {regime}"
+        )
+    except Exception:
+        logger.warning("SPY 200-day trend could not be computed", exc_info=True)
+        return SPY_TREND_UNAVAILABLE
+
+
+def spy_200d_trend_from_history(history) -> str:
+    """Format the context line from a price-history frame."""
+    try:
+        return spy_200d_trend_from_closes(_extract_closes(history))
+    except Exception:
+        logger.warning("SPY 200-day trend history was unreadable", exc_info=True)
+        return SPY_TREND_UNAVAILABLE
+
+
+def _download_spy_daily(period: str = "2y"):
+    """Daily SPY bars from yfinance, the free source lib.api already uses.
+
+    Not routed through yahoo_finance_price_history: that helper's ticker cache
+    ignores period, so writing a 2y SPY frame would replace a shorter window
+    another module stored earlier the same day.
+    """
+    import pandas as pd
+    import yfinance as yf
+
+    df = yf.download("SPY", period=period, auto_adjust=True, progress=False)
+    if df is None:
+        return pd.DataFrame()
+    if isinstance(df.columns, pd.MultiIndex):
+        df = df.copy()
+        df.columns = df.columns.get_level_values(0)
+    return df
+
+
+def render_spy_200d_trend_line() -> str:
+    """Fetch >=200 daily SPY closes and render one context line. Never raises."""
+    try:
+        history = _download_spy_daily("2y")
+    except Exception:
+        logger.warning("SPY 200-day trend download failed", exc_info=True)
+        return SPY_TREND_UNAVAILABLE
+    return spy_200d_trend_from_history(history)
+
+
+def _spy_trend_context_line() -> str:
+    """Brief-safe wrapper. Missing data becomes the unavailable line."""
+    try:
+        line = render_spy_200d_trend_line()
+        if isinstance(line, str) and line.strip():
+            return line.strip()
+    except Exception:
+        logger.warning("SPY 200-day trend line failed", exc_info=True)
+    return SPY_TREND_UNAVAILABLE
+
+
 def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     """Generate the morning brief markdown from all module outputs."""
     pdir = processed_dir or PROCESSED_DIR
@@ -458,11 +582,18 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
         lines.append("*Data unavailable*")
         lines.append("")
 
-    # Macro Dashboard
+    # Macro Dashboard — market overview. The SPY line is context, not a verdict input.
+    try:
+        spy_trend_line = _spy_trend_context_line()
+    except Exception:
+        logger.warning("SPY 200-day trend skipped", exc_info=True)
+        spy_trend_line = SPY_TREND_UNAVAILABLE
     if macro["status"] in ("success", "partial"):
         md = macro["data"]
         macro_signal = md.get("signal", "mixed").upper()
         lines.append(f"## Macro Dashboard — {macro_signal}")
+        lines.append(spy_trend_line)
+        lines.append("")
         lines.append(f"*{md.get('regime_summary', md.get('signal_detail', ''))}*")
         lines.append("")
         for key, ind in md.get("indicators", {}).items():
@@ -477,6 +608,7 @@ def generate_brief(processed_dir: Path = None, outputs_dir: Path = None) -> str:
     else:
         lines.append("## Macro Dashboard")
         lines.append("*Data unavailable*")
+        lines.append(spy_trend_line)
         lines.append("")
 
     # Sector Rotation

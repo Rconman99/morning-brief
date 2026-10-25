@@ -9,7 +9,26 @@ import json
 import pytest
 from unittest.mock import patch
 
-from modules.morning_brief import generate_brief, determine_verdict, main
+from modules.morning_brief import (
+    generate_brief,
+    determine_verdict,
+    main,
+    spy_sma200_regime,
+    spy_200d_trend_from_closes,
+    spy_200d_trend_from_history,
+    render_spy_200d_trend_line,
+    SPY_TREND_UNAVAILABLE,
+)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_spy_download(monkeypatch):
+    """Brief tests stay offline. The SPY line fail-softs when the download raises."""
+
+    def _boom(period="2y"):
+        raise RuntimeError("SPY download disabled in tests")
+
+    monkeypatch.setattr("modules.morning_brief._download_spy_daily", _boom)
 
 
 def test_generate_brief_with_mock_data(mock_envelopes, tmp_path):
@@ -34,6 +53,8 @@ def test_generate_brief_with_mock_data(mock_envelopes, tmp_path):
     assert "Scenario Valuations" in brief
     assert "Position Sizing" in brief
     assert "financial advice" in brief.lower()
+    assert SPY_TREND_UNAVAILABLE in brief
+    assert "Macro Dashboard" in brief
 
 
 def test_generate_brief_missing_modules(tmp_path):
@@ -46,6 +67,7 @@ def test_generate_brief_missing_modules(tmp_path):
     brief = generate_brief(processed_dir=empty_processed, outputs_dir=outputs)
     assert "Morning Brief" in brief
     assert "Data unavailable" in brief
+    assert SPY_TREND_UNAVAILABLE in brief
 
 
 def test_determine_verdict_hold():
@@ -176,6 +198,81 @@ def test_determine_verdict_review():
     """Fewer than 2 data sources should trigger REVIEW."""
     verdict, _ = determine_verdict("AAPL", {"comparisons": []}, {"results": []}, {"holdings": []})
     assert verdict == "REVIEW"
+
+
+@pytest.mark.parametrize(
+    "close,sma,expected",
+    [
+        (101.0, 100.0, "ABOVE"),
+        (100.999, 100.0, "NEUTRAL (inside buffer)"),
+        (100.5, 100.0, "NEUTRAL (inside buffer)"),
+        (100.0, 100.0, "NEUTRAL (inside buffer)"),
+        (98.0, 100.0, "NEUTRAL (inside buffer)"),
+        (97.001, 100.0, "NEUTRAL (inside buffer)"),
+        (97.0, 100.0, "BELOW"),
+        (90.0, 100.0, "BELOW"),
+    ],
+)
+def test_spy_sma200_regime_buffer(close, sma, expected):
+    """1% above is ABOVE, 3% below is BELOW, the band between is NEUTRAL."""
+    assert spy_sma200_regime(close, sma) == expected
+
+
+def test_spy_sma200_regime_exact_ratio_on_uneven_sma():
+    sma = 487.33
+    assert spy_sma200_regime(sma * 1.01, sma) == "ABOVE"
+    assert spy_sma200_regime(sma * 0.97, sma) == "BELOW"
+    assert spy_sma200_regime(sma * 1.005, sma) == "NEUTRAL (inside buffer)"
+    assert spy_sma200_regime(sma * 0.98, sma) == "NEUTRAL (inside buffer)"
+
+
+def test_spy_trend_line_from_synthetic_closes():
+    """Last 200 closes: a jump on the final print is still context, not a signal."""
+    closes = [100.0] * 199 + [110.0]
+    line = spy_200d_trend_from_closes(closes)
+    assert line.startswith("SPY 200-day trend (context, not a trade signal):")
+    assert "SMA200" in line
+    assert "ABOVE" in line
+    assert "unavailable" not in line
+    assert spy_200d_trend_from_closes([100.0] * 199) == SPY_TREND_UNAVAILABLE
+    assert spy_200d_trend_from_closes([]) == SPY_TREND_UNAVAILABLE
+    assert spy_200d_trend_from_closes(None) == SPY_TREND_UNAVAILABLE
+
+
+def test_spy_trend_line_from_synthetic_history():
+    import pandas as pd
+
+    idx = pd.bdate_range("2024-01-02", periods=210)
+    flat = pd.DataFrame({"Close": [100.0] * 210}, index=idx)
+    neutral = spy_200d_trend_from_history(flat)
+    assert "NEUTRAL (inside buffer)" in neutral
+    assert "not a trade signal" in neutral
+
+    cols = pd.MultiIndex.from_tuples([("Close", "SPY")])
+    jumped = pd.DataFrame([[100.0]] * 209 + [[110.0]], index=idx[:210], columns=cols)
+    assert "ABOVE" in spy_200d_trend_from_history(jumped)
+    assert spy_200d_trend_from_history(pd.DataFrame()) == SPY_TREND_UNAVAILABLE
+
+
+def test_render_spy_line_uses_injected_history(monkeypatch):
+    import pandas as pd
+
+    idx = pd.bdate_range("2024-01-02", periods=220)
+    frame = pd.DataFrame({"Close": [200.0] * 219 + [250.0]}, index=idx)
+    monkeypatch.setattr("modules.morning_brief._download_spy_daily", lambda period="2y": frame)
+    line = render_spy_200d_trend_line()
+    assert "context, not a trade signal" in line
+    assert "ABOVE" in line
+    assert line.startswith("SPY 200-day trend")
+
+
+def test_spy_download_failure_does_not_break_brief(mock_envelopes, tmp_path):
+    outputs = tmp_path / "outputs"
+    outputs.mkdir()
+    brief = generate_brief(processed_dir=mock_envelopes, outputs_dir=outputs)
+    assert SPY_TREND_UNAVAILABLE in brief
+    assert "Morning Brief" in brief
+    assert "financial advice" in brief.lower()
 
 
 def test_main_creates_output(mock_envelopes, tmp_path):
