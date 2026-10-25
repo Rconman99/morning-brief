@@ -298,6 +298,7 @@ window keyed on trade-open time; BBO `longQuote/shortQuote` semantics unconfirme
 - **Don't remove the humility cap, the correlation cap, or the loss pause** to "get more trades".
 - Don't attempt to access polymarket.com trading from the US (geo-blocked; off-limits).
 - Commit messages describe *why*; keep `docs/HANDOFF.md` and the runbook current.
+- Read [`research.md`](../research.md) before retesting a strategy idea. Every idea that is tested gets an entry there before any summary. Verdicts are DATA VALIDATED, TRADE-OFF, or NO EDGE. NO EDGE is a result: do not retest it without a new reason written in that entry.
 - The repo's `CLAUDE.md` is from the original "morning brief" build (GitNexus etc.); the
   agent/ subsystem conventions above take precedence for trading code.
 
@@ -325,6 +326,7 @@ cap, loss pause, and maker-only path are unchanged.
 ---
 
 ## 12. Reference docs
+- Dead-ideas ledger: [`research.md`](../research.md) — one entry per tested strategy idea, before any summary. Fixed verdicts: DATA VALIDATED, TRADE-OFF, NO EDGE.
 - Polymarket US: fees https://docs.polymarket.us/fees · orders/price convention https://docs.polymarket.us/api-reference/orders/overview · developer keys https://polymarket.us/developer
 - Kalshi makers/takers study: https://www.karlwhelan.com/Papers/Kalshi.pdf
 - Project docs (claude.ai project "Polymarkt trading app"): `polymarket-bot-runbook.md`, `polymarket-strategy-research.md`
