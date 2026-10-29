@@ -316,9 +316,13 @@ def decide_from_yes(p_yes: float, side: str, yes_ask, yes_bid, no_ask, *,
     model_prob in the result is the unblended probability of the side (what
     the proposal log scores). trade_prob is what the edge and the limit use.
     Returns {"_skip": "humility"} when the pre-calibration edge is wider than
-    max_edge, and None when the side simply does not qualify. Settled-trade
-    calibration (agent/prob_calibration.py) can only lower the probability
-    used for the minimum-edge test. It cannot reopen a humility skip.
+    max_edge, and None when the side simply does not qualify.
+
+    CALIBRATION_MODE=enforce uses the shrunk probability for that minimum-edge
+    test. The default, shadow, keeps trade_prob on the pre-calibration number
+    (the log-odds blend, or the raw side probability when the blend is off),
+    which is the decision this function made before calibration existed.
+    Shrinking cannot reopen a humility skip in either mode.
     """
     side = (side or "").lower()
     if side not in ("yes", "no"):
@@ -356,7 +360,9 @@ def decide_from_yes(p_yes: float, side: str, yes_ask, yes_bid, no_ask, *,
             "ask": ask_f,
         }
     from agent import prob_calibration
+    mode = "off"
     try:
+        mode = prob_calibration.calibration_mode()
         cal = prob_calibration.calibrate_side(raw_side, market_side)
     except Exception:
         logger.exception("probability calibration failed; keeping the pre-calibration probability")
@@ -366,32 +372,41 @@ def decide_from_yes(p_yes: float, side: str, yes_ask, yes_bid, no_ask, *,
             "n": 0,
             "method": "error",
         }
-    trade_p = prob_calibration.edge_probability(pre_trade, cal.get("calibrated_prob"), raw_side)
-    edge = trade_p - ask_f - fee
-    if trade_p < min_prob or edge < min_edge:
+        mode = "off"
+    shrunk = prob_calibration.edge_probability(pre_trade, cal.get("calibrated_prob"), raw_side)
+    shrunk_edge = shrunk - ask_f - fee
+    shrunk_limit = round(min(ask_f, shrunk - min_edge), 3)
+    would_skip = mode != "off" and (shrunk < min_prob or shrunk_edge < min_edge or shrunk_limit <= 0)
+    if mode == "enforce":
+        trade_p, edge, limit = shrunk, shrunk_edge, shrunk_limit
+    else:
+        trade_p, edge = pre_trade, pre_edge
+        limit = round(min(ask_f, pre_trade - min_edge), 3)
+    if trade_p < min_prob or edge < min_edge or limit <= 0:
+        if mode == "enforce":
+            logger.info(
+                "calibration edge skip raw %.3f market %s pre %.3f calibrated %.3f ask %.3f edge %.3f method %s n %s",
+                raw_side,
+                "none" if market_side is None else f"{float(market_side):.3f}",
+                pre_trade, shrunk, ask_f, shrunk_edge, cal.get("method"), cal.get("n"),
+            )
+        return None
+    if mode == "enforce":
         logger.info(
-            "calibration edge skip raw %.3f market %s pre %.3f calibrated %.3f ask %.3f edge %.3f method %s n %s",
+            "calibration enforce raw %.3f market %s calibrated %.3f weight %s n %s method %s",
             raw_side,
             "none" if market_side is None else f"{float(market_side):.3f}",
-            pre_trade, trade_p, ask_f, edge, cal.get("method"), cal.get("n"),
+            trade_p, cal.get("model_weight"), cal.get("n"), cal.get("method"),
         )
-        return None
-    limit = round(min(ask_f, trade_p - min_edge), 3)
-    if limit <= 0:
-        return None
-    logger.info(
-        "calibration raw %.3f market %s calibrated %.3f weight %s n %s method %s",
-        raw_side,
-        "none" if market_side is None else f"{float(market_side):.3f}",
-        trade_p, cal.get("model_weight"), cal.get("n"), cal.get("method"),
-    )
     return {
         "model_prob": round(raw_side, 4),
         "trade_prob": round(trade_p, 4),
-        "calibrated_prob": round(trade_p, 4),
+        "calibrated_prob": round(float(shrunk), 4),
         "calibration_weight": None if cal.get("model_weight") is None else round(float(cal["model_weight"]), 4),
         "calibration_n": int(cal.get("n") or 0),
         "calibration_method": cal.get("method") or "market_shrink",
+        "would_skip": bool(would_skip),
+        "market_prob": None if market_side is None else round(float(market_side), 4),
         "edge": round(edge, 4),
         "price": limit,
         "ask": ask_f,
@@ -440,7 +455,10 @@ def reapply_weather_gate(proposal: dict, *, min_prob: float | None = None,
     out["edge"] = gated["edge"]
     out["price"] = gated["price"]
     out["model_weight"] = gated["model_weight"] if gated.get("model_weight") is not None else model_weight()
-    for key in ("calibrated_prob", "calibration_weight", "calibration_n", "calibration_method"):
+    for key in (
+        "calibrated_prob", "calibration_weight", "calibration_n", "calibration_method",
+        "would_skip", "market_prob",
+    ):
         if key in gated and gated[key] is not None and gated[key] != "":
             out[key] = gated[key]
     return out

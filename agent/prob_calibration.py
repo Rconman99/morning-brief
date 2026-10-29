@@ -15,11 +15,19 @@ those methods return is then clamped:
 - it never raises the side probability, so the edge versus the ask cannot grow
 
 The raw probability is what the proposal log still scores. This module does not
-place orders and does not read secrets. Paper or live, it only changes the
-probability the edge test and the sizer see. It does not touch the humility
-cap, the correlation cap, the loss pause, or the paper/live switch.
+place orders and does not read secrets. It does not touch the humility cap,
+the correlation cap, the loss pause, or the paper/live switch.
 
-PROB_CAL_ENABLED=0 (also false/no/off) leaves the previous probability in place.
+CALIBRATION_MODE controls whether the shrunk probability changes a bet:
+
+- ``shadow`` (the default) watches only. Edge and size stay on the same
+  probability the bot used before this step. Every weather_us and gimme_bets
+  candidate is appended to ``agent/calibration_shadow.jsonl`` with the raw
+  probability, the calibrated probability, and whether the calibrated rule
+  would have skipped or resized the bet.
+- ``enforce`` uses the shrunk probability for the edge test and for sizes
+  above the share floor, which can only drop or shrink a bet.
+- ``PROB_CAL_ENABLED=0`` (also false/no/off) turns the step off entirely.
 """
 
 from __future__ import annotations
@@ -28,11 +36,16 @@ import json
 import logging
 import math
 import os
+from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+SHADOW_LOG = PROJECT_ROOT / "agent" / "calibration_shadow.jsonl"
 _OFF = ("0", "false", "no", "off")
 _STRATEGIES = ("weather_us", "gimme_bets")
+_ENFORCE = ("enforce", "enforced")
 
 
 def _env_float(name: str, default: float) -> float:
@@ -52,6 +65,70 @@ def _env_int(name: str, default: int) -> int:
 def calibration_enabled() -> bool:
     """On unless PROB_CAL_ENABLED is 0/false/no/off."""
     return os.environ.get("PROB_CAL_ENABLED", "1").strip().lower() not in _OFF
+
+
+def calibration_mode() -> str:
+    """``shadow`` (default), ``enforce``, or ``off``.
+
+    Unknown values stay on ``shadow``, which does not change a betting decision.
+    ``PROB_CAL_ENABLED=0`` forces ``off`` even if CALIBRATION_MODE=enforce.
+    """
+    if not calibration_enabled():
+        return "off"
+    raw = os.environ.get("CALIBRATION_MODE", "shadow").strip().lower()
+    if raw in _ENFORCE:
+        return "enforce"
+    if raw in _OFF or raw == "disabled":
+        return "off"
+    return "shadow"
+
+
+def _json_num(raw):
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    value = float(raw)
+    if math.isfinite(value):
+        return value
+    return None
+
+
+def append_shadow(row: dict, path: Path | None = None) -> None:
+    """Append one watch-only row. No-op unless the mode is shadow. Never raises."""
+    if calibration_mode() != "shadow":
+        return
+    if not isinstance(row, dict):
+        return
+    target = Path(path) if path is not None else SHADOW_LOG
+    record = {
+        "timestamp": row.get("timestamp") or datetime.now().astimezone().isoformat(),
+        "strategy": row.get("strategy"),
+        "slug": row.get("slug") or "",
+        "side": str(row.get("side") or "").lower(),
+        "raw_prob": _json_num(row.get("raw_prob")),
+        "calibrated_prob": _json_num(row.get("calibrated_prob")),
+        "market_prob": _json_num(row.get("market_prob")),
+        "ask": _json_num(row.get("ask")),
+        "would_skip": bool(row.get("would_skip")),
+        "would_resize": bool(row.get("would_resize")),
+        "decision_kept": bool(row.get("decision_kept")),
+        "size_shares": _json_num(row.get("size_shares")),
+        "calibrated_size_shares": _json_num(row.get("calibrated_size_shares")),
+        "mode": "shadow",
+    }
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record) + "\n")
+    except OSError as exc:
+        logger.warning("calibration shadow log failed: %s", exc)
+    else:
+        if record["would_skip"] or record["would_resize"]:
+            logger.info(
+                "calibration shadow %s %s %s raw %s calibrated %s would_skip %s would_resize %s kept %s",
+                record["strategy"], record["slug"], record["side"],
+                record["raw_prob"], record["calibrated_prob"],
+                record["would_skip"], record["would_resize"], record["decision_kept"],
+            )
 
 
 def prior_n() -> float:

@@ -17,21 +17,24 @@ Model (per city, per lead time), WX_ENSEMBLE=1 by default:
      floor. Brackets entirely below it are zeroed and the rest renormalized.
   4. P(bracket) = P(integer CLI high in [lo, hi]), inclusive.
   5. Before the 4¢ edge test, blend the model with the market mid in log-odds
-     (WX_MODEL_WEIGHT, default 0.40). Then shrink that probability toward
-     settled paper results (agent/prob_calibration.py). The shrink can only
-     lower confidence. The proposal log scores the unblended model probability
-     and also stores the calibrated one.
+     (WX_MODEL_WEIGHT, default 0.40). A settled-trade shrink
+     (agent/prob_calibration.py) is computed beside that. CALIBRATION_MODE
+     defaults to shadow, so the edge test still uses the blend. enforce is
+     what substitutes the shrunk probability, and the shrink can only lower
+     confidence. The proposal log scores the unblended model probability.
 
 Residual kernel (flag off, or ensemble unavailable):
   Forecast = blend of GFS, ECMWF, ICON, NBM (×2). Error distribution = this
   station's own recent forecast errors, kernel-smoothed. Same-day floor as above.
 
 Trade rule ("high-conviction model" pattern from the leaderboard audit):
-  buy the side (YES/NO) whose calibrated probability >= WX_MIN_PROB (0.80) and
+  buy the side (YES/NO) whose decision probability >= WX_MIN_PROB (0.80) and
   exceeds the price we'd pay by >= WX_MIN_EDGE (0.04) after fees; limit price is
-  capped at that calibrated probability minus WX_MIN_EDGE, and the executor rests
-  it as a maker bid. Edges wider than WX_MAX_EDGE (0.25), measured before the
-  settled-trade shrink, are skipped (humility cap).
+  capped at that probability minus WX_MIN_EDGE, and the executor rests it as a
+  maker bid. In shadow mode the decision probability is the log-odds blend
+  (or the raw side probability when the blend is off). enforce uses the
+  shrunk probability instead. Edges wider than WX_MAX_EDGE (0.25), measured
+  before the shrink, are skipped (humility cap).
 
 Settlement truth (agent/weather_settlement_check.py):
   stations are KMIA, KNYC (Central Park), KMDW, KSFO, KLAX. The climate day is
@@ -599,6 +602,7 @@ def price_markets(cal_all: dict) -> dict:
                         "calibration_weight": gated.get("calibration_weight"),
                         "calibration_n": gated.get("calibration_n"),
                         "calibration_method": gated.get("calibration_method"),
+                        "would_skip": gated.get("would_skip"),
                         "edge": gated["edge"], "lead": lead, "city": code, "date": day,
                         "forecast": round(fc, 1), "obs_floor": row["obs_floor"],
                         "p_yes": round(float(p_yes), 6),
@@ -634,6 +638,7 @@ def price_markets(cal_all: dict) -> dict:
                     "calibration_weight": gated.get("calibration_weight"),
                     "calibration_n": gated.get("calibration_n"),
                     "calibration_method": gated.get("calibration_method"),
+                    "would_skip": gated.get("would_skip"),
                     "edge": gated["edge"], "lead": lead, "city": code, "date": day,
                     "forecast": round(fc, 1), "obs_floor": row["obs_floor"],
                     "depth_shares": bbo.get("ask_shares") if side == "yes" else bbo.get("bid_shares"),
