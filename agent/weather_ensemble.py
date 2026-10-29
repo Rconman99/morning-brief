@@ -315,8 +315,10 @@ def decide_from_yes(p_yes: float, side: str, yes_ask, yes_bid, no_ask, *,
 
     model_prob in the result is the unblended probability of the side (what
     the proposal log scores). trade_prob is what the edge and the limit use.
-    Returns {"_skip": "humility"} when the edge is wider than max_edge, and
-    None when the side simply does not qualify.
+    Returns {"_skip": "humility"} when the pre-calibration edge is wider than
+    max_edge, and None when the side simply does not qualify. Settled-trade
+    calibration (agent/prob_calibration.py) can only lower the probability
+    used for the minimum-edge test. It cannot reopen a humility skip.
     """
     side = (side or "").lower()
     if side not in ("yes", "no"):
@@ -331,7 +333,11 @@ def decide_from_yes(p_yes: float, side: str, yes_ask, yes_bid, no_ask, *,
     w = model_weight() if weight is None else weight
     blended_yes = blend_log_odds(p_yes_f, market_yes, w) if blend else p_yes_f
     raw_side = p_yes_f if side == "yes" else 1.0 - p_yes_f
-    trade_p = blended_yes if side == "yes" else 1.0 - blended_yes
+    # pre_trade is the probability this function used before settled-trade
+    # calibration. Humility is judged on it, so a later shrink cannot turn a
+    # wide edge into a trade.
+    pre_trade = blended_yes if side == "yes" else 1.0 - blended_yes
+    market_side = None if market_yes is None else (market_yes if side == "yes" else 1.0 - market_yes)
     ask = yes_ask if side == "yes" else no_ask
     try:
         ask_f = float(ask)
@@ -340,23 +346,52 @@ def decide_from_yes(p_yes: float, side: str, yes_ask, yes_bid, no_ask, *,
     if not 0.0 < ask_f < 1.0:
         return None
     fee = FEE_COEF * ask_f * (1.0 - ask_f)
-    edge = trade_p - ask_f - fee
-    if edge > max_edge:
+    pre_edge = pre_trade - ask_f - fee
+    if pre_edge > max_edge:
         return {
             "_skip": "humility",
-            "edge": edge,
-            "trade_prob": trade_p,
+            "edge": pre_edge,
+            "trade_prob": pre_trade,
             "model_prob": raw_side,
             "ask": ask_f,
         }
+    from agent import prob_calibration
+    try:
+        cal = prob_calibration.calibrate_side(raw_side, market_side)
+    except Exception:
+        logger.exception("probability calibration failed; keeping the pre-calibration probability")
+        cal = {
+            "calibrated_prob": pre_trade,
+            "model_weight": None,
+            "n": 0,
+            "method": "error",
+        }
+    trade_p = prob_calibration.edge_probability(pre_trade, cal.get("calibrated_prob"), raw_side)
+    edge = trade_p - ask_f - fee
     if trade_p < min_prob or edge < min_edge:
+        logger.info(
+            "calibration edge skip raw %.3f market %s pre %.3f calibrated %.3f ask %.3f edge %.3f method %s n %s",
+            raw_side,
+            "none" if market_side is None else f"{float(market_side):.3f}",
+            pre_trade, trade_p, ask_f, edge, cal.get("method"), cal.get("n"),
+        )
         return None
     limit = round(min(ask_f, trade_p - min_edge), 3)
     if limit <= 0:
         return None
+    logger.info(
+        "calibration raw %.3f market %s calibrated %.3f weight %s n %s method %s",
+        raw_side,
+        "none" if market_side is None else f"{float(market_side):.3f}",
+        trade_p, cal.get("model_weight"), cal.get("n"), cal.get("method"),
+    )
     return {
         "model_prob": round(raw_side, 4),
         "trade_prob": round(trade_p, 4),
+        "calibrated_prob": round(trade_p, 4),
+        "calibration_weight": None if cal.get("model_weight") is None else round(float(cal["model_weight"]), 4),
+        "calibration_n": int(cal.get("n") or 0),
+        "calibration_method": cal.get("method") or "market_shrink",
         "edge": round(edge, 4),
         "price": limit,
         "ask": ask_f,
@@ -405,6 +440,9 @@ def reapply_weather_gate(proposal: dict, *, min_prob: float | None = None,
     out["edge"] = gated["edge"]
     out["price"] = gated["price"]
     out["model_weight"] = gated["model_weight"] if gated.get("model_weight") is not None else model_weight()
+    for key in ("calibrated_prob", "calibration_weight", "calibration_n", "calibration_method"):
+        if key in gated and gated[key] is not None and gated[key] != "":
+            out[key] = gated[key]
     return out
 
 

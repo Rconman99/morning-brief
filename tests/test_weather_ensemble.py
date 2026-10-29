@@ -173,7 +173,16 @@ class TestBlendAndEdge:
         assert skipped["_skip"] == "humility"
         assert skipped["edge"] > 0.25
 
-    def test_accepts_a_modest_edge_and_scores_the_unblended_prob(self):
+    def test_accepts_a_modest_edge_and_scores_the_unblended_prob(self, monkeypatch):
+        # A model that has earned full weight is not shrunk. The log-odds blend
+        # and the unblended score are unchanged.
+        monkeypatch.setattr(
+            "agent.prob_calibration.current_fit",
+            lambda rows=None: {
+                "enabled": True, "n": 500, "model_weight": 1.0, "prior_n": 0.0,
+                "platt": None, "bins": None, "platt_min_n": 10000, "bin_min_n": 10000,
+            },
+        )
         taken = decide_from_yes(
             0.90, "yes", 0.80, 0.90, 0.15,
             min_prob=0.80, min_edge=0.04, max_edge=0.25, weight=0.40,
@@ -412,6 +421,13 @@ class TestStrategyAndLog:
             "model_weight": 0.40,
         }
         monkeypatch.setattr(strategies, "_load_signal", lambda *a, **k: {"proposals": [proposal]})
+        monkeypatch.setattr(
+            "agent.prob_calibration.current_fit",
+            lambda rows=None: {
+                "enabled": True, "n": 500, "model_weight": 1.0, "prior_n": 0.0,
+                "platt": None, "bins": None, "platt_min_n": 10000, "bin_min_n": 10000,
+            },
+        )
         out = strategies.scan_weather_us({"bankroll": 100, "max_position_pct": 0.05, "min_shares": 5})
         assert len(out) == 1
         assert out[0]["model_prob"] == pytest.approx(0.90)

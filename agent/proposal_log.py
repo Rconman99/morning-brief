@@ -94,18 +94,21 @@ def _model_prob(proposal: dict):
 
 _FORECAST_FLOATS = (
     "ensemble_mean", "ensemble_spread", "emos_bias", "emos_spread",
-    "obs_floor", "trade_prob", "p_yes", "model_weight",
+    "obs_floor", "trade_prob", "calibrated_prob", "calibration_weight",
+    "p_yes", "model_weight",
 )
-_FORECAST_INTS = ("n_members", "n_models")
-_FORECAST_STRS = ("prob_method", "prob_fallback", "ensemble_models")
+_FORECAST_INTS = ("n_members", "n_models", "calibration_n")
+_FORECAST_STRS = ("prob_method", "prob_fallback", "ensemble_models", "calibration_method")
 
 
 def forecast_fields(proposal: dict) -> dict:
     """Ensemble / EMOS diagnostics copied onto a proposal-log row.
 
     model_prob itself is the unblended side probability the scorer uses.
-    trade_prob is the log-odds blend the edge test used, when that path ran.
-    Missing fields are omitted so older proposals stay unchanged.
+    trade_prob is the probability the edge test used (log-odds blend, then
+    the settled-trade shrink). calibrated_prob is that same shrunk number
+    when calibration ran. Missing fields are omitted so older proposals stay
+    unchanged.
     """
     if not isinstance(proposal, dict):
         return {}

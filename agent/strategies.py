@@ -158,6 +158,7 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
         normalize_category,
         slug_is_skipped,
     )
+    from agent.prob_calibration import calibrate_side, confidence_scale, resize_shares
 
     pm = _load_signal("polymarket_us.json", max_age_min=30)
     if not pm:
@@ -194,11 +195,35 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
         side = (g.get("side") or "").upper()
         wx = wx_rows.get(slug) or {}
         model_prob, model_reason = model_prob_for(slug, side, wx.get("p_yes"))
+        cal_meta = None
         # Book rejects are already decided; don't relabel them as "no model".
         if g.get("book_reject"):
             model_for_assess, model_reason_for_assess = None, g.get("book_reject")
         else:
-            model_for_assess, model_reason_for_assess = model_prob, model_reason
+            market_mid = g.get("market_mid")
+            if market_mid in (None, ""):
+                try:
+                    bid_q = float(g.get("market_bid") or 0)
+                    ask_q = float(g.get("market_ask") or 0)
+                except (TypeError, ValueError):
+                    bid_q, ask_q = 0.0, 0.0
+                if bid_q > 0.0 and ask_q > 0.0:
+                    market_mid = (bid_q + ask_q) / 2.0
+            if model_prob is None:
+                model_for_assess = None
+            else:
+                cal_meta = calibrate_side(model_prob, market_mid)
+                model_for_assess = cal_meta.get("calibrated_prob")
+                if model_for_assess is None:
+                    model_for_assess = model_prob
+                logger.info(
+                    "gimme calibration %s %s raw %.3f market %s calibrated %.3f weight %s n %s method %s",
+                    slug, side, float(model_prob),
+                    "none" if cal_meta.get("market_prob") is None else f"{cal_meta['market_prob']:.3f}",
+                    float(model_for_assess), cal_meta.get("model_weight"),
+                    cal_meta.get("n"), cal_meta.get("method"),
+                )
+            model_reason_for_assess = model_reason
         decision = assess_us_gimme(
             g, model_for_assess,
             min_price=min_price, max_spread=max_spread, min_edge=min_edge,
@@ -239,7 +264,11 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
             "market_mid": decision["mid"],
             "depth_shares": decision["depth"],
             "spread": decision["spread"],
-            "model_prob": decision["model_prob"] if g.get("book_reject") is None else model_prob,
+            "model_prob": model_prob,
+            "calibrated_prob": None if not cal_meta else cal_meta.get("calibrated_prob"),
+            "calibration_weight": None if not cal_meta else cal_meta.get("model_weight"),
+            "calibration_n": None if not cal_meta else cal_meta.get("n"),
+            "calibration_method": None if not cal_meta else cal_meta.get("method"),
             "model_source": model_reason,
             "ev_per_dollar": decision["ev_per_dollar"],
             "hours_to_expiry": hours,
@@ -262,6 +291,16 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
                 audit["reject_reason"] = "size"
                 audits.append(audit)
                 continue
+        if cal_meta and cal_meta.get("calibrated_prob") is not None and model_prob is not None:
+            scale = confidence_scale(model_prob, cal_meta["calibrated_prob"])
+            resized = resize_shares(shares, min_shares, scale)
+            if resized + 1e-9 < shares:
+                logger.info(
+                    "calibration resize %s shares %.2f -> %.2f (raw %.3f calibrated %.3f)",
+                    slug, shares, resized, float(model_prob), float(cal_meta["calibrated_prob"]),
+                )
+                shares = resized
+                size_usd = shares * pay
 
         edge = decision["edge"] or 0.0
         ev = decision["ev_per_dollar"] or 0.0
@@ -283,7 +322,12 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
             "edge": round(edge, 4),
             "edge_pct": round(edge * 100, 2),
             "ev_per_dollar": round(ev, 6),
-            "model_prob": round(decision["model_prob"], 4),
+            "model_prob": round(float(model_prob), 4),
+            "calibrated_prob": None if not cal_meta or cal_meta.get("calibrated_prob") is None else round(float(cal_meta["calibrated_prob"]), 4),
+            "trade_prob": None if not cal_meta or cal_meta.get("calibrated_prob") is None else round(float(cal_meta["calibrated_prob"]), 4),
+            "calibration_weight": None if not cal_meta or cal_meta.get("model_weight") is None else round(float(cal_meta["model_weight"]), 4),
+            "calibration_n": None if not cal_meta else cal_meta.get("n"),
+            "calibration_method": None if not cal_meta else cal_meta.get("method"),
             "model_source": model_reason,
             "annualized_yield": g.get("annualized_yield_pct"),
             "days_to_expiry": g.get("days_to_expiry"),
@@ -292,8 +336,8 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
             "category": category,
             "risks": risks,
             "reason": (
-                f"{side} model {decision['model_prob']:.0%} vs ask {pay:.3f} "
-                f"(mid {decision['mid']:.3f}, edge {edge:.3f} after taker fee)"
+                f"{side} model {float(model_prob):.0%} calibrated {float(decision['model_prob']):.0%} "
+                f"vs ask {pay:.3f} (mid {decision['mid']:.3f}, edge {edge:.3f} after taker fee)"
             ),
         }
         for key in (
@@ -434,9 +478,12 @@ def scan_weather_us(params: dict) -> list:
     it as a maker bid.
 
     When WX_ENSEMBLE is on, the ensemble/EMOS probability is blended with the
-    market mid in log-odds before that edge test. model_prob on the proposal
-    stays the unblended side probability so the proposal log can score the
-    model against the market. WX_ENSEMBLE=0 leaves this blend off.
+    market mid in log-odds before that edge test. Settled-trade calibration
+    then shrinks the side probability again (agent/prob_calibration.py). The
+    edge test uses that lower number. model_prob on the proposal stays the
+    unblended side probability so the proposal log can score the model against
+    the market. WX_ENSEMBLE=0 leaves the log-odds blend off; the settled-trade
+    shrink still runs. PROB_CAL_ENABLED=0 turns only the shrink off.
     """
     import os
     from agent.weather_ensemble import ensemble_enabled, reapply_weather_gate
@@ -466,6 +513,17 @@ def scan_weather_us(params: dict) -> list:
         if shares < min_shares or cost > max_pos * 1.5:
             continue
         p = w["model_prob"]
+        trade_p = w.get("trade_prob", p)
+        from agent.prob_calibration import confidence_scale, resize_shares
+        scale = confidence_scale(p, trade_p)
+        resized = resize_shares(shares, min_shares, scale)
+        if resized + 1e-9 < shares:
+            logger.info(
+                "calibration resize %s shares %s -> %s (raw %.3f calibrated %.3f)",
+                w.get("slug"), shares, round(resized, 2), float(p), float(trade_p),
+            )
+            shares = max(min_shares, int(resized))
+            cost = shares * price
         method = w.get("prob_method") or "model"
         item = {
             "strategy": "weather_us",
@@ -484,12 +542,16 @@ def scan_weather_us(params: dict) -> list:
             "days_to_expiry": w.get("lead", 1),
             "volume_24h": 10 ** 6,  # liquidity checked by depth below
             "risks": [],
-            "reason": f"{w['side']} {method} {p:.0%} vs ask {w['ask']:.2f} (fc {w['forecast']}F, lead {w['lead']})",
+            "reason": (
+                f"{w['side']} {method} raw {p:.0%} calibrated {float(trade_p):.0%} "
+                f"vs ask {w['ask']:.2f} (fc {w['forecast']}F, lead {w['lead']})"
+            ),
         }
         for key in (
             "prob_method", "prob_fallback", "ensemble_mean", "ensemble_spread",
             "emos_bias", "emos_spread", "obs_floor", "obs_floor_applied",
-            "trade_prob", "p_yes", "n_members", "n_models", "ensemble_models",
+            "trade_prob", "calibrated_prob", "calibration_weight", "calibration_n",
+            "calibration_method", "p_yes", "n_members", "n_models", "ensemble_models",
             "model_weight", "yes_ask", "yes_bid", "no_ask",
         ):
             if key in w and w[key] is not None and w[key] != "":
