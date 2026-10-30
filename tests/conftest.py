@@ -9,6 +9,15 @@ import pytest
 import json
 
 
+@pytest.fixture(autouse=True)
+def _isolate_calibration_shadow_log(monkeypatch, tmp_path):
+    """Keep unit tests from appending fixture rows to the real shadow log."""
+    monkeypatch.setattr(
+        "agent.prob_calibration.SHADOW_LOG",
+        tmp_path / "calibration_shadow.jsonl",
+    )
+
+
 @pytest.fixture
 def project_root():
     return PROJECT_ROOT
