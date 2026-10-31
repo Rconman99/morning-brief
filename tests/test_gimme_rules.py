@@ -197,6 +197,14 @@ def test_strategy_keeps_weather_with_edge_and_ranks_by_ev(monkeypatch):
         return {}
 
     monkeypatch.setattr(strategies, "_load_signal", fake_load)
+    # Full model weight: calibration does not change the PR #18 edge math.
+    monkeypatch.setattr(
+        "agent.prob_calibration.current_fit",
+        lambda rows=None: {
+            "enabled": True, "n": 500, "model_weight": 1.0, "prior_n": 0.0,
+            "platt": None, "bins": None, "platt_min_n": 10000, "bin_min_n": 10000,
+        },
+    )
     proposals = strategies.scan_gimme_bets({})
     slugs = [p["slug"] for p in proposals]
     assert slugs == [long, short]

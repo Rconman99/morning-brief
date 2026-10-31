@@ -17,18 +17,24 @@ Model (per city, per lead time), WX_ENSEMBLE=1 by default:
      floor. Brackets entirely below it are zeroed and the rest renormalized.
   4. P(bracket) = P(integer CLI high in [lo, hi]), inclusive.
   5. Before the 4¢ edge test, blend the model with the market mid in log-odds
-     (WX_MODEL_WEIGHT, default 0.40). The proposal log scores the unblended
-     model probability.
+     (WX_MODEL_WEIGHT, default 0.40). A settled-trade shrink
+     (agent/prob_calibration.py) is computed beside that. CALIBRATION_MODE
+     defaults to shadow, so the edge test still uses the blend. enforce is
+     what substitutes the shrunk probability, and the shrink can only lower
+     confidence. The proposal log scores the unblended model probability.
 
 Residual kernel (flag off, or ensemble unavailable):
   Forecast = blend of GFS, ECMWF, ICON, NBM (×2). Error distribution = this
   station's own recent forecast errors, kernel-smoothed. Same-day floor as above.
 
 Trade rule ("high-conviction model" pattern from the leaderboard audit):
-  buy the side (YES/NO) whose model probability >= WX_MIN_PROB (0.80) and
+  buy the side (YES/NO) whose decision probability >= WX_MIN_PROB (0.80) and
   exceeds the price we'd pay by >= WX_MIN_EDGE (0.04) after fees; limit price is
-  capped at model_prob - WX_MIN_EDGE, and the executor rests it as a maker bid.
-  Edges wider than WX_MAX_EDGE (0.25) are skipped (humility cap).
+  capped at that probability minus WX_MIN_EDGE, and the executor rests it as a
+  maker bid. In shadow mode the decision probability is the log-odds blend
+  (or the raw side probability when the blend is off). enforce uses the
+  shrunk probability instead. Edges wider than WX_MAX_EDGE (0.25), measured
+  before the shrink, are skipped (humility cap).
 
 Settlement truth (agent/weather_settlement_check.py):
   stations are KMIA, KNYC (Central Park), KMDW, KSFO, KLAX. The climate day is
@@ -592,6 +598,11 @@ def price_markets(cal_all: dict) -> dict:
                         "venue": "us", "slug": m["slug"], "question": f"{m.get('question','')} — {m.get('title','')}",
                         "side": side.upper(), "price": gated["price"], "ask": ask,
                         "model_prob": gated["model_prob"], "trade_prob": gated["trade_prob"],
+                        "calibrated_prob": gated.get("calibrated_prob"),
+                        "calibration_weight": gated.get("calibration_weight"),
+                        "calibration_n": gated.get("calibration_n"),
+                        "calibration_method": gated.get("calibration_method"),
+                        "would_skip": gated.get("would_skip"),
                         "edge": gated["edge"], "lead": lead, "city": code, "date": day,
                         "forecast": round(fc, 1), "obs_floor": row["obs_floor"],
                         "p_yes": round(float(p_yes), 6),
@@ -610,20 +621,25 @@ def price_markets(cal_all: dict) -> dict:
                         "depth_shares": bbo.get("ask_shares") if side == "yes" else bbo.get("bid_shares"),
                     })
                     continue
-                if p < MIN_PROB:
+                gated = decide_from_yes(
+                    p_yes, side, yes_ask, yes_bid, no_ask,
+                    min_prob=MIN_PROB, min_edge=MIN_EDGE, max_edge=MAX_EDGE, blend=False,
+                )
+                if not gated or gated.get("_skip") == "humility" or gated.get("edge", 0) > MAX_EDGE:
+                    if gated and (gated.get("_skip") == "humility" or gated.get("edge", 0) > MAX_EDGE):
+                        logger.info("humility skip %s %s: model %.2f vs ask %.2f",
+                                    m["slug"], side, gated.get("model_prob") or p, ask)
                     continue
-                fee = 0.0695 * ask * (1 - ask)  # worst case (taker) fee per share
-                edge = p - ask - fee
-                if edge < MIN_EDGE:
-                    continue
-                if edge > MAX_EDGE:
-                    logger.info("humility skip %s %s: model %.2f vs ask %.2f", m["slug"], side, p, ask)
-                    continue
-                limit = round(min(ask, p - MIN_EDGE), 3)
                 proposal = {
                     "venue": "us", "slug": m["slug"], "question": f"{m.get('question','')} — {m.get('title','')}",
-                    "side": side.upper(), "price": limit, "ask": ask, "model_prob": round(p, 4),
-                    "edge": round(edge, 4), "lead": lead, "city": code, "date": day,
+                    "side": side.upper(), "price": gated["price"], "ask": ask,
+                    "model_prob": gated["model_prob"], "trade_prob": gated["trade_prob"],
+                    "calibrated_prob": gated.get("calibrated_prob"),
+                    "calibration_weight": gated.get("calibration_weight"),
+                    "calibration_n": gated.get("calibration_n"),
+                    "calibration_method": gated.get("calibration_method"),
+                    "would_skip": gated.get("would_skip"),
+                    "edge": gated["edge"], "lead": lead, "city": code, "date": day,
                     "forecast": round(fc, 1), "obs_floor": row["obs_floor"],
                     "depth_shares": bbo.get("ask_shares") if side == "yes" else bbo.get("bid_shares"),
                 }

@@ -86,6 +86,7 @@ to winning strategies and less to losers, continuously improving.
   - `.venv/bin/python agent/verify_us.py --preview` (after keys exist)
   - `.venv/bin/python agent/weather_settlement_backtest.py` (CLI highs vs past settlements; writes the city-skip file)
   - `.venv/bin/python agent/scoreboard.py` (includes proposal Brier / CLV; not a ladder gate)
+  - `.venv/bin/python agent/calibration_shadow.py --from YYYY-MM-DD --to YYYY-MM-DD` (watch-only calibration: would-skip counts and settled P&L)
 - Telegram: daily scoreboard ~8am PT (`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` in `.env`).
 
 ### `.env` variables (names only — never print values)
@@ -112,6 +113,11 @@ use the older residual kernel and skip the log-odds blend), `WX_MODEL_WEIGHT`
 `data/processed/weather_settlement_backtest.json` lists it), `WX_SKIP_CITIES`
 (comma-separated extra skips, e.g. `lax`), `WX_SKIP_ON_RULES_MISMATCH` (default
 `0`: log a rules/station disagreement, do not skip unless set to `1`).
+Probability calibration (paper-safe, does not place orders): `CALIBRATION_MODE`
+(`shadow` by default, or `enforce`), `PROB_CAL_ENABLED`
+(default `1`; `0`/`false`/`no`/`off` turns the step off),
+`PROB_CAL_PRIOR_N` (80, pseudo-observations that pull the blend toward the market),
+`PROB_CAL_PLATT_MIN_N` (80), `PROB_CAL_BIN_MIN_N` (200), `PROB_CAL_BIN_MIN_COUNT` (20).
 
 ---
 
@@ -127,8 +133,10 @@ use the older residual kernel and skip the log-odds blend), `WX_MODEL_WEIGHT`
 | `weather_settlement_backtest.py` | Past US temperature settlements vs IEM CLI highs → `data/processed/weather_settlement_backtest.json` |
 | `proposal_log.py` | Appends every proposal to `agent/proposals.jsonl`; Brier, log loss, CLV math. Gimme rows include bid, ask, mid, and depth. |
 | `gimme_rules.py` | Book, taker-fee edge, time, and crypto-slug rules shared by the scanner and the strategy |
+| `prob_calibration.py` | Shrinks weather_us and gimme_bets probabilities toward settled results. Default mode is shadow (log only). `enforce` applies the shrink to the edge test. |
+| `calibration_shadow.py` | Summarizes `agent/calibration_shadow.jsonl`: would-skip / would-resize counts and settled P&L of bets that would have been skipped. |
 | `gimme_backtest.py` | Offline replay of logged gimme rows against ledger settlements. Does not place orders. |
-| `strategies.py` | `scan_weather_us`, `scan_gimme_bets` (own-edge gate; weather uses the EMOS/ensemble `p_yes`; anything without a model is rejected; ranked by EV per dollar), `run_all_strategies` (US venue keeps only `venue=="us"` proposals); signal files >30 min old ignored |
+| `strategies.py` | `scan_weather_us`, `scan_gimme_bets` (own-edge gate; shadow mode keeps the pre-calibration probability, enforce uses the shrunk one; weather starts from the EMOS/ensemble `p_yes`; anything without a model is rejected; ranked by EV per dollar), `run_all_strategies` (US venue keeps only `venue=="us"` proposals); signal files >30 min old ignored |
 | `risk_gate.py` | All limits (see §6), plus a combined crypto cap. Live mode reads exposure from the exchange. Paper rows now store `category`, which is what the per-category cap reads. |
 | `executor.py` | `get_mode()` is the only paper/live switch. US is live only with `POLYMARKET_LIVE` + both keys and without `POLYMARKET_PAPER`. `place_limit_order` → `_place_limit_order_us` |
 | `run.py` | Main loop: log mode → equity cap (live only) → evaluator → stale-order sweep (live only) → auto-exit (live only) → strategies → risk gate → execute → log |
@@ -201,6 +209,9 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
   renormalized. The residual path still uses its older kernel floor.
 - Trade: after a log-odds blend with the market mid (`WX_MODEL_WEIGHT` 0.40 model),
   side prob ≥80%, edge ≥4¢ after worst-case fee, **humility cap** skip if edge >25¢.
+  The humility comparison uses the probability from that blend (or the raw
+  probability when the blend is off), **before** the settled-trade shrink below,
+  so a wide edge cannot be shrunk back into a trade.
   The proposal log scores the unblended model probability and records `prob_method`
   (`emos`, `ensemble_raw`, or `residual_kernel`).
   Skip a city/day unless brackets tile the full range.
@@ -216,9 +227,11 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
 - The favorite test uses the midpoint. The side we buy must have a real bid and a
   spread no wider than `US_GIMME_MAX_SPREAD` (default 4¢). A 95¢ ask with no bid is
   not a 95% probability.
-- Weather brackets use the unblended EMOS/ensemble `p_yes`. It has to clear the ask
-  plus the taker fee plus `US_GIMME_MIN_EDGE` (default 3¢). The humility cap on
-  `weather_us` is unchanged.
+- Weather brackets start from the unblended EMOS/ensemble `p_yes`. The edge
+  test still uses that raw number unless `CALIBRATION_MODE=enforce` (see the
+  calibration note below). In enforce mode the shrunk number has to clear the
+  ask plus the taker fee plus `US_GIMME_MIN_EDGE` (default 3¢). The logged
+  `model_prob` stays the raw number. The humility cap on `weather_us` is unchanged.
 - Markets inside `US_GIMME_MIN_HOURS` (default 6 hours) are skipped. Proposals are
   ranked by expected value per dollar of premium after the taker fee, not by
   annualized yield.
@@ -231,6 +244,33 @@ buy-and-hold, fast-bot crypto MM (not us), and low-frequency model trades (e.g. 
   a 10-bucket calibration. That block does not change the ladder.
 - External APIs (free, no key): open-meteo ensemble + forecast + previous-runs,
   mesonet.agron.iastate.edu (CLI), api.weather.gov observations.
+
+### Probability calibration (R-004, shadow first, not deployed by this change)
+`CALIBRATION_MODE` defaults to `shadow`. Weather and gimme bets are chosen
+exactly as before this step: the edge test and the size use the raw model
+probability (weather still applies its existing log-odds blend). Every
+candidate is appended to `agent/calibration_shadow.jsonl` with the raw
+probability, the calibrated probability, and `would_skip` / `would_resize`.
+`enforce` is what makes the shrunk probability change the bet. It can only
+drop a bet or shrink a size that is already above the 5-share floor.
+`PROB_CAL_ENABLED=0` turns the step off, including the shadow log.
+
+The calibrated number blends the model with the market mid. The weight is
+learned from settled weather_us and gimme_bets proposals and is pulled toward
+the market by `PROB_CAL_PRIOR_N` (default 80). Platt and bin maps wait until
+80 and 200 settled rows. The calibrated probability cannot be more extreme
+than the raw one, and it cannot raise edge. This does not change the humility
+cap, the correlation cap, the loss pause, or the `POLYMARKET_LIVE` /
+`POLYMARKET_PAPER` switch.
+
+Read the shadow log (dates are US/Eastern, inclusive):
+
+```
+.venv/bin/python agent/calibration_shadow.py --from YYYY-MM-DD --to YYYY-MM-DD
+```
+
+On the server that is `cd /opt/morning-brief && .venv/bin/python agent/calibration_shadow.py --from YYYY-MM-DD --to YYYY-MM-DD`.
+Compare would-skip P&L after about two weeks before setting `CALIBRATION_MODE=enforce`.
 
 ---
 
@@ -320,8 +360,12 @@ Research upgrades landed in paper mode (do not treat as a green light to add cap
 proposal log + Brier/log-loss/CLV on the scoreboard, the weather settlement
 backtest with a per-city skip, and ensemble/EMOS probabilities with a same-day
 observed-high floor and a log-odds blend (`WX_ENSEMBLE=0` turns that path off).
-Still not done: fractional Kelly. The humility cap, one-position correlation
-cap, loss pause, and maker-only path are unchanged.
+Settled-trade probability calibration is in shadow mode (R-004, still open).
+It logs what it would have skipped or resized and does not change a bet until
+`CALIBRATION_MODE=enforce`. Compare that log after about two weeks. Still not
+done: fractional Kelly, and a verdict on whether the shrunk probability beats
+the market. The humility cap, one-position correlation cap, loss pause, and
+maker-only path are unchanged.
 
 ---
 

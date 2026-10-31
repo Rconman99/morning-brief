@@ -274,8 +274,10 @@ def model_prob_for(slug: str, side: str, p_yes) -> tuple[float | None, str]:
 
     Weather brackets use the unblended ``p_yes`` from the EMOS / ensemble
     model (``weather_us`` rows). That number is the model's probability, not
-    the market quote and not the log-odds blend. Every other category returns
-    ``(None, "no_model")`` until a model is added here.
+    the market quote and not the log-odds blend. The US strategy shrinks it
+    toward settled results before the edge test (``agent/prob_calibration.py``);
+    this function still returns the raw probability. Every other category
+    returns ``(None, "no_model")`` until a model is added here.
     """
     if str(slug or "").startswith("tc-temp-"):
         if p_yes is None or p_yes == "":
