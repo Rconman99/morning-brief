@@ -17,8 +17,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import json
 import logging
+import math
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
     import requests as _requests
@@ -165,6 +166,81 @@ def _trade_category(category: str, slug: str) -> str:
     return normalize_category(category or "", slug or "")
 
 
+# Copied onto a gimme paper trade so loss_review can score it without a
+# matching proposal row. None of these keys are sent to the exchange.
+_REVIEW_NUMBERS = (
+    "model_prob", "market_prob", "market_mid", "market_ask", "market_bid",
+    "spread", "depth_shares", "liquidity", "liquidity_usd",
+    "forecast_age_hours", "hours_to_expiry",
+)
+_REVIEW_PROBS = ("model_prob", "market_prob", "market_mid")
+
+
+def _log_number(raw):
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    value = float(raw)
+    if not math.isfinite(value):
+        return None
+    return value
+
+
+def _hours_between(start, end) -> float | None:
+    if not start or not end:
+        return None
+    try:
+        left = datetime.fromisoformat(str(start))
+        right = datetime.fromisoformat(str(end))
+    except (TypeError, ValueError):
+        return None
+    if left.tzinfo is None:
+        left = left.replace(tzinfo=timezone.utc)
+    if right.tzinfo is None:
+        right = right.replace(tzinfo=timezone.utc)
+    return (right - left).total_seconds() / 3600.0
+
+
+def review_log_fields(source: dict | None, *, as_of: str | None = None) -> dict:
+    """Review fields already stored on a gimme proposal. Missing values are omitted.
+
+    ``market_prob`` falls back to the entry midpoint, which is the probability
+    the favorite test used. ``forecast_age_hours`` is the age of ``priced_at``
+    at the trade timestamp when the proposal did not already carry an age.
+    """
+    if not isinstance(source, dict):
+        return {}
+    out = {}
+    for key in _REVIEW_NUMBERS:
+        value = _log_number(source.get(key))
+        if value is None:
+            continue
+        if key in _REVIEW_PROBS and not 0.0 <= value <= 1.0:
+            continue
+        out[key] = value
+    if "market_prob" not in out:
+        mid = out.get("market_mid")
+        if mid is not None:
+            out["market_prob"] = mid
+    priced = source.get("priced_at")
+    if isinstance(priced, str) and priced.strip():
+        out["priced_at"] = priced.strip()
+        if "forecast_age_hours" not in out:
+            age = _hours_between(out["priced_at"], as_of)
+            if age is not None and age >= 0:
+                out["forecast_age_hours"] = round(age, 4)
+    return out
+
+
+def _attach_review_fields(order_record: dict, review: dict | None) -> None:
+    """Stamp gimme review fields onto a log row. Weather rows are left as they are."""
+    strategy = str(order_record.get("strategy") or "").strip().lower()
+    if strategy not in ("gimme_bets", "gimme"):
+        return
+    fields = review_log_fields(review, as_of=order_record.get("timestamp"))
+    for key, value in fields.items():
+        order_record.setdefault(key, value)
+
+
 def place_limit_order(
     token_id: str,
     side: str,
@@ -176,6 +252,7 @@ def place_limit_order(
     slug: str = "",
     token_hint: str = "yes",
     category: str = "",
+    review: dict | None = None,
 ) -> dict:
     """Place a limit order. Returns order result dict.
 
@@ -197,7 +274,7 @@ def place_limit_order(
     if get_venue() == "us":
         return _place_limit_order_us(
             side, price, size, market_question, strategy, reason, slug, token_hint, now, mode,
-            category=category,
+            category=category, review=review,
         )
 
     # Resolve real token ID from slug if we have one
@@ -229,6 +306,7 @@ def place_limit_order(
         "role": "maker",        # Limit orders = maker. GTC ensures we're providing liquidity.
         "category": _trade_category(category, slug),
     }
+    _attach_review_fields(order_record, review)
 
     if mode == "paper":
         order_record["status"] = "paper_filled"
@@ -302,7 +380,8 @@ def place_limit_order(
 
 
 def _place_limit_order_us(side, price, size, market_question, strategy, reason,
-                          slug, token_hint, now, mode, category: str = "") -> dict:
+                          slug, token_hint, now, mode, category: str = "",
+                          review: dict | None = None) -> dict:
     """Polymarket US execution path (see agent/pm_us.py).
 
     `slug` must be a US market slug (the US scanner emits these). If a proposal
@@ -337,6 +416,7 @@ def _place_limit_order_us(side, price, size, market_question, strategy, reason,
         "role": "maker",
         "category": _trade_category(category, us_slug or slug),
     }
+    _attach_review_fields(order_record, review)
 
     if not us_slug:
         order_record["status"] = "no_us_market"

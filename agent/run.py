@@ -304,6 +304,8 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
                 slug=p.get("slug", ""),
                 token_hint=p.get("token_hint", "yes"),
                 category=p.get("category", ""),
+                # Read-only copy of probabilities and book fields. Not used to price or size.
+                review=p,
             )
             result["category"] = result.get("category") or p.get("category") or "other"
 
