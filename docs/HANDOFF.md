@@ -135,6 +135,7 @@ Probability calibration (paper-safe, does not place orders): `CALIBRATION_MODE`
 | `gimme_rules.py` | Book, taker-fee edge, time, and crypto-slug rules shared by the scanner and the strategy |
 | `prob_calibration.py` | Shrinks weather_us and gimme_bets probabilities toward settled results. Default mode is shadow (log only). `enforce` applies the shrink to the edge test. |
 | `calibration_shadow.py` | Summarizes `agent/calibration_shadow.jsonl`: would-skip / would-resize counts and settled P&L of bets that would have been skipped. |
+| `loss_review.py` | Read-only tags for settled paper losses (overconfident, stale_info, thin_market, late_move, unknown) and model-vs-market Brier on the last 14 days vs earlier. Does not place orders or change gates. Optional copy under `agent/reviews/`. |
 | `gimme_backtest.py` | Offline replay of logged gimme rows against ledger settlements. Does not place orders. |
 | `strategies.py` | `scan_weather_us`, `scan_gimme_bets` (own-edge gate; shadow mode keeps the pre-calibration probability, enforce uses the shrunk one; weather starts from the EMOS/ensemble `p_yes`; anything without a model is rejected; ranked by EV per dollar), `run_all_strategies` (US venue keeps only `venue=="us"` proposals); signal files >30 min old ignored |
 | `risk_gate.py` | All limits (see §6), plus a combined crypto cap. Live mode reads exposure from the exchange. Paper rows now store `category`, which is what the per-category cap reads. |
@@ -271,6 +272,13 @@ Read the shadow log (dates are US/Eastern, inclusive):
 
 On the server that is `cd /opt/morning-brief && .venv/bin/python agent/calibration_shadow.py --from YYYY-MM-DD --to YYYY-MM-DD`.
 Compare would-skip P&L after about two weeks before setting `CALIBRATION_MODE=enforce`.
+That enforce step is recorded as rejected in [`docs/IMPROVEMENT_LOG.md`](IMPROVEMENT_LOG.md) until a held-out window is written there. Do not retry it without that entry.
+
+Loss tags for the same dates (analysis only, no orders):
+
+```
+.venv/bin/python agent/loss_review.py --from YYYY-MM-DD --to YYYY-MM-DD
+```
 
 ---
 
@@ -371,6 +379,7 @@ maker-only path are unchanged.
 
 ## 12. Reference docs
 - Dead-ideas ledger: [`research.md`](../research.md) — one entry per tested strategy idea, before any summary. Fixed verdicts: DATA VALIDATED, TRADE-OFF, NO EDGE.
+- Champion/challenger log: [`IMPROVEMENT_LOG.md`](IMPROVEMENT_LOG.md) — one change per entry. Rejected entries are not retried without a new reason written there. R-004 enforce is rejected until its shadow window is scored.
 - Polymarket US: fees https://docs.polymarket.us/fees · orders/price convention https://docs.polymarket.us/api-reference/orders/overview · developer keys https://polymarket.us/developer
 - Kalshi makers/takers study: https://www.karlwhelan.com/Papers/Kalshi.pdf
 - Project docs (claude.ai project "Polymarkt trading app"): `polymarket-bot-runbook.md`, `polymarket-strategy-research.md`
