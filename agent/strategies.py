@@ -392,6 +392,7 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
         ):
             if key in wx and wx[key] is not None and wx[key] != "":
                 proposal[key] = wx[key]
+        _stamp_gimme_log_fields(proposal, g, wx)
         audits.append(audit)
         proposals.append(proposal)
 
@@ -469,7 +470,7 @@ def _scan_polygon_gimme_bets(params: dict) -> list:
             if size_usd > max_pos:
                 continue
 
-        proposals.append({
+        proposal = {
             "strategy": "gimme_bets",
             "venue": g.get("venue", "polygon"),
             "question": g.get("question", ""),
@@ -486,7 +487,9 @@ def _scan_polygon_gimme_bets(params: dict) -> list:
             "category": g.get("category", "other"),
             "risks": risks,
             "reason": f"{g.get('side', '?')} @ {price:.0%}, {raw_return:.1f}% return in {g.get('days_to_expiry', '?')}d",
-        })
+        }
+        _stamp_gimme_log_fields(proposal, g, None)
+        proposals.append(proposal)
 
     proposals.sort(key=lambda x: x.get("annualized_yield") or 0, reverse=True)
     return proposals[:10]
@@ -500,13 +503,34 @@ def _weather_us_rows() -> dict:
     """{slug: weather row} from agent/weather_us.py, fresh within 30 minutes.
 
     ``p_yes`` is the unblended EMOS / ensemble probability, not the market.
+    ``priced_at`` on this function is the forecast timestamp from that file,
+    kept for the paper-trade log. It is not an input to a bet.
     """
-    env = _load_signal("weather_us.json", max_age_min=30)
+    env = _load_signal("weather_us.json", max_age_min=30) or {}
+    priced = env.get("priced_at") if isinstance(env, dict) else None
+    _weather_us_rows.priced_at = priced.strip() if isinstance(priced, str) and priced.strip() else None
     out = {}
     for r in (env or {}).get("rows", []):
         if r.get("slug"):
             out[r["slug"]] = r
     return out
+
+
+def _stamp_gimme_log_fields(proposal: dict, source: dict | None, wx: dict | None = None) -> None:
+    """Copy book and forecast facts onto a proposal for the paper log.
+
+    Called only after the bet is already chosen. Does not change price, size,
+    or whether the proposal is kept.
+    """
+    source = source or {}
+    wx = wx or {}
+    for key in ("liquidity", "liquidity_usd", "hours_to_expiry"):
+        if proposal.get(key) is None and source.get(key) not in (None, ""):
+            proposal[key] = source[key]
+    if proposal.get("priced_at") in (None, ""):
+        priced = wx.get("priced_at") or getattr(_weather_us_rows, "priced_at", None)
+        if isinstance(priced, str) and priced.strip():
+            proposal["priced_at"] = priced.strip()
 
 
 def _weather_us_view() -> dict:
