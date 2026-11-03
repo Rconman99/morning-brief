@@ -12,6 +12,8 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .gitnexus
+agent/reviews/*
+!agent/reviews/.gitkeep
 agent/paper_trades.jsonl
 agent/proposals.jsonl
 agent/calibration_shadow.jsonl
