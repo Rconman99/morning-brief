@@ -43,6 +43,10 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SHADOW_LOG = PROJECT_ROOT / "agent" / "calibration_shadow.jsonl"
+# One process computes the fit once. weather_us calls calibrate_side once per
+# bracket; re-reading proposals.jsonl each time is what stretched a cycle.
+_FIT_CACHE: dict = {"key": None, "fit": None}
+_SHADOW_STATS = {"rows": 0, "would_skip": 0, "would_resize": 0, "kept": 0}
 _OFF = ("0", "false", "no", "off")
 _STRATEGIES = ("weather_us", "gimme_bets")
 _ENFORCE = ("enforce", "enforced")
@@ -122,13 +126,38 @@ def append_shadow(row: dict, path: Path | None = None) -> None:
     except OSError as exc:
         logger.warning("calibration shadow log failed: %s", exc)
     else:
-        if record["would_skip"] or record["would_resize"]:
-            logger.info(
-                "calibration shadow %s %s %s raw %s calibrated %s would_skip %s would_resize %s kept %s",
-                record["strategy"], record["slug"], record["side"],
-                record["raw_prob"], record["calibrated_prob"],
-                record["would_skip"], record["would_resize"], record["decision_kept"],
-            )
+        _SHADOW_STATS["rows"] += 1
+        if record["would_skip"]:
+            _SHADOW_STATS["would_skip"] += 1
+        if record["would_resize"]:
+            _SHADOW_STATS["would_resize"] += 1
+        if record["decision_kept"]:
+            _SHADOW_STATS["kept"] += 1
+        logger.debug(
+            "calibration shadow %s %s %s raw %s calibrated %s would_skip %s would_resize %s kept %s",
+            record["strategy"], record["slug"], record["side"],
+            record["raw_prob"], record["calibrated_prob"],
+            record["would_skip"], record["would_resize"], record["decision_kept"],
+        )
+
+
+def log_shadow_cycle_summary() -> None:
+    """One INFO line for the cycle. Per-proposal detail stays at DEBUG.
+
+    The JSONL row written by ``append_shadow`` is unchanged. This only
+    changes the text log. Safe to call when shadow mode wrote nothing.
+    """
+    if calibration_mode() != "shadow" and _SHADOW_STATS["rows"] == 0:
+        return
+    logger.info(
+        "calibration shadow summary: logged %d, would_skip %d, would_resize %d, decisions_kept %d",
+        _SHADOW_STATS["rows"], _SHADOW_STATS["would_skip"],
+        _SHADOW_STATS["would_resize"], _SHADOW_STATS["kept"],
+    )
+    _SHADOW_STATS["rows"] = 0
+    _SHADOW_STATS["would_skip"] = 0
+    _SHADOW_STATS["would_resize"] = 0
+    _SHADOW_STATS["kept"] = 0
 
 
 def prior_n() -> float:
@@ -389,51 +418,31 @@ def _disabled_fit() -> dict:
     }
 
 
-def load_settled_rows() -> list[dict]:
-    """Settled weather_us and gimme_bets proposals. Empty when the logs are absent.
+def _fit_source_key():
+    """Identity of the files and knobs the fit is a function of."""
+    from agent import ledger, proposal_log
 
-    Uses the proposal log and the ledger settlement cache. One row per
-    strategy, market, side, and US/Eastern day (the scorer's rule). Missing
-    files, bad JSON, and import errors return [] so a cycle still runs.
-    """
-    try:
-        from agent.proposal_log import PROPOSAL_LOG, eastern_day, load_records, score_proposal_records
-    except Exception:
-        logger.warning("probability calibration: proposal log unavailable")
-        return []
-    try:
-        records = load_records(PROPOSAL_LOG)
-    except Exception:
-        logger.warning("probability calibration: could not read proposals")
-        return []
-    settlements = {}
-    try:
-        from agent.ledger import CACHE
-        if CACHE.exists():
-            payload = json.loads(CACHE.read_text())
-            if isinstance(payload, dict):
-                settlements = payload.get("settlements") or {}
-    except Exception:
-        logger.warning("probability calibration: could not read settlement cache")
-        settlements = {}
-    if not records or not isinstance(settlements, dict) or not settlements:
-        return []
-    try:
-        scored = score_proposal_records(records, settlements)
-    except Exception:
-        logger.warning("probability calibration: scoring settled proposals failed")
-        return []
-    asks = {}
-    for row in records:
-        if not isinstance(row, dict) or row.get("record", "proposal") != "proposal":
-            continue
+    def sig(path) -> tuple:
+        path = Path(path)
         try:
-            day = eastern_day(row.get("timestamp") or "")
-        except (TypeError, ValueError):
-            continue
-        key = (row.get("strategy") or "unknown", row.get("slug"), row.get("side"), day)
-        if key not in asks and row.get("market_ask") is not None:
-            asks[key] = row.get("market_ask")
+            st = path.stat()
+        except OSError:
+            return (str(path), None)
+        return (str(path), st.st_mtime_ns, st.st_size)
+
+    return (
+        calibration_enabled(),
+        prior_n(),
+        platt_min_n(),
+        bin_min_n(),
+        bin_min_count(),
+        sig(proposal_log.PROPOSAL_LOG),
+        sig(ledger.CACHE),
+    )
+
+
+def _settled_sample_from_score(scored: list[dict], asks: dict) -> list[dict]:
+    """The calibration sample. Same fields the in-memory loader produced."""
     out = []
     for row in scored:
         if row.get("strategy") not in _STRATEGIES:
@@ -459,20 +468,87 @@ def load_settled_rows() -> list[dict]:
     return out
 
 
+def _load_settled_rows_status() -> tuple[list[dict], bool]:
+    """Sample plus whether the read succeeded.
+
+    ``ok`` is False when a retry might see a different file. An empty log is
+    a successful read. The second value lets ``current_fit`` cache the success
+    and still retry a failed read on the next candidate.
+    """
+    try:
+        from agent.proposal_log import PROPOSAL_LOG, stream_score_proposal_file
+    except Exception:
+        logger.warning("probability calibration: proposal log unavailable")
+        return [], False
+    settlements = {}
+    try:
+        from agent.ledger import CACHE
+        if CACHE.exists():
+            with CACHE.open(encoding="utf-8") as handle:
+                payload = json.load(handle)
+            if isinstance(payload, dict):
+                settlements = payload.get("settlements") or {}
+    except Exception:
+        logger.warning("probability calibration: could not read settlement cache")
+        return [], False
+    if not isinstance(settlements, dict) or not settlements:
+        return [], True
+    if not Path(PROPOSAL_LOG).exists():
+        return [], True
+    try:
+        scored, asks = stream_score_proposal_file(PROPOSAL_LOG, settlements)
+    except Exception:
+        logger.warning("probability calibration: scoring settled proposals failed")
+        return [], False
+    return _settled_sample_from_score(scored, asks), True
+
+
+def load_settled_rows() -> list[dict]:
+    """Settled weather_us and gimme_bets proposals. Empty when the logs are absent.
+
+    Uses the proposal log and the ledger settlement cache. One row per
+    strategy, market, side, and US/Eastern day (the scorer's rule). The log
+    is streamed; the sample is the same rows the in-memory scorer produced.
+    Missing files, bad JSON, and import errors return [] so a cycle still runs.
+    """
+    rows, _ok = _load_settled_rows_status()
+    return rows
+
+
 def current_fit(rows: list[dict] | None = None) -> dict:
     """Fit for this cycle. Pass ``rows`` in tests; otherwise read the logs.
 
     A failure fits the empty sample, which trusts the market. That is the
     safe direction: it cannot invent edge.
+
+    When ``rows`` is omitted, a successful read is reused for the rest of the
+    process as long as the proposal log, the settlement cache, and the
+    calibration knobs are unchanged. The reused fit is the same dict of
+    numbers a fresh read would produce. A failed read is not cached, so the
+    next candidate tries again.
     """
     if not calibration_enabled():
         return _disabled_fit()
+    if rows is not None:
+        try:
+            return fit_calibration(rows)
+        except Exception:
+            logger.exception("probability calibration fit failed; trusting the market")
+            return fit_calibration([])
+    key = _fit_source_key()
+    if _FIT_CACHE.get("key") == key and _FIT_CACHE.get("fit") is not None:
+        logger.debug("calibration fit reused n=%s", _FIT_CACHE["fit"].get("n"))
+        return dict(_FIT_CACHE["fit"])
     try:
-        sample = load_settled_rows() if rows is None else rows
-        return fit_calibration(sample)
+        sample, ok = _load_settled_rows_status()
+        fit = fit_calibration(sample)
     except Exception:
         logger.exception("probability calibration fit failed; trusting the market")
         return fit_calibration([])
+    if ok:
+        _FIT_CACHE["key"] = key
+        _FIT_CACHE["fit"] = fit
+    return dict(fit)
 
 
 def calibrate_side(raw, market, fit: dict | None = None) -> dict:

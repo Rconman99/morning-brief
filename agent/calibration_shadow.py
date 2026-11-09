@@ -23,28 +23,19 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from agent.jsonl_io import iter_jsonl
 from agent.ledger import CACHE, TRADE_LOG, score
 from agent.prob_calibration import SHADOW_LOG
 from agent.proposal_log import eastern_day
 
 _STRATEGIES = ("weather_us", "gimme_bets")
-
-
-def _read_jsonl(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(row, dict):
-            rows.append(row)
-    return rows
+_SHADOW_FIELDS = (
+    "strategy", "timestamp", "slug", "side", "would_skip", "would_resize", "decision_kept",
+)
+_TRADE_FIELDS = (
+    "timestamp", "strategy", "slug", "side", "status", "token_hint", "outcome",
+    "role", "fill_price", "price", "size", "order_id", "ask_at_entry", "category", "venue",
+)
 
 
 def _day(ts: str) -> str | None:
@@ -69,7 +60,8 @@ def _in_range(day: str | None, start: str | None, end: str | None) -> bool:
 
 def _load_cache(path: Path) -> dict:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        with path.open(encoding="utf-8") as handle:
+            payload = json.load(handle)
     except (OSError, json.JSONDecodeError):
         return {"settlements": {}, "fills": {}}
     if not isinstance(payload, dict):
@@ -86,14 +78,33 @@ def summarize_shadow(start: str | None = None, end: str | None = None, *,
 
     ``start`` and ``end`` are ``YYYY-MM-DD``. Omit either side to leave it open.
     P&L uses the ledger's settlement cache only. Unsettled bets are counted
-    separately and do not contribute a number.
+    separately and do not contribute a number. Lines are read one at a time.
+    Only weather_us and gimme_bets rows are kept, and only the fields the
+    counts read. The JSONL file itself is unchanged.
     """
     shadow_rows = [
-        row for row in _read_jsonl(Path(shadow_path) if shadow_path else SHADOW_LOG)
+        row for row in iter_jsonl(Path(shadow_path) if shadow_path else SHADOW_LOG, _SHADOW_FIELDS)
+        if row.get("strategy") in _STRATEGIES
+    ]
+    trades = [
+        row for row in iter_jsonl(Path(trades_path) if trades_path else TRADE_LOG, _TRADE_FIELDS)
+        if row.get("strategy") in _STRATEGIES
+        and str(row.get("side") or "").upper() == "BUY"
+        and row.get("status") in ("paper_filled", "submitted")
+    ]
+    cache = _load_cache(Path(cache_path) if cache_path else CACHE)
+    return _summarize_rows(shadow_rows, trades, cache, start, end)
+
+
+def _summarize_rows(shadow_rows: list[dict], trades: list[dict], cache: dict,
+                    start: str | None, end: str | None) -> dict:
+    """The count itself. Date filters apply here so a preloaded list matches a stream."""
+    shadow_rows = [
+        row for row in shadow_rows
         if row.get("strategy") in _STRATEGIES and _in_range(_day(row.get("timestamp") or ""), start, end)
     ]
     trades = [
-        row for row in _read_jsonl(Path(trades_path) if trades_path else TRADE_LOG)
+        row for row in trades
         if row.get("strategy") in _STRATEGIES
         and str(row.get("side") or "").upper() == "BUY"
         and row.get("status") in ("paper_filled", "submitted")
@@ -111,7 +122,6 @@ def summarize_shadow(start: str | None = None, end: str | None = None, *,
         )
         would_skip_days[key] = True
 
-    cache = _load_cache(Path(cache_path) if cache_path else CACHE)
     scored_by = {}
     for row in score(trades, cache):
         ident = (

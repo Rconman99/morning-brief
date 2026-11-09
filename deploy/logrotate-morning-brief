@@ -1,0 +1,17 @@
+# morning-brief text logs only.
+# Install: see docs/HANDOFF.md (copy to /etc/logrotate.d/morning-brief).
+#
+# Do not add *.jsonl here. proposals.jsonl, calibration_shadow.jsonl,
+# paper_trades.jsonl, and runs.jsonl are data. Rotating or deleting them
+# drops the record the scoreboard and the calibration fit read.
+# Old proposals are archived only by deploy/archive_proposals.py, by hand.
+
+/opt/morning-brief/agent/*.log {
+    daily
+    maxsize 20M
+    rotate 7
+    compress
+    missingok
+    notifempty
+    copytruncate
+}

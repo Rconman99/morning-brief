@@ -45,12 +45,19 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from agent.gimme_rules import model_prob_for
+from agent.jsonl_io import iter_jsonl
 from agent.loss_review import canonical_strategy
 from agent.proposal_log import brier_score
 
 FIXTURES = PROJECT_ROOT / "tests" / "fixtures" / "real_misses" / "fixtures.json"
 EPS = 1e-12
 _STRATEGY_ORDER = ("weather_us", "gimme", "stage")
+# What the replay reads. The nested trade dict is kept whole. A bulky extra
+# field on a JSONL fixture is not.
+_FIXTURE_KEYS = (
+    "strategy", "side", "outcome", "miss", "cause", "model_prob", "market_prob",
+    "pnl", "model_prob_source", "market_prob_source", "trade", "slug", "p_yes",
+)
 
 
 def _prob(raw):
@@ -155,7 +162,8 @@ def load_candidate(spec: str):
         if rooted.is_file():
             path = rooted
     if path.is_file() and path.suffix == ".json":
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        with path.open(encoding="utf-8") as handle:
+            payload = json.load(handle)
         return candidate_from_config(payload)
     module_name, sep, attr = text.partition(":")
     if not sep:
@@ -167,12 +175,39 @@ def load_candidate(spec: str):
     return fn, text
 
 
-def load_fixtures(path: Path | None = None) -> list[dict]:
-    payload = json.loads(Path(path or FIXTURES).read_text(encoding="utf-8"))
+def _project_fixture(row: dict) -> dict:
+    out = {key: row[key] for key in _FIXTURE_KEYS if key in row}
+    trade = out.get("trade")
+    if isinstance(trade, dict):
+        out["trade"] = dict(trade)
+    return out
+
+
+def iter_fixtures(path: Path | None = None):
+    """Yield fixture rows one at a time.
+
+    A ``.jsonl`` file is one fixture per line. The frozen file is a single
+    JSON document with a ``rows`` array; that document is parsed from a file
+    handle (not ``read_text``) and then yielded. Either way only the fields
+    the gate reads are kept.
+    """
+    path = Path(path or FIXTURES)
+    if path.suffix == ".jsonl":
+        for row in iter_jsonl(path):
+            yield _project_fixture(row)
+        return
+    with path.open(encoding="utf-8") as handle:
+        payload = json.load(handle)
     rows = payload.get("rows") if isinstance(payload, dict) else payload
     if not isinstance(rows, list):
         raise ValueError("fixtures must be a list or an object with rows")
-    return rows
+    for row in rows:
+        if isinstance(row, dict):
+            yield _project_fixture(row)
+
+
+def load_fixtures(path: Path | None = None) -> list[dict]:
+    return list(iter_fixtures(path))
 
 
 def _call_prob(fn, view: dict, label: str) -> float | None:

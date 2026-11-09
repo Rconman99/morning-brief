@@ -267,6 +267,11 @@ def run_agent(bankroll: float = 1000.0, dry_run: bool = False):
     # 2. Run all strategies to get proposals
     proposals = run_all_strategies(params)
     gimme_candidates = list(getattr(run_all_strategies, "last_gimme_evaluations", []) or [])
+    try:
+        from agent.prob_calibration import log_shadow_cycle_summary
+        log_shadow_cycle_summary()
+    except Exception:
+        logger.debug("calibration shadow summary failed", exc_info=True)
     logger.info("Total proposals: %d", len(proposals))
 
     if not proposals:

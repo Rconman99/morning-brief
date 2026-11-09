@@ -211,7 +211,7 @@ def _scan_us_gimme_bets(params: dict) -> tuple[list, list]:
                 market_mid = (bid_q + ask_q) / 2.0
         if model_prob is not None:
             cal_meta = calibrate_side(model_prob, market_mid)
-            logger.info(
+            logger.debug(
                 "gimme calibration %s %s mode %s raw %.3f market %s calibrated %s weight %s n %s method %s",
                 slug, side, mode, float(model_prob),
                 "none" if not cal_meta or cal_meta.get("market_prob") is None else f"{cal_meta['market_prob']:.3f}",
