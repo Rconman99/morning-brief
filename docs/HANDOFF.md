@@ -87,6 +87,27 @@ to winning strategies and less to losers, continuously improving.
   - `.venv/bin/python agent/weather_settlement_backtest.py` (CLI highs vs past settlements; writes the city-skip file)
   - `.venv/bin/python agent/scoreboard.py` (includes proposal Brier / CLV; not a ladder gate)
   - `.venv/bin/python agent/calibration_shadow.py --from YYYY-MM-DD --to YYYY-MM-DD` (watch-only calibration: would-skip counts and settled P&L)
+- **Text logs** (`agent/*.log`, including `vps.log` and `agent.log`) rotate on the droplet. JSONL data files do not.
+
+  ```bash
+  sudo apt-get install -y logrotate
+  sudo cp /opt/morning-brief/deploy/logrotate-morning-brief /etc/logrotate.d/morning-brief
+  sudo chown root:root /etc/logrotate.d/morning-brief
+  sudo chmod 644 /etc/logrotate.d/morning-brief
+  sudo logrotate -d /etc/logrotate.d/morning-brief
+  ```
+
+  The rule is daily or 20 MB, keep 7 compressed copies, `copytruncate` so a process that still has the file open keeps writing. If the repo is not in `/opt/morning-brief`, edit the path in the config before copying it. Do not add `*.jsonl` to that file.
+
+- **Old proposals, by hand only.** `deploy/archive_proposals.py` moves lines older than N US/Eastern days out of `agent/proposals.jsonl` into `agent/archive/proposals-before-YYYY-MM-DD-*.jsonl.gz`. It is not on the timer and it is a dry run until `--apply`.
+
+  ```bash
+  cd /opt/morning-brief
+  .venv/bin/python deploy/archive_proposals.py --days 90
+  .venv/bin/python deploy/archive_proposals.py --days 90 --apply
+  ```
+
+- **Why a cycle got slow.** `calibrate_side` refit from the whole proposal log on every weather bracket and every gimme candidate (`current_fit` → read `proposals.jsonl` → score every settled group against every line). That reread, not the calibration math, is what stretched a cycle toward an hour once the log was tens of megabytes. The fit is now computed once per process and reused while the log, the settlement cache, and the calibration knobs are unchanged. Per-proposal shadow lines are DEBUG. Each `run.py` cycle logs one INFO summary. Rows in `calibration_shadow.jsonl` are unchanged.
 - Telegram: daily scoreboard ~8am PT (`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` in `.env`).
 
 ### `.env` variables (names only — never print values)
@@ -255,6 +276,9 @@ probability, the calibrated probability, and `would_skip` / `would_resize`.
 `enforce` is what makes the shrunk probability change the bet. It can only
 drop a bet or shrink a size that is already above the 5-share floor.
 `PROB_CAL_ENABLED=0` turns the step off, including the shadow log.
+Per-proposal shadow lines are DEBUG. `run.py` logs one INFO summary per cycle
+(`logged`, `would_skip`, `would_resize`, `decisions_kept`). That summary is
+not a gate.
 
 The calibrated number blends the model with the market mid. The weight is
 learned from settled weather_us and gimme_bets proposals and is pulled toward

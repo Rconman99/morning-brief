@@ -206,20 +206,33 @@ def load_weather_quotes() -> list[dict]:
     return quotes_from_weather_envelope(env)
 
 
-def load_records(path: Path | None = None) -> list[dict]:
+def iter_records(path: Path | None = None):
+    """Yield proposal-log rows one line at a time. Does not hold the file."""
+    from agent.jsonl_io import iter_jsonl
     p = Path(path) if path else PROPOSAL_LOG
-    if not p.exists():
-        return []
-    rows = []
-    for line in p.read_text().splitlines():
-        line = line.strip()
-        if not line:
+    yield from iter_jsonl(p)
+
+
+def load_records(path: Path | None = None) -> list[dict]:
+    """Every row, in order. Prefer ``iter_records`` when the file is large."""
+    return list(iter_records(path))
+
+
+def iter_proposal_slugs(path: Path | None = None):
+    """First-seen non-empty proposal slugs, in file order.
+
+    The ledger refreshes at most 60 unsettled slugs and skips duplicates, so
+    this sequence looks up the same markets as the full slug list.
+    """
+    seen = set()
+    for row in iter_records(path):
+        if row.get("record", "proposal") != "proposal":
             continue
-        try:
-            rows.append(json.loads(line))
-        except json.JSONDecodeError:
+        slug = row.get("slug", "")
+        if not slug or slug in seen:
             continue
-    return rows
+        seen.add(slug)
+        yield slug
 
 
 def _append(path: Path, rows: list[dict]) -> int:
@@ -341,8 +354,10 @@ def log_cycle(proposals: list[dict], executed: list[dict] | None = None,
         row.update(forecast_fields(raw))
         proposal_rows.append(row)
 
-    known = {(r.get("slug"), r.get("side")) for r in load_records(path)
-             if r.get("record", "proposal") == "proposal"}
+    known = set()
+    for row in iter_records(path):
+        if row.get("record", "proposal") == "proposal":
+            known.add((row.get("slug"), row.get("side")))
     known |= proposed_pairs
     quote_rows = []
     seen_q = set()
@@ -422,6 +437,154 @@ def calibration_buckets(rows: list[dict], buckets: int = 10) -> list[dict]:
             "realized": (sum(float(r["outcome"]) for r in members) / n) if n else None,
         })
     return out
+
+
+def _quote_price(row: dict):
+    """Price used when picking the close. Same order as the in-memory scorer."""
+    px = implied_prob(row.get("market_ask"), row.get("market_bid"))
+    if px is None and row.get("market_prob") is not None:
+        px = _pos_price(row.get("market_prob"))
+    return px
+
+
+def _capture_first(row: dict) -> dict:
+    """Fields the scorer reads off the earliest proposal. Drops the rest of the line."""
+    return {
+        "model_prob": row.get("model_prob"),
+        "market_prob": row.get("market_prob"),
+        "market_ask": row.get("market_ask"),
+        "market_bid": row.get("market_bid"),
+        "group": row.get("group"),
+        "approved": row.get("approved"),
+        "forecast": forecast_fields(row),
+    }
+
+
+def _usable_settlements(settlements: dict) -> dict:
+    usable = {}
+    for slug, raw in (settlements or {}).items():
+        try:
+            usable[slug] = float(raw)
+        except (TypeError, ValueError):
+            continue
+    return usable
+
+
+def stream_score_proposal_file(path: Path, settlements: dict) -> tuple[list[dict], dict]:
+    """Same rows as ``score_proposal_records``, read one line at a time.
+
+    Pass 1 keeps the earliest proposal of each settled strategy/slug/side/day
+    and the file-order first ask. Pass 2 keeps the close: the last quote whose
+    timestamp is strictly later, with the higher price breaking a timestamp
+    tie. That is what sorting ``(timestamp, price)`` does. Unsettled lines are
+    parsed and dropped. The ask map is the file-order first ``market_ask`` for
+    each settled group, which is what the calibration sample reads.
+    """
+    usable = _usable_settlements(settlements)
+    groups: dict[tuple, dict] = {}
+    by_pair: dict[tuple, list] = {}
+    asks: dict[tuple, object] = {}
+    if not usable:
+        return [], asks
+
+    index = 0
+    for row in iter_records(path):
+        slug = row.get("slug")
+        side = row.get("side")
+        if row.get("record", "proposal") == "proposal" and slug and side and slug in usable:
+            ts = row.get("timestamp") or ""
+            try:
+                day = eastern_day(ts)
+            except (TypeError, ValueError):
+                day = None
+            if day is not None:
+                strategy = row.get("strategy") or "unknown"
+                key = (strategy, slug, side, day)
+                if key not in asks and row.get("market_ask") is not None:
+                    asks[key] = row.get("market_ask")
+                slot = groups.get(key)
+                if slot is None:
+                    slot = {
+                        "strategy": strategy,
+                        "slug": slug,
+                        "side": side,
+                        "day": day,
+                        "n": 1,
+                        "ts": ts,
+                        "idx": index,
+                        "first": _capture_first(row),
+                        "best": None,
+                    }
+                    groups[key] = slot
+                    by_pair.setdefault((slug, side), []).append(slot)
+                else:
+                    slot["n"] += 1
+                    if isinstance(ts, str) and (ts, index) < (slot["ts"], slot["idx"]):
+                        slot["ts"] = ts
+                        slot["idx"] = index
+                        slot["first"] = _capture_first(row)
+        index += 1
+
+    for row in iter_records(path):
+        slots = by_pair.get((row.get("slug"), row.get("side")))
+        if not slots:
+            continue
+        ts = row.get("timestamp") or ""
+        if not isinstance(ts, str):
+            continue
+        px = _quote_price(row)
+        if px is None:
+            continue
+        for slot in slots:
+            if ts <= slot["ts"]:
+                continue
+            cur = slot["best"]
+            if cur is None or (ts, px) > cur:
+                slot["best"] = (ts, px)
+
+    scored = []
+    for slot in groups.values():
+        first = slot["first"]
+        model = first["model_prob"]
+        market = first["market_prob"]
+        if market is None:
+            market = implied_prob(first["market_ask"], first["market_bid"])
+        yes = usable[slot["slug"]]
+        outcome = yes if slot["side"] == "yes" else 1.0 - yes
+        entry = market
+        close = slot["best"][1] if slot["best"] is not None else None
+        clv = closing_line_value(close, entry) if close is not None and entry is not None else None
+        item = {
+            "strategy": slot["strategy"],
+            "slug": slot["slug"],
+            "side": slot["side"],
+            "day": slot["day"],
+            "group": first.get("group"),
+            "model_prob": model,
+            "market_prob": market,
+            "outcome": outcome,
+            "entry_price": entry,
+            "close_price": close,
+            "clv": clv,
+            "approved": first.get("approved"),
+            "n_logged": slot["n"],
+        }
+        if model is not None:
+            item["brier_model"] = brier_score(model, outcome)
+            item["logloss_model"] = log_loss(model, outcome)
+        if market is not None:
+            item["brier_market"] = brier_score(market, outcome)
+            item["logloss_market"] = log_loss(market, outcome)
+        item.update(first["forecast"])
+        scored.append(item)
+    scored.sort(key=lambda r: (r["day"], r["strategy"], r["slug"], r["side"]))
+    return scored, asks
+
+
+def score_proposal_records_streaming(path: Path, settlements: dict) -> list[dict]:
+    """File-backed twin of ``score_proposal_records``. Same scored rows."""
+    scored, _asks = stream_score_proposal_file(path, settlements)
+    return scored
 
 
 def score_proposal_records(records: list[dict], settlements: dict) -> list[dict]:

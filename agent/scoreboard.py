@@ -144,6 +144,36 @@ def render(summary: dict, ladder: dict, weights: dict, budgets: dict,
     return "\n".join(lines)
 
 
+def load_model_vs_market(refresh_settlements: bool = True) -> dict:
+    """Model-vs-market block, reading proposals.jsonl one line at a time.
+
+    Same numbers as loading the whole log. Settlement refresh is still the
+    ledger's 60-lookup cap, in first-seen slug order. This block does not
+    move the capital ladder or a strategy weight.
+    """
+    from agent.ledger import _load_cache, refresh_slugs
+    from agent.proposal_log import (
+        PROPOSAL_LOG,
+        evidence_line,
+        iter_proposal_slugs,
+        stream_score_proposal_file,
+        summarize_model_vs_market,
+    )
+
+    slugs = list(iter_proposal_slugs(PROPOSAL_LOG))
+    if refresh_settlements and slugs:
+        cache = refresh_slugs(slugs)
+    else:
+        cache = _load_cache()
+    scored, _asks = stream_score_proposal_file(PROPOSAL_LOG, cache.get("settlements") or {})
+    summary = summarize_model_vs_market(scored)
+    return {
+        "scored": len(scored),
+        "by_strategy": summary,
+        "line": evidence_line(summary),
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--telegram", action="store_true", help="Send the summary to Telegram (max once per day)")
@@ -162,8 +192,7 @@ def main():
     weights = {s: float((params.get(s) or {}).get("weight", 1.0)) for s in summary}
     budgets = strategy_budgets(bankroll, set(summary)) if summary else {}
     try:
-        from agent.ledger import proposal_report
-        preport = proposal_report(refresh_settlements=True)
+        preport = load_model_vs_market(refresh_settlements=True)
         model_vs_market = preport.get("by_strategy") or {}
     except Exception as e:
         logging.getLogger(__name__).warning("proposal scores unavailable: %s", e)

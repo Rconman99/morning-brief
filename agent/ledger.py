@@ -235,27 +235,10 @@ def proposal_report(refresh_settlements: bool = True) -> dict:
     """Score logged proposals once their markets have a real YES settlement.
 
     Informational only: callers must not use this to move the capital ladder
-    or strategy weights.
+    or strategy weights. The log is streamed (see ``scoreboard.load_model_vs_market``).
     """
-    from agent.proposal_log import (
-        evidence_line,
-        load_records,
-        score_proposal_records,
-        summarize_model_vs_market,
-    )
-    records = load_records()
-    slugs = [r.get("slug", "") for r in records if r.get("record", "proposal") == "proposal"]
-    if refresh_settlements and slugs:
-        cache = refresh_slugs(slugs)
-    else:
-        cache = _load_cache()
-    scored = score_proposal_records(records, cache.get("settlements", {}))
-    summary = summarize_model_vs_market(scored)
-    return {
-        "scored": len(scored),
-        "by_strategy": summary,
-        "line": evidence_line(summary),
-    }
+    from agent.scoreboard import load_model_vs_market
+    return load_model_vs_market(refresh_settlements=refresh_settlements)
 
 
 def main():

@@ -40,6 +40,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from agent.jsonl_io import iter_jsonl
 from agent.ledger import CACHE, TRADE_LOG, score
 from agent.proposal_log import PROPOSAL_LOG, brier_score, eastern_day, implied_prob
 
@@ -56,23 +57,21 @@ HOLDOUT_DAYS = 14
 REVIEWS_DIR = PROJECT_ROOT / "agent" / "reviews"
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _EPS = 1e-9
-
-
-def _read_jsonl(path: Path) -> list[dict]:
-    if not path.exists():
-        return []
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(row, dict):
-            rows.append(row)
-    return rows
+# Fields the review and the ledger scorer actually read. Everything else on a
+# proposal line (question text, diagnostics) stays on disk.
+_TRADE_FIELDS = (
+    "timestamp", "strategy", "slug", "token_hint", "outcome", "side", "status",
+    "venue", "price", "fill_price", "size", "role", "order_id", "ask_at_entry",
+    "category", "model_prob", "market_prob", "market_mid", "market_ask", "market_bid",
+    "spread", "depth_shares", "liquidity", "liquidity_usd", "forecast_age_hours",
+    "hours_to_expiry", "settled_at",
+)
+_PROPOSAL_FIELDS = (
+    "record", "slug", "side", "token_hint", "outcome", "strategy", "timestamp",
+    "model_prob", "estimated_prob", "market_prob", "market_mid", "market_ask",
+    "market_bid", "spread", "depth_shares", "liquidity", "liquidity_usd",
+    "forecast_age_hours", "hours_to_expiry", "settled_at",
+)
 
 
 def _load_cache(path: Path) -> dict:
@@ -382,16 +381,31 @@ def review_losses(start: str, end: str, *,
                   cache_path: Path | None = None,
                   proposals_path: Path | None = None,
                   holdout_days: int = HOLDOUT_DAYS) -> dict:
-    """Settled paper losses in an inclusive US/Eastern window, plus Brier slices."""
+    """Settled paper losses in an inclusive US/Eastern window, plus Brier slices.
+
+    The proposal log is streamed. Only rows for slugs that were actually
+    traded in the window are kept, and only the fields the tags read.
+    """
     date.fromisoformat(start)
     date.fromisoformat(end)
     trades = [
-        row for row in _read_jsonl(Path(trades_path) if trades_path else TRADE_LOG)
+        row for row in iter_jsonl(Path(trades_path) if trades_path else TRADE_LOG, _TRADE_FIELDS)
         if _paper_buy(row) and _in_range(_day(row.get("timestamp")), start, end)
     ]
     cache = _load_cache(Path(cache_path) if cache_path else CACHE)
+    slugs = {(row.get("slug") or "") for row in trades}
+    records = []
+    if slugs:
+        for row in iter_jsonl(Path(proposals_path) if proposals_path else PROPOSAL_LOG, _PROPOSAL_FIELDS):
+            if (row.get("slug") or "") in slugs:
+                records.append(row)
+    return _review_loaded(start, end, trades, records, cache, holdout_days)
+
+
+def _review_loaded(start: str, end: str, trades: list[dict], records: list[dict],
+                   cache: dict, holdout_days: int) -> dict:
+    """Tag losses from rows already in memory. ``review_losses`` is the streaming front."""
     prices, settled_at = _settlement_tables(cache)
-    records = _read_jsonl(Path(proposals_path) if proposals_path else PROPOSAL_LOG)
     scored = score(trades, {"settlements": prices, "fills": {}})
 
     recent = _recent_start(start, end, holdout_days)
